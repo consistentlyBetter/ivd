@@ -4,7 +4,7 @@
 \alias{funnel_plot}
 \title{funnel_plot}
 \usage{
-funnel_plot(obj, pip_line = 0.5, col_id = TRUE, ...)
+funnel_plot(obj, ...)
 }
 \arguments{
 \item{obj}{An object fit with \code{ss_ranef_mv()}}

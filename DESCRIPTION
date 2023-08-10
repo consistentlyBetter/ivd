@@ -1,12 +1,15 @@
-Package: SSranef
+Package: ivd
 Type: Package
-Title: Mixed-effects Models with Spike-and-Slab Priors 
+Title: Individual Variance Detection 
 Version: 0.1.0
 Author: Josue E. Rodriguez
 Maintainer: Josue E. Rodriguez <jerrodriguez@ucdavis.edu>
-Description: Fit mixed-effects models with spike-and-slab priors on the random effects. 
+Description: Fit mixed-effects models with spike-and-slab priors on the random effects to identify unusual residual variances 
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.3
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
