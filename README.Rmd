@@ -1,0 +1,131 @@
+---
+output: github_document
+bibliography: inst/ref.bib
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%",
+  cache = TRUE
+  
+)
+```
+
+# SSranef
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+SSranef is an R package for random effects selection that corresponds to the models described in @rodriguez2021. Specifically, `ss_ranef_alpha()` fits a random intercepts model with a spike-and-slab prior on the random effects and `ss_ranef_beta()` fits a model with both random intercepts and random slopes, with a spike-and-slab prior on the random effects for the slope. The function `ss_ranef_mv()` fits a multivariate mixed-effects models for two outcomes and places a spike-and-slab prior on the random slope for each outcome.
+
+## Installation
+
+
+This package can be installed with 
+
+``` r
+# install.packages("devtools")
+devtools::install_github("josue-rodriguez/SSranef")
+```
+
+## Example
+
+Because `SSranef` uses JAGS as a backend, we must also load the `rjags` package.
+
+```{r example}
+library(SSranef)
+library(rjags)
+
+d <- lme4::sleepstudy
+```
+
+## Alpha model
+```{r}
+d$y <- c(scale(d$Reaction))
+
+alpha <- ss_ranef_alpha(y = d$y, unit = d$Subject)
+
+posterior_summary(alpha, ci = 0.90, digits = 2)
+```
+
+```{r}
+ranef_summary(alpha, ci = 0.95, digits = 2)
+```
+
+```{r}
+caterpillar_plot(alpha)
+```
+
+```{r}
+pip_plot(alpha)
+```
+
+## Beta model
+```{r}
+beta <- ss_ranef_beta(y = d$y, X = d$Days, unit = d$Subject)
+posterior_summary(beta, digits = 2)
+```
+
+```{r}
+ranef_summary(beta, digits = 2)
+```
+
+```{r}
+caterpillar_plot(beta)
+```
+
+```{r}
+pip_plot(beta)
+```
+
+```{r include=FALSE, eval=FALSE}
+library(lme4)
+summary(lmer(y ~ 1 + (1|Subject), data = d))
+```
+
+## Multivariate model
+
+```{r}
+mv_data <- gen_mv_data(5, 5)
+str(mv_data)
+
+mv_model <- ss_ranef_mv(Y = cbind(mv_data$y1, mv_data$y2),
+                        X = mv_data$x,
+                        unit = mv_data$id,
+                        burnin = 100,
+                        iter = 500,
+                        chains = 4)
+
+posterior_summary(mv_model)
+```
+
+
+## Priors
+
+Priors can be passed on to either of the `ss_ranef` functions through a named list and using JAGS code, e.g., 
+
+```{r}
+# change prior for mean intercept
+priors <- list(alpha = "alpha ~ dt(0, 1, 3)",
+               # for each jth unit, change prior probability of inclusion
+               gamma = "gamma[j] ~ dbern(0.75)") 
+
+fit <- ss_ranef_alpha(y = d$y, unit = d$Subject, priors = priors)
+ranef_summary(fit)
+```
+
+## Building on top of SSranef models
+
+The code for each model can also be extracted to make more extensive modifications or build more complex models
+
+```{r}
+jags_model_text <- fit$model_text
+cat(jags_model_text)
+```
+
+# References
