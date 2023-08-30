@@ -25,6 +25,8 @@ knitr::opts_chunk$set(
 
 SSranef is an R package for random effects selection that corresponds to the models described in @rodriguez2021. Specifically, `ss_ranef_alpha()` fits a random intercepts model with a spike-and-slab prior on the random effects and `ss_ranef_beta()` fits a model with both random intercepts and random slopes, with a spike-and-slab prior on the random effects for the slope. The function `ss_ranef_mv()` fits a multivariate mixed-effects models for two outcomes and places a spike-and-slab prior on the random slope for each outcome.
 
+This package is repurposed from the orginal verision at [josue-rodriguez/SSranef](https://www.github.com/josue-rodriguez/SSranef)
+
 ## Installation
 
 
@@ -32,7 +34,7 @@ This package can be installed with
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("josue-rodriguez/SSranef")
+devtools::install_github("rast-ph/ivd")
 ```
 
 ## Example
@@ -40,7 +42,7 @@ devtools::install_github("josue-rodriguez/SSranef")
 Because `SSranef` uses JAGS as a backend, we must also load the `rjags` package.
 
 ```{r example}
-library(SSranef)
+library(ivd)
 library(rjags)
 
 d <- lme4::sleepstudy
