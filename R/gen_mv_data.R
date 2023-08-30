@@ -5,6 +5,8 @@
 #'
 #' @importMethodsFrom Matrix t
 #' @importFrom Matrix sparseMatrix KhatriRao
+#' @importFrom mvtnorm rmvnorm
+#' @importFrom methods selectMethod as
 #' @export
 gen_mv_data <- function(n, n_j) {
   N <- n * n_j

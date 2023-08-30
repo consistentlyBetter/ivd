@@ -1,0 +1,16 @@
+^\.travis\.yml$
+^.*\.Rproj$
+^\.Rproj\.user$
+^local$
+^tests$
+^.covrignore$
+^README\.Rmd$
+^man/figures$
+^todo.org$
+^cran-comments\.md$
+^CODE_OF_CONDUCT\.md$
+^CONTRIBUTING\.md$
+^\.github$
+^/\.gitattributes$
+^CRAN-RELEASE$
+^doc$

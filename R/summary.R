@@ -6,7 +6,7 @@
 #' @param ci The width of the credible interval that should be used. Defaults to 0.9.
 #' @param as_df Whether a `data.frame` should instead be returned. Defaults to FALSE.
 #' @param digits The number of digits to which the output should be rounded. Defaults to 2.
-#'
+#' @importFrom stats quantile
 #'
 #' @export
 
@@ -42,7 +42,7 @@ posterior_summary <- function(obj, ci = 0.9, as_df = FALSE, digits = 2) {
 
   summ_df <- data.frame(post_means, post_lwr, post_upr)
   summ_df <- round(summ_df, digits)
-  colnames(summ_df) <- c("Post.mean", bounds_labs)
+  colnames(summ_df) <- c("Post_mean", bounds_labs)
 
   if (as_df) return(summ_df)
 
@@ -143,7 +143,7 @@ ranef_summary <- function(obj, ci = 0.9, as_df = FALSE, digits = 2) {
 
   summ_df <- data.frame(post_means, post_lwr, post_upr, pips, BF_10, BF_01)
   summ_df <- round(summ_df, digits)
-  colnames(summ_df) <- c("Post.mean", bounds_labs, "PIP", "BF_10", "BF_01")
+  colnames(summ_df) <- c("Post_mean", bounds_labs, "PIP", "BF_10", "BF_01")
 
   if (as_df) return(summ_df)
 
