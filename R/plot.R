@@ -15,16 +15,19 @@
 caterpillar_plot <- function(obj, ci = 0.9, col_id = TRUE, ...) {
   ranef_summ <- ranef_summary(obj, ci = ci, as_df = TRUE)
 
+  ## To prevent "no visible binding for global variable" error init variables:
+  PIP = model = id = Post_mean = lb = ub = NULL
+  
   type <- obj$call[1]
   if (grepl("beta", type)) {
     sorted_ranefs2 <- ranef_summ[grepl("theta2", rownames(ranef_summ)), ]
-    sorted_ranefs2 <- sorted_ranefs2[order(sorted_ranefs2$Post.mean), ]
+    sorted_ranefs2 <- sorted_ranefs2[order(sorted_ranefs2$Post_mean), ]
 
     sorted_ranefs2$id <- gsub("theta2_", "", row.names(sorted_ranefs2))
     sorted_ranefs2$id <- factor(sorted_ranefs2$id, levels = c(sorted_ranefs2$id))
 
     sorted_ranefs1 <- ranef_summ[grepl("theta1", rownames(ranef_summ)), ]
-    sorted_ranefs1 <- sorted_ranefs1[order(sorted_ranefs1$Post.mean), ]
+    sorted_ranefs1 <- sorted_ranefs1[order(sorted_ranefs1$Post_mean), ]
 
     sorted_ranefs1$id <- gsub("theta1_", "", row.names(sorted_ranefs1))
     # make factor levels same as ranefs2
@@ -34,14 +37,14 @@ caterpillar_plot <- function(obj, ci = 0.9, col_id = TRUE, ...) {
     colnames(sorted_ranefs2)[2:3] <- c("lb", "ub")
 
     p1 <-
-      ggplot(sorted_ranefs1, aes(id, Post.mean)) +
+      ggplot(sorted_ranefs1, aes(x = id, y = Post_mean)) +
       geom_hline(yintercept = 0, col = "red", linetype = "dashed") +
       geom_errorbar(aes(ymin = lb, ymax = ub), width = 0.1) +
       labs(y = "theta1")
 
 
     p2 <-
-      ggplot(sorted_ranefs2, aes(id, Post.mean)) +
+      ggplot(sorted_ranefs2, aes(x = id, y = Post_mean)) +
       geom_hline(yintercept = 0, col = "red", linetype = "dashed") +
       geom_errorbar(aes(ymin = lb, ymax = ub), width = 0.1) +
       labs(y = "theta2")
@@ -60,14 +63,14 @@ caterpillar_plot <- function(obj, ci = 0.9, col_id = TRUE, ...) {
 
   } else { # begin plot for 'alpha' model
     # sort random effects and created a sorted id
-    sorted_ranefs <- ranef_summ[order(ranef_summ$Post.mean), ]
+    sorted_ranefs <- ranef_summ[order(ranef_summ$Post_mean), ]
     sorted_ranefs$id <- gsub("theta_", "", row.names(sorted_ranefs))
     sorted_ranefs$id <- factor(sorted_ranefs$id, levels = c(sorted_ranefs$id))
 
     colnames(sorted_ranefs)[2:3] <- c("lb", "ub")
 
     p <-
-      ggplot(sorted_ranefs, aes(id, Post.mean)) +
+      ggplot(sorted_ranefs, aes(x = id, y = Post_mean)) +
       geom_hline(yintercept = 0, col = "red", linetype = "dashed") +
       geom_errorbar(aes(ymin = lb, ymax = ub), width = 0.1) +
       labs(y = "theta")
@@ -95,6 +98,9 @@ caterpillar_plot <- function(obj, ci = 0.9, col_id = TRUE, ...) {
 #' @export
 
 pip_plot <- function(obj, pip_line = 0.5, col_id = TRUE, ...) {
+  ## To prevent "no visible binding for global variable" error init variables:
+  PIP = model = id = Post_mean = lb = ub = NULL
+
   type <- obj$call[1]
   ranef_summ <- ranef_summary(obj, as_df = TRUE)
   if (grepl("beta", type)) {
@@ -103,7 +109,7 @@ pip_plot <- function(obj, pip_line = 0.5, col_id = TRUE, ...) {
     sorted_ranefs$id <- factor(sorted_ranefs$id, levels = c(sorted_ranefs$id))
 
     p <-
-      ggplot(sorted_ranefs, aes(Post.mean, PIP)) +
+      ggplot(sorted_ranefs, aes(x = Post_mean, y = PIP)) +
       geom_hline(yintercept = pip_line, col = "red", linetype = "dashed") +
       labs(x = "theta2")
     if (col_id) {
@@ -116,12 +122,12 @@ pip_plot <- function(obj, pip_line = 0.5, col_id = TRUE, ...) {
 
   } else {
     # sort random effects and created a sorted id
-    sorted_ranefs <- ranef_summ[order(ranef_summ$Post.mean), ]
+    sorted_ranefs <- ranef_summ[order(ranef_summ$Post_mean), ]
     sorted_ranefs$id <- gsub("theta_", "", row.names(sorted_ranefs))
     sorted_ranefs$id <- factor(sorted_ranefs$id, levels = c(sorted_ranefs$id))
 
     p <-
-      ggplot(sorted_ranefs, aes(Post.mean, PIP)) +
+      ggplot(sorted_ranefs, aes(x = Post_mean, y = PIP)) +
       geom_hline(yintercept = pip_line, col = "red", linetype = "dashed") +
       labs(x = "theta")
     if (col_id) {
@@ -143,6 +149,9 @@ pip_plot <- function(obj, pip_line = 0.5, col_id = TRUE, ...) {
 #' @export
 
 funnel_plot <- function(obj, ...) {
+  ## To prevent "no visible binding for global variable" error init variables:
+  PIP = pip = model = id = Post_mean = lb = ub = NULL
+
   type <- obj$call[1]
   if (!grepl("mv", type)) stop("funnel_plot() only works with objects produced by ss_ranef_mv()")
 
@@ -167,7 +176,7 @@ funnel_plot <- function(obj, ...) {
 
 
   p <-
-    ggplot(pips_df, aes(id, pip, fill = model)) +
+    ggplot(pips_df, aes(x = id, y = pip, fill = model)) +
     geom_col(col = "black", width = 1) +
     scale_x_discrete(limits = plot_order$id) +
     scale_y_continuous(labels = abs(seq(-1, 1, 0.5)),
