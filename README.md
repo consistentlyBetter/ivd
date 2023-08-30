@@ -6,7 +6,7 @@ SSranef
 
 <!-- badges: start -->
 
-![R-CMD-check](https://github.com/ph-rast/ivd/workflows/R-CMD-check/badge.svg)
+![R-CMD-Check](https://github.com/ph-rast/ivd/workflows/R-CMD-check/badge.svg)
 <!-- badges: end -->
 
 SSranef is an R package for random effects selection that corresponds to
