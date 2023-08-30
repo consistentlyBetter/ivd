@@ -20,7 +20,7 @@ knitr::opts_chunk$set(
 # SSranef
 
 <!-- badges: start -->
-[![R-CMD-check](https://github.com/ph-rast/ivd/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/ph-rast/ivd/actions/workflows/R-CMD-check.yaml)
+[![R-CMD-Check](https://github.com/ph-rast/ivd/actions/workflows/R-CMD-Check.yml/badge.svg)](https://github.com/ph-rast/ivd/actions/workflows/R-CMD-Check.yml)
 <!-- badges: end -->
 
 SSranef is an R package for random effects selection that corresponds to the models described in @rodriguez2021. Specifically, `ss_ranef_alpha()` fits a random intercepts model with a spike-and-slab prior on the random effects and `ss_ranef_beta()` fits a model with both random intercepts and random slopes, with a spike-and-slab prior on the random effects for the slope. The function `ss_ranef_mv()` fits a multivariate mixed-effects models for two outcomes and places a spike-and-slab prior on the random slope for each outcome.
