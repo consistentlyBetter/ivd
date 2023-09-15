@@ -1,8 +1,8 @@
 #' posterior_summary
 #'
-#' Summarizes the posterior distribution contained in `ss_ranef` objects
+#' Summarizes the posterior distribution contained in `ivd` objects
 #'
-#' @param obj An object of type `ss_ranef`
+#' @param obj An object of type `ivd`
 #' @param ci The width of the credible interval that should be used. Defaults to 0.9.
 #' @param as_df Whether a `data.frame` should instead be returned. Defaults to FALSE.
 #' @param digits The number of digits to which the output should be rounded. Defaults to 2.
@@ -24,7 +24,7 @@ posterior_summary <- function(obj, ci = 0.9, as_df = FALSE, digits = 2) {
                 "sigma_1", "sigma_2",
                 "Tau_1_1", "Tau_2_2", "Tau_3_3", "Tau_4_4")
   } else {
-    stop("obj must be an ss_ranef object.")
+    stop("obj must be an ivd object.")
   }
 
   post_samps <- obj$posterior_samples[, cnames]
@@ -57,7 +57,7 @@ posterior_summary <- function(obj, ci = 0.9, as_df = FALSE, digits = 2) {
 #' Print method for `posterior_summary()`
 #'
 #'
-#' @param x An object of type `ss_ranef`
+#' @param x An object of type `ivd`
 #' @param ... Currently not in use
 #'
 #'
@@ -73,9 +73,9 @@ print.posterior_summary <- function(x, ...) {
 
 #' ranef_summary
 #'
-#' Summarizes the posterior distribution of the random effects contained in `ss_ranef` objects
+#' Summarizes the posterior distribution of the random effects contained in `ivd` objects
 #'
-#' @param obj An object of type `ss_ranef`
+#' @param obj An object of type `ivd`
 #' @param ci The width of the credible interval that should be used. Defaults to 0.9.
 #' @param as_df Whether a `data.frame` should instead be returned. Defaults to FALSE.
 #' @param digits The number of digits to which the output should be rounded. Defaults to 2.
@@ -97,7 +97,7 @@ ranef_summary <- function(obj, ci = 0.9, as_df = FALSE, digits = 2) {
     theta_names <- c(grep("theta", all_cnames, value = TRUE))
      # stop("Multivariate models not yet supported.")
   } else {
-    stop("obj must be an ss_ranef object.")
+    stop("obj must be an ivd object.")
   }
 
   if (grepl("mv", type)) {

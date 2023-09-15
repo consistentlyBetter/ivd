@@ -5,37 +5,37 @@ result_alpha <- result_beta <- result_mv <- NULL
 set.seed(123)
 y <- rnorm(100)
 unit <- rep(1:10, each = 10)
-result_alpha <- ss_ranef_alpha(y, unit)
+result_alpha <- ivd_alpha(y, unit)
 
 set.seed(456)
 y <- rnorm(100)
 X <- rnorm(100)
 unit <- rep(1:10, each = 10)
-result_beta <- ss_ranef_beta(y, X, unit)
+result_beta <- ivd_beta(y, X, unit)
 
 set.seed(789)
 Y <- matrix(rnorm(200), ncol = 2)
 X <- rnorm(100)
 unit <- rep(1:10, each = 10)
-result_mv <- ss_ranef_mv(Y, X, unit)
+result_mv <- ivd_mv(Y, X, unit)
 
 
-## Test for ss_ranef_alpha
-test_that("ss_ranef_alpha correctly fits the model", {
-  ## Check if the result is of class 'ss_ranef'
-  expect_s3_class(result_alpha, "ss_ranef")
+## Test for ivd_alpha
+test_that("ivd_alpha correctly fits the model", {
+  ## Check if the result is of class 'ivd'
+  expect_s3_class(result_alpha, "ivd")
   return(result_alpha)
 })
 
-## Test for ss_ranef_beta
-test_that("ss_ranef_beta correctly fits the model", {
-  ## Check if the result is of class 'ss_ranef'
-  expect_s3_class(result_beta, "ss_ranef")
+## Test for ivd_beta
+test_that("ivd_beta correctly fits the model", {
+  ## Check if the result is of class 'ivd'
+  expect_s3_class(result_beta, "ivd")
 })
 
-## Test for ss_ranef_mv
-test_that("ss_ranef_mv correctly fits the model", {
-  expect_s3_class(result_mv, "ss_ranef")
+## Test for ivd_mv
+test_that("ivd_mv correctly fits the model", {
+  expect_s3_class(result_mv, "ivd")
 })
 
 

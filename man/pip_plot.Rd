@@ -7,7 +7,7 @@
 pip_plot(obj, pip_line = 0.5, col_id = TRUE, legend = TRUE, ...)
 }
 \arguments{
-\item{obj}{An object of type \code{ss_ranef}}
+\item{obj}{An object of type \code{ivd}}
 
 \item{pip_line}{Where the line denoting a posterior inclusion cut-off should be drawn. Defaults to 0.5.}
 

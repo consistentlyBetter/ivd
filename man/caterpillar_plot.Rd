@@ -7,7 +7,7 @@
 caterpillar_plot(obj, ci = 0.9, col_id = TRUE, legend = TRUE, ...)
 }
 \arguments{
-\item{obj}{An object of type \code{ss_ranef}.}
+\item{obj}{An object of type \code{ivd}.}
 
 \item{ci}{The width of the credible interval that should be used. Defaults to 0.9.}
 
@@ -18,5 +18,5 @@ caterpillar_plot(obj, ci = 0.9, col_id = TRUE, legend = TRUE, ...)
 \item{...}{Currently not in use.}
 }
 \description{
-Create a caterpillar plot of the random effects produced by \code{ss_ranef} models.
+Create a caterpillar plot of the random effects produced by \code{ivd} models.
 }

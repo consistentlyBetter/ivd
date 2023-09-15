@@ -7,7 +7,7 @@
 ranef_summary(obj, ci = 0.9, as_df = FALSE, digits = 2)
 }
 \arguments{
-\item{obj}{An object of type \code{ss_ranef}}
+\item{obj}{An object of type \code{ivd}}
 
 \item{ci}{The width of the credible interval that should be used. Defaults to 0.9.}
 
@@ -16,5 +16,5 @@ ranef_summary(obj, ci = 0.9, as_df = FALSE, digits = 2)
 \item{digits}{The number of digits to which the output should be rounded. Defaults to 2.}
 }
 \description{
-Summarizes the posterior distribution of the random effects contained in \code{ss_ranef} objects
+Summarizes the posterior distribution of the random effects contained in \code{ivd} objects
 }

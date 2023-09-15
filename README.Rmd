@@ -12,8 +12,7 @@ knitr::opts_chunk$set(
   comment = "#>",
   fig.path = "man/figures/README-",
   out.width = "100%",
-  cache = TRUE
-  
+  cache = FALSE
 )
 ```
 
@@ -24,7 +23,7 @@ knitr::opts_chunk$set(
 [![codecov](https://codecov.io/github/ph-rast/ivd/graph/badge.svg?token=SD0PM5BVIL)](https://codecov.io/github/ph-rast/ivd)
 <!-- badges: end -->
 
-SSranef is an R package for random effects selection that corresponds to the models described in @rodriguez2021. Specifically, `ss_ranef_alpha()` fits a random intercepts model with a spike-and-slab prior on the random effects and `ss_ranef_beta()` fits a model with both random intercepts and random slopes, with a spike-and-slab prior on the random effects for the slope. The function `ss_ranef_mv()` fits a multivariate mixed-effects models for two outcomes and places a spike-and-slab prior on the random slope for each outcome.
+SSranef is an R package for random effects selection that corresponds to the models described in @rodriguez2021. Specifically, `ivd_alpha()` fits a random intercepts model with a spike-and-slab prior on the random effects and `ivd_beta()` fits a model with both random intercepts and random slopes, with a spike-and-slab prior on the random effects for the slope. The function `ivd_mv()` fits a multivariate mixed-effects models for two outcomes and places a spike-and-slab prior on the random slope for each outcome.
 
 This package is repurposed from the orginal verision at [josue-rodriguez/SSranef](https://www.github.com/josue-rodriguez/SSranef)
 
@@ -51,7 +50,7 @@ d <- mlmRev::Hsb82
 ```{r}
 d$y <- c(scale(d$mAch))
 
-alpha <- ss_ranef_alpha(y = d$y, unit = d$school)
+alpha <- ivd_alpha(y = d$y, unit = d$school)
 
 posterior_summary(alpha, ci = 0.90, digits = 2)
 ```
@@ -70,7 +69,7 @@ pip_plot(alpha, legend = FALSE)
 
 ## Beta model
 ```{r}
-beta <- ss_ranef_beta(y = d$y, X = d$ses, unit = d$school)
+beta <- ivd_beta(y = d$y, X = d$ses, unit = d$school)
 posterior_summary(beta, digits = 2)
 ```
 
@@ -97,7 +96,7 @@ summary(lmer(y ~ 1 + (1|school), data = d))
 mv_data <- gen_mv_data(5, 5)
 str(mv_data)
 
-mv_model <- ss_ranef_mv(Y = cbind(mv_data$y1, mv_data$y2),
+mv_model <- ivd_mv(Y = cbind(mv_data$y1, mv_data$y2),
                         X = mv_data$x,
                         unit = mv_data$id,
                         burnin = 100,
@@ -110,7 +109,7 @@ posterior_summary(mv_model)
 
 ## Priors
 
-Priors can be passed on to either of the `ss_ranef` functions through a named list and using JAGS code, e.g., 
+Priors can be passed on to either of the `ivd` functions through a named list and using JAGS code, e.g., 
 
 ```{r}
 # change prior for mean intercept
@@ -118,7 +117,7 @@ priors <- list(alpha = "alpha ~ dt(0, 1, 3)",
                # for each jth unit, change prior probability of inclusion
                gamma = "gamma[j] ~ dbern(0.75)") 
 
-fit <- ss_ranef_alpha(y = d$y, unit = d$school, priors = priors)
+fit <- ivd_alpha(y = d$y, unit = d$school, priors = priors)
 ranef_summary(fit)
 ```
 

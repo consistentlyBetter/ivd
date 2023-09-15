@@ -7,7 +7,7 @@
 funnel_plot(obj, ...)
 }
 \arguments{
-\item{obj}{An object fit with \code{ss_ranef_mv()}}
+\item{obj}{An object fit with \code{ivd_mv()}}
 
 \item{...}{Currently not in use}
 }

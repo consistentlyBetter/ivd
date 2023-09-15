@@ -1,6 +1,6 @@
-#' ss_ranef_alpha
+#' ivd_alpha
 #'
-#' `ss_ranef_alpha()` fits a random intercepts model with a spike-and-slab prior on the random effects
+#' `ivd_alpha()` fits a random intercepts model with a spike-and-slab prior on the random effects
 #'
 #' @param y A vector containing the outcome
 #' @param unit A vector of the same length as `y` containing a unique identifier
@@ -27,7 +27,7 @@
 #' @export
 
 
-ss_ranef_alpha <- function(y, unit, burnin = 1000, iter = 1000, chains = 4, priors = NULL,
+ivd_alpha <- function(y, unit, burnin = 1000, iter = 1000, chains = 4, priors = NULL,
                            vars2monitor = c("alpha", "gamma", "sigma", "tau", "theta")) {
   args <- match.call()
 
@@ -78,16 +78,16 @@ ss_ranef_alpha <- function(y, unit, burnin = 1000, iter = 1000, chains = 4, prio
     call = args
   )
 
-  class(ret) <- c("ss_ranef", "list")
+  class(ret) <- c("ivd", "list")
   return(ret)
 }
 
 
 
 
-#' ss_ranef_beta
+#' ivd_beta
 #'
-#' `ss_ranef_beta()` fits a mixed-effects model with
+#' `ivd_beta()` fits a mixed-effects model with
 #' random intercepts and random slopes, with a spike-and-slab prior on the random slopes.
 #'
 #' @param y A vector containing the outcome
@@ -120,7 +120,7 @@ ss_ranef_alpha <- function(y, unit, burnin = 1000, iter = 1000, chains = 4, prio
 #' @export
 
 
-ss_ranef_beta <- function(y, X, unit, burnin = 1000, iter = 1000, chains = 4, priors = NULL,
+ivd_beta <- function(y, X, unit, burnin = 1000, iter = 1000, chains = 4, priors = NULL,
                           vars2monitor = c("alpha", "beta", "gamma", "rho", "sigma", "tau1", "tau2", "theta1", "theta2")) {
   args <- match.call()
 
@@ -170,15 +170,15 @@ ss_ranef_beta <- function(y, X, unit, burnin = 1000, iter = 1000, chains = 4, pr
     model_text = model_text,
     call = args
   )
-  class(ret) <- c("ss_ranef", "list")
+  class(ret) <- c("ivd", "list")
   return(ret)
 }
 
 
 
-#' ss_ranef_mv
+#' ivd_mv
 #'
-#' `ss_ranef_mv()` fits a multivariate mixed-effects model with
+#' `ivd_mv()` fits a multivariate mixed-effects model with
 #' random intercepts and random slopes for two outcomes. A spike-and-slab prior is placed on the random slopes of both outcomes.
 #'
 #'
@@ -228,7 +228,7 @@ ss_ranef_beta <- function(y, X, unit, burnin = 1000, iter = 1000, chains = 4, pr
 #' @export
 
 
-ss_ranef_mv <- function(Y, X, unit, burnin = 1000, iter = 1000, chains = 4, priors = NULL,
+ivd_mv <- function(Y, X, unit, burnin = 1000, iter = 1000, chains = 4, priors = NULL,
                           vars2monitor = c("B", "theta", "gamma1", "gamma2", "sigma", "Tau", "rb", "rw")) {
   args <- match.call()
 
@@ -280,7 +280,7 @@ ss_ranef_mv <- function(Y, X, unit, burnin = 1000, iter = 1000, chains = 4, prio
     model_text = model_text,
     call = args
   )
-  class(ret) <- c("ss_ranef", "list")
+  class(ret) <- c("ivd", "list")
   return(ret)
 }
 

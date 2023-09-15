@@ -1,9 +1,9 @@
 #' caterpillar_plot
 #'
-#' Create a caterpillar plot of the random effects produced by `ss_ranef` models.
+#' Create a caterpillar plot of the random effects produced by `ivd` models.
 #'
 #'
-#' @param obj An object of type `ss_ranef`.
+#' @param obj An object of type `ivd`.
 #' @param ci The width of the credible interval that should be used. Defaults to 0.9.
 #' @param col_id Whether the plot should color in points by their unique identifier.
 #' @param legend Should legend be included? Defaults to TRUE
@@ -100,7 +100,7 @@ caterpillar_plot <- function(obj, ci = 0.9, col_id = TRUE, legend = TRUE, ...) {
 
 #' pip_plot
 #'
-#' @param obj An object of type `ss_ranef`
+#' @param obj An object of type `ivd`
 #' @param pip_line Where the line denoting a posterior inclusion cut-off should be drawn. Defaults to 0.5.
 #' @param col_id Whether the plot should color in points by their unique identifier.
 #' @param legend Should legend be included? Defaults to TRUE
@@ -164,7 +164,7 @@ pip_plot <- function(obj, pip_line = 0.5, col_id = TRUE, legend = TRUE, ...) {
 
 #' funnel_plot
 #'
-#' @param obj An object fit with `ss_ranef_mv()`
+#' @param obj An object fit with `ivd_mv()`
 #' @param ... Currently not in use
 #'
 #' @import ggplot2
@@ -175,7 +175,7 @@ funnel_plot <- function(obj, ...) {
   PIP = pip = model = id = Post_mean = lb = ub = NULL
 
   type <- obj$call[1]
-  if (!grepl("mv", type)) stop("funnel_plot() only works with objects produced by ss_ranef_mv()")
+  if (!grepl("mv", type)) stop("funnel_plot() only works with objects produced by ivd_mv()")
 
   ranef_summ <- ranef_summary(obj, as_df = TRUE)
 

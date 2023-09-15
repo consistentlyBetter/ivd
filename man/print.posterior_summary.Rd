@@ -7,7 +7,7 @@
 \method{print}{posterior_summary}(x, ...)
 }
 \arguments{
-\item{x}{An object of type \code{ss_ranef}}
+\item{x}{An object of type \code{ivd}}
 
 \item{...}{Currently not in use}
 }
