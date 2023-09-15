@@ -4,7 +4,7 @@
 \alias{caterpillar_plot}
 \title{caterpillar_plot}
 \usage{
-caterpillar_plot(obj, ci = 0.9, col_id = TRUE, ...)
+caterpillar_plot(obj, ci = 0.9, col_id = TRUE, legend = TRUE, ...)
 }
 \arguments{
 \item{obj}{An object of type \code{ss_ranef}.}
@@ -12,6 +12,8 @@ caterpillar_plot(obj, ci = 0.9, col_id = TRUE, ...)
 \item{ci}{The width of the credible interval that should be used. Defaults to 0.9.}
 
 \item{col_id}{Whether the plot should color in points by their unique identifier.}
+
+\item{legend}{Should legend be included? Defaults to TRUE}
 
 \item{...}{Currently not in use.}
 }

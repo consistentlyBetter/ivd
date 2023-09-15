@@ -6,13 +6,14 @@
 #' @param obj An object of type `ss_ranef`.
 #' @param ci The width of the credible interval that should be used. Defaults to 0.9.
 #' @param col_id Whether the plot should color in points by their unique identifier.
+#' @param legend Should legend be included? Defaults to TRUE
 #' @param ... Currently not in use.
 #'
 #' @import ggplot2 patchwork
 #' @export
 
 
-caterpillar_plot <- function(obj, ci = 0.9, col_id = TRUE, ...) {
+caterpillar_plot <- function(obj, ci = 0.9, col_id = TRUE, legend = TRUE, ...) {
   ranef_summ <- ranef_summary(obj, ci = ci, as_df = TRUE)
 
   ## To prevent "no visible binding for global variable" error init variables:
@@ -31,7 +32,7 @@ caterpillar_plot <- function(obj, ci = 0.9, col_id = TRUE, ...) {
 
     sorted_ranefs1$id <- gsub("theta1_", "", row.names(sorted_ranefs1))
     # make factor levels same as ranefs2
-    sorted_ranefs1$id <- factor(sorted_ranefs1$id, levels = levels(sorted_ranefs2$id))
+    sorted_ranefs1$id <- factor(sorted_ranefs1$id, levels = c(sorted_ranefs1$id))
 
     colnames(sorted_ranefs1)[2:3] <- c("lb", "ub")
     colnames(sorted_ranefs2)[2:3] <- c("lb", "ub")
@@ -40,24 +41,30 @@ caterpillar_plot <- function(obj, ci = 0.9, col_id = TRUE, ...) {
       ggplot(sorted_ranefs1, aes(x = id, y = Post_mean)) +
       geom_hline(yintercept = 0, col = "red", linetype = "dashed") +
       geom_errorbar(aes(ymin = lb, ymax = ub), width = 0.1) +
-      labs(y = "theta1")
-
+      labs(y = "theta1 (intercept random effects)")
 
     p2 <-
       ggplot(sorted_ranefs2, aes(x = id, y = Post_mean)) +
       geom_hline(yintercept = 0, col = "red", linetype = "dashed") +
       geom_errorbar(aes(ymin = lb, ymax = ub), width = 0.1) +
-      labs(y = "theta2")
+      labs(y = "theta2 (slope random effects)")
+
+    if ( !legend ) {
+      p1 <- p1 + theme(legend.position="none")
+      p2 <- p2 + theme(legend.position="none")
+    }
 
     if (col_id) {
-      p1 <- p1 + geom_point(aes(col = id), size = 2) + guides(col = "none")
-      p2 <- p2 + geom_point(aes(col = id), size = 2)
+      p1 <-
+        p1 + geom_point( aes(col = id), size = 2) #+ guides(col = "none")
+      p2 <-
+        p2 + geom_point( aes(col = id), size = 2) #+ guides(col = "none")
     } else {
       p1 <- p1 + geom_point(size = 2)
       p2 <- p2 + geom_point(size = 2)
     }
 
-    p <- p2/p1 + plot_layout(guides = "collect")
+    p <- p2/p1 #+ plot_layout(guides = "collect")
 
     return(p)
 
@@ -74,6 +81,10 @@ caterpillar_plot <- function(obj, ci = 0.9, col_id = TRUE, ...) {
       geom_hline(yintercept = 0, col = "red", linetype = "dashed") +
       geom_errorbar(aes(ymin = lb, ymax = ub), width = 0.1) +
       labs(y = "theta")
+
+    if ( !legend ) {
+      p <- p + theme(legend.position="none")
+    }
 
     if (col_id) {
       p <- p + geom_point(aes(col = id), size = 2)
@@ -92,12 +103,13 @@ caterpillar_plot <- function(obj, ci = 0.9, col_id = TRUE, ...) {
 #' @param obj An object of type `ss_ranef`
 #' @param pip_line Where the line denoting a posterior inclusion cut-off should be drawn. Defaults to 0.5.
 #' @param col_id Whether the plot should color in points by their unique identifier.
+#' @param legend Should legend be included? Defaults to TRUE
 #' @param ... Currently not in use
 #'
 #' @import ggplot2
 #' @export
 
-pip_plot <- function(obj, pip_line = 0.5, col_id = TRUE, ...) {
+pip_plot <- function(obj, pip_line = 0.5, col_id = TRUE, legend = TRUE, ...) {
   ## To prevent "no visible binding for global variable" error init variables:
   PIP = model = id = Post_mean = lb = ub = NULL
 
@@ -112,6 +124,11 @@ pip_plot <- function(obj, pip_line = 0.5, col_id = TRUE, ...) {
       ggplot(sorted_ranefs, aes(x = Post_mean, y = PIP)) +
       geom_hline(yintercept = pip_line, col = "red", linetype = "dashed") +
       labs(x = "theta2")
+
+    if ( !legend ) {
+      p <- p + theme(legend.position="none")
+    }
+    
     if (col_id) {
       p <- p + geom_point(aes(col = id), size = 2)
     } else {
@@ -130,6 +147,11 @@ pip_plot <- function(obj, pip_line = 0.5, col_id = TRUE, ...) {
       ggplot(sorted_ranefs, aes(x = Post_mean, y = PIP)) +
       geom_hline(yintercept = pip_line, col = "red", linetype = "dashed") +
       labs(x = "theta")
+
+    if ( !legend ) {
+      p <- p + theme(legend.position="none")
+    }
+
     if (col_id) {
       p <- p + geom_point(aes(col = id), size = 2)
     } else {

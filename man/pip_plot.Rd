@@ -4,7 +4,7 @@
 \alias{pip_plot}
 \title{pip_plot}
 \usage{
-pip_plot(obj, pip_line = 0.5, col_id = TRUE, ...)
+pip_plot(obj, pip_line = 0.5, col_id = TRUE, legend = TRUE, ...)
 }
 \arguments{
 \item{obj}{An object of type \code{ss_ranef}}
@@ -12,6 +12,8 @@ pip_plot(obj, pip_line = 0.5, col_id = TRUE, ...)
 \item{pip_line}{Where the line denoting a posterior inclusion cut-off should be drawn. Defaults to 0.5.}
 
 \item{col_id}{Whether the plot should color in points by their unique identifier.}
+
+\item{legend}{Should legend be included? Defaults to TRUE}
 
 \item{...}{Currently not in use}
 }

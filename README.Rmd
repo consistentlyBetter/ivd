@@ -21,6 +21,7 @@ knitr::opts_chunk$set(
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/ph-rast/ivd/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/ph-rast/ivd/actions/workflows/R-CMD-check.yaml)
+[![codecov](https://codecov.io/github/ph-rast/ivd/graph/badge.svg?token=SD0PM5BVIL)](https://codecov.io/github/ph-rast/ivd)
 <!-- badges: end -->
 
 SSranef is an R package for random effects selection that corresponds to the models described in @rodriguez2021. Specifically, `ss_ranef_alpha()` fits a random intercepts model with a spike-and-slab prior on the random effects and `ss_ranef_beta()` fits a model with both random intercepts and random slopes, with a spike-and-slab prior on the random effects for the slope. The function `ss_ranef_mv()` fits a multivariate mixed-effects models for two outcomes and places a spike-and-slab prior on the random slope for each outcome.
@@ -34,25 +35,23 @@ This package can be installed with
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("rast-ph/ivd")
+# devtools::install_github("rast-ph/ivd")
 ```
 
 ## Example
 
-Because `SSranef` uses JAGS as a backend, we must also load the `rjags` package.
 
 ```{r example}
 library(ivd)
-library(rjags)
 
-d <- lme4::sleepstudy
+d <- mlmRev::Hsb82
 ```
 
 ## Alpha model
 ```{r}
-d$y <- c(scale(d$Reaction))
+d$y <- c(scale(d$mAch))
 
-alpha <- ss_ranef_alpha(y = d$y, unit = d$Subject)
+alpha <- ss_ranef_alpha(y = d$y, unit = d$school)
 
 posterior_summary(alpha, ci = 0.90, digits = 2)
 ```
@@ -62,16 +61,16 @@ ranef_summary(alpha, ci = 0.95, digits = 2)
 ```
 
 ```{r}
-caterpillar_plot(alpha)
+caterpillar_plot(alpha, legend = FALSE)
 ```
 
 ```{r}
-pip_plot(alpha)
+pip_plot(alpha, legend = FALSE)
 ```
 
 ## Beta model
 ```{r}
-beta <- ss_ranef_beta(y = d$y, X = d$Days, unit = d$Subject)
+beta <- ss_ranef_beta(y = d$y, X = d$ses, unit = d$school)
 posterior_summary(beta, digits = 2)
 ```
 
@@ -80,16 +79,16 @@ ranef_summary(beta, digits = 2)
 ```
 
 ```{r}
-caterpillar_plot(beta)
+caterpillar_plot(beta, legend = FALSE)
 ```
 
 ```{r}
-pip_plot(beta)
+pip_plot(beta, legend = FALSE)
 ```
 
 ```{r include=FALSE, eval=FALSE}
 library(lme4)
-summary(lmer(y ~ 1 + (1|Subject), data = d))
+summary(lmer(y ~ 1 + (1|school), data = d))
 ```
 
 ## Multivariate model
@@ -119,7 +118,7 @@ priors <- list(alpha = "alpha ~ dt(0, 1, 3)",
                # for each jth unit, change prior probability of inclusion
                gamma = "gamma[j] ~ dbern(0.75)") 
 
-fit <- ss_ranef_alpha(y = d$y, unit = d$Subject, priors = priors)
+fit <- ss_ranef_alpha(y = d$y, unit = d$school, priors = priors)
 ranef_summary(fit)
 ```
 
