@@ -34,7 +34,7 @@ This package can be installed with
 
 ``` r
 # install.packages("devtools")
-# devtools::install_github("rast-ph/ivd")
+devtools::install_github("consistentlybetter/ivd")
 ```
 
 ## Example

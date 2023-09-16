@@ -19,7 +19,7 @@
 #'   \item theta: The random effects
 #' }
 #'
-#' @return An object of type \code{ssranef}.
+#' @return An object of type \code{ivd}.
 #'
 #'
 #' @importFrom rjags jags.model coda.samples
@@ -113,7 +113,7 @@ ivd_alpha <- function(y, unit, burnin = 1000, iter = 1000, chains = 4, priors = 
 #'   \item theta2: The random effects for beta
 #' }
 #'
-#' @return An object of type \code{ssranef}.
+#' @return An object of type \code{ivd}.
 #'
 #' @importFrom rjags jags.model coda.samples
 #' @importFrom stats update
