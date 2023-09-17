@@ -34,7 +34,7 @@ ivd_beta(
 \item{vars2monitor}{A vector containing the names of which parameters to monitor. See details below.}
 }
 \value{
-An object of type \code{ssranef}.
+An object of type \code{ivd}.
 }
 \description{
 \code{ivd_beta()} fits a mixed-effects model with

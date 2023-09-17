@@ -30,7 +30,7 @@ ivd_alpha(
 \item{vars2monitor}{A vector containing the names of which parameters to monitor. See details below.}
 }
 \value{
-An object of type \code{ssranef}.
+An object of type \code{ivd}.
 }
 \description{
 \code{ivd_alpha()} fits a random intercepts model with a spike-and-slab prior on the random effects

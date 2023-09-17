@@ -25,7 +25,8 @@ LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.3
 Imports:
-    rjags (>= 4.0.0),
+    R2jags (>= 0.7.1),
+    coda (>= 0.19.4),
     Matrix,
     ggplot2,
     patchwork,

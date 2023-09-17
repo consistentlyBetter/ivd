@@ -22,7 +22,8 @@
 #' @return An object of type \code{ivd}.
 #'
 #'
-#' @importFrom rjags jags.model coda.samples
+#' @importFrom R2jags jags.parallel
+#' @importFrom coda as.mcmc
 #' @importFrom stats update
 #' @export
 
@@ -37,7 +38,11 @@ ivd_alpha <- function(y, unit, burnin = 1000, iter = 1000, chains = 4, priors = 
       priors_list <- make_custom_priors_alpha(priors)
     }
 
+  ## Create text model and save it to tempdir for parallel.jags to load
   model_text <- make_model_text_alpha(priors_list = priors_list)
+  jags_tempfile <- paste0(tempdir(),"/model.bug")
+  write(model_text, jags_tempfile)
+  
   og_units <- unique(unit)
   data_list <- list(y = y,
                     N = length(y),
@@ -45,15 +50,14 @@ ivd_alpha <- function(y, unit, burnin = 1000, iter = 1000, chains = 4, priors = 
                     J = length(unique(unit)),
                     n_j = as.numeric(table(unit)))
 
-  jags_fit <- jags.model(textConnection(model_text),
-                         data = data_list,
-                         n.chains = chains)
+  jags_fit <- jags.parallel(data = data_list,
+                     parameters.to.save = vars2monitor,
+                     model.file = jags_tempfile,
+                     n.iter = iter+burnin,
+                     n.burnin = burnin,
+                     n.chains = chains)
 
-  if (!is.null(burnin)) update(jags_fit, burnin)
-
-  mcmc_list <- coda.samples(jags_fit,
-                            variable.names = vars2monitor,
-                            n.iter = iter)
+  mcmc_list <- as.mcmc(jags_fit)
 
   post_samps <- do.call(rbind.data.frame, mcmc_list)
   post_samps$chain <- rep(1:chains, each = iter)
@@ -115,7 +119,8 @@ ivd_alpha <- function(y, unit, burnin = 1000, iter = 1000, chains = 4, priors = 
 #'
 #' @return An object of type \code{ivd}.
 #'
-#' @importFrom rjags jags.model coda.samples
+#' @importFrom R2jags jags.parallel
+#' @importFrom coda as.mcmc
 #' @importFrom stats update
 #' @export
 
@@ -130,7 +135,11 @@ ivd_beta <- function(y, X, unit, burnin = 1000, iter = 1000, chains = 4, priors 
     priors_list <- make_custom_priors_beta(priors)
   }
 
+  ## Create text model and save it to tempdir for parallel.jags to load
   model_text <- make_model_text_beta(priors_list = priors_list)
+  jags_tempfile <- paste0(tempdir(),"/model.bug")
+  write(model_text, jags_tempfile)
+  
   og_units <- unique(unit)
   X <- cbind(1, X)
   data_list <- list(y = y,
@@ -139,16 +148,15 @@ ivd_beta <- function(y, X, unit, burnin = 1000, iter = 1000, chains = 4, priors 
                     unit = as.numeric(as.factor(unit)),
                     J = length(unique(unit)))
 
-  jags_fit <- jags.model(textConnection(model_text),
-                         data = data_list,
-                         n.chains = chains)
+  jags_fit <- jags.parallel(data = data_list,
+                     parameters.to.save = vars2monitor,
+                     model.file = jags_tempfile,
+                     n.iter = iter+burnin,
+                     n.burnin = burnin,
+                     n.chains = chains)
 
-  if (!is.null(burnin)) update(jags_fit, burnin)
-
-  mcmc_list <- coda.samples(jags_fit,
-                            variable.names = vars2monitor,
-                            n.iter = iter)
-
+  mcmc_list <- as.mcmc(jags_fit)
+  
   post_samps <- do.call(rbind.data.frame, mcmc_list)
   post_samps$chain <- rep(1:chains, each = iter)
 
@@ -223,7 +231,8 @@ ivd_beta <- function(y, X, unit, burnin = 1000, iter = 1000, chains = 4, priors 
 #'   to the random intercept of the 2nd outcome for the 3rd unit.
 #' }
 #'
-#' @importFrom rjags jags.model coda.samples
+#' @importFrom R2jags jags.parallel
+#' @importFrom coda as.mcmc
 #' @importFrom stats update
 #' @export
 
@@ -238,7 +247,11 @@ ivd_mv <- function(Y, X, unit, burnin = 1000, iter = 1000, chains = 4, priors = 
     priors_list <- make_custom_priors_mv(priors)
   }
 
+  ## Create text model and save it to tempdir for parallel.jags to load
   model_text <- make_model_text_mv(priors_list = priors_list)
+  jags_tempfile <- paste0(tempdir(),"/model.bug")
+  write(model_text, jags_tempfile)
+  
   og_units <- unique(unit)
   X <- cbind(1, X)
   K <- 4
@@ -249,17 +262,16 @@ ivd_mv <- function(Y, X, unit, burnin = 1000, iter = 1000, chains = 4, priors = 
                     J = length(unique(unit)),
                     O = diag(K),
                     K = K)
+  
+  jags_fit <- jags.parallel(data = data_list,
+                     parameters.to.save = vars2monitor,
+                     model.file = jags_tempfile,
+                     n.iter = iter+burnin,
+                     n.burnin = burnin,
+                     n.chains = chains)
 
-  jags_fit <- jags.model(textConnection(model_text),
-                         data = data_list,
-                         n.chains = chains)
-
-  if (!is.null(burnin)) update(jags_fit, burnin)
-
-  mcmc_list <- coda.samples(jags_fit,
-                            variable.names = vars2monitor,
-                            n.iter = iter)
-
+  mcmc_list <- as.mcmc(jags_fit)
+  
   post_samps <- do.call(rbind.data.frame, mcmc_list)
   post_samps$chain <- rep(1:chains, each = iter)
 
