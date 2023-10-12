@@ -15,7 +15,7 @@ model{
     s_alpha_0_raw[j] ~ dnorm(0,1)
     s_theta_0[j] <- s_tau_0 * s_alpha_0_raw[j] * gamma[j]
     s_alpha_0_j[j] <- s_alpha_0 + s_theta_0[j]
-    precision_j[j] <- exp( s_alpha_0_j[j] )
+    precision_j[j] <- 1/exp( s_alpha_0_j[j] )
   }
   
   alpha ~ dnorm(0, 0.01)
