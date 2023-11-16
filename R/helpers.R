@@ -2,8 +2,7 @@
 #' @importFrom stats quantile sd coef
 #' @importFrom utils packageVersion
 
-# helpers for alpha model
-#----
+#---- helpers for alpha model ----
 
 make_default_priors_alpha <- function() {
   priors_list <- list(
@@ -136,8 +135,8 @@ make_model_text_beta <- function(priors_list) {
 
 #----
 
-# helpers for multivariate model
-#----
+
+#---- helpers for multivariate model ----
 
 make_default_priors_mv <- function() {
   priors_list <- list(
@@ -254,12 +253,7 @@ make_model_text_mv <- function(priors_list) {
   return(model_text)
 }
 
-
-
-
-
-# new models
-#----
+#---- new models ----
 ICC_lsm <- "model{
 
   for(j in 1:J){
