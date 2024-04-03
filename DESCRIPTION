@@ -23,9 +23,9 @@ License: GPL (>=3)
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.1
 Imports:
-    R2jags (>= 0.7.1),
+    nimble (>= 1.1.0),
     coda (>= 0.19.4),
     Matrix,
     ggplot2,
@@ -36,4 +36,3 @@ Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 BugReports: https://github.com/ph-rast/ivd/issues
-

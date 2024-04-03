@@ -1,108 +1,30 @@
-#' ivd_alpha
-#'
-#' `ivd_alpha()` fits a random intercepts model with a spike-and-slab prior on the random effects
-#'
-#' @param y A vector containing the outcome
-#' @param unit A vector of the same length as `y` containing a unique identifier
-#' @param burnin The number of iterations to use as burnin. Defaults to 1000.
-#' @param iter The number of iterations to use for estimating the parameters. Defaults to 1000.
-#' @param chains The number of MCMC chains to use. Defaults to 4.
-#' @param priors A named list to specify priors.  Defaults to NULL. See README for details.
-#' @param vars2monitor A vector containing the names of which parameters to monitor. See details below.
-#'
-#' @details The parameters that can be tracked are:
-#' \itemize{
-#'   \item alpha: The fixed effect for the intercept
-#'   \item gamma: The inclusion indicators for the random effects
-#'   \item sigma: The residual standard deviation
-#'   \item tau: The standard deviation of the random effects
-#'   \item theta: The random effects
-#' }
-#'
-#' @return An object of type \code{ivd}.
-#'
-#'
-#' @importFrom R2jags jags.parallel
-#' @importFrom coda as.mcmc
-#' @importFrom stats update
-#' @export
+##'` Create a function with all the needed code
+##' @import nimble
 
-
-ivd_alpha <- function(y, unit, burnin = 1000, iter = 1000, chains = 4, priors = NULL,
-                           vars2monitor = c("alpha", "gamma", "sigma", "tau", "theta")) {
-  args <- match.call()
-
-  if (is.null(priors)) {
-    priors_list <- make_default_priors_alpha()
-  } else {
-      priors_list <- make_custom_priors_alpha(priors)
-    }
-
-  ## Create text model and save it to tempdir for parallel.jags to load
-  model_text <- make_model_text_alpha(priors_list = priors_list)
-  jags_tempfile <- paste0(tempdir(),"/model.bug")
-  write(model_text, jags_tempfile)
-  
-  og_units <- unique(unit)
-  data_list <- list(y = y,
-                    N = length(y),
-                    unit = as.numeric(as.factor(unit)),
-                    J = length(unique(unit)),
-                    n_j = as.numeric(table(unit)))
-
-  jags_fit <- jags.parallel(data = data_list,
-                     parameters.to.save = vars2monitor,
-                     model.file = jags_tempfile,
-                     n.iter = iter+burnin,
-                     n.burnin = burnin,
-                     n.chains = chains)
-
-  mcmc_list <- as.mcmc(jags_fit)
-
-  post_samps <- do.call(rbind.data.frame, mcmc_list)
-  post_samps$chain <- rep(1:chains, each = iter)
-
-  # clean up column names
-  cnames <- colnames(post_samps)
-  gamma_mask <- grepl("gamma\\[[0-9]+\\]", cnames)
-  lambda_mask <- grepl("lambda\\[[0-9]+\\]", cnames)
-  theta_mask <- grepl("theta\\[[0-9]+\\]", cnames)
-
-  cnames[gamma_mask] <- paste("gamma", og_units, sep = "_")
-  cnames[lambda_mask] <- paste("lambda", og_units, sep = "_")
-  cnames[theta_mask] <- paste("theta", og_units, sep = "_")
-
-
-  colnames(post_samps) <- cnames
-
-  ret <- list(
-    posterior_samples = post_samps,
-    data_list = data_list,
-    model_text = model_text,
-    call = args
-  )
-
-  class(ret) <- c("ivd", "list")
-  return(ret)
+run_MCMC_allcode <- function(seed, data, constants, code, niter = 5000, useWAIC = TRUE, inits) {
+  myModel <- nimbleModel(code = code,
+                          data = data,
+                          constants = constants,
+                          inits = inits)
+  CmyModel <- compileNimble(myModel)
+  if(useWAIC) 
+    monitors <- myModel$getParents(myModel$getNodeNames(dataOnly = TRUE), stochOnly = TRUE)
+  ## Note on reversible jump: Does not work here, as only univariate nodes can be used with RJ
+  ## Build original model
+  myMCMC <- buildMCMC(CmyModel, monitors = c("beta", "zeta", "R", "ss")) #monitors)
+  CmyMCMC <- compileNimble(myMCMC ) #cmod <- compileNimble(myMCMC )
+  ## compile conf containg additinal monitor  with original model
+#  CmyMCMC <- compileNimble(compiledMCMC, project = cmod) 
+  results <- runMCMC(CmyMCMC, niter = niter, setSeed = seed, nburnin = 1000)
+  return(results)
 }
 
+##' ivd
+##'
+##' @param data list of data objects
+##' @param groups Number of groups (clusters)
+##' @param group_id Vector of length N with sequentially ordered group id's
 
-
-
-#' ivd_beta
-#'
-#' `ivd_beta()` fits a mixed-effects model with
-#' random intercepts and random slopes, with a spike-and-slab prior on the random slopes.
-#'
-#' @param y A vector containing the outcome
-#' @param X A vector containing the predictor
-#' @param unit A vector of the same length as `y` containing a unique identifier
-#' @param burnin The number of iterations to use as burnin. Defaults to 1000.
-#' @param iter The number of iterations to use for estimating the parameters. Defaults to 1000.
-#' @param chains The number of MCMC chains to use. Defaults to 4.
-#' @param priors A named list to specify priors.  Defaults to NULL. See README for details.
-#' @param vars2monitor A vector containing the names of which parameters to monitor. See details below.
-#'
 #'
 #' @details The parameters that can be tracked are:
 #' \itemize{
@@ -119,207 +41,95 @@ ivd_alpha <- function(y, unit, burnin = 1000, iter = 1000, chains = 4, priors = 
 #'
 #' @return An object of type \code{ivd}.
 #'
-#' @importFrom R2jags jags.parallel
+#' @importFrom  nimble nimbleCode nimbleModel compileNimble buildMCMC runMCMC
+#' @import parallel
 #' @importFrom coda as.mcmc
 #' @importFrom stats update
 #' @export
 
+ivd <- function(data,  groups,  group_id, niter) {
+  modelCode <- nimbleCode({
+    ## Likelihood components:
+    for(i in 1:N) {
+      Y[i] ~ dnorm(mu[i], sd = tau[i]) ## explicitly ask for SD not precision
+      ## Check if K an S are greater than 1, if not, use simplified computation to avoid indexing issues in nimble
+      if(K>1) {
+        mu[i] <- sum(beta[1:K] * X[i, 1:K]) + sum(u[groupid[i], 1:K] * X[i, 1:K])
+      } else {
+        mu[i] <- beta[1] + u[groupid[i], 1]        
+      }
+      if(S>1) {
+        tau[i] <- exp( sum(zeta[1:S] * Z[i, 1:S]) + sum(u[groupid[i], (K+1):(K+S)] * Z[i, 1:S]) )
+      } else {
+        tau[i] <- exp( zeta[1] + u[groupid[i], (K+1)]  )        
+      }
+    }
+    ## Obtain correlated random effects
+    for(j in 1:J) {
+      ## Bernoulli for Spike and Slab
+      for(p in 1:P){
+        ss[p,j] ~ dbern(bval[p,1]) ## bval is a constant
+      }    
+      ## normal scaling for random effects
+      for( k in 1:P ){
+        z[k,j] ~ dnorm(0,1)
+      }
+      ## Transpose L to get lower cholesky
+      ## then compute the hadamard (element-wise) product with the ss vector
+      u[j,1:P] <- t( sigma_rand[1:P, 1:P] %*% L[1:P, 1:P]  %*% z[1:P,j] * ss[1:P,j] )
+    }
+    ## Priors:
+    ## Fixed effects: Location
+    for (k in 1:K) {
+      beta[k] ~ dnorm(0, 0.0001)
+    }
+    ## Fixed effects: Scale
+    for (s in 1:S) {
+      zeta[s] ~ dnorm(0, 0.0001)
+    }  
+    ## Random effects SD
+    for(p in 1:P){
+      sigma_rand[p,p] ~ dgamma(1,3)
+    }
+    ## Lower cholesky of random effects correlation 
+    L[1:P, 1:P] ~ dlkj_corr_cholesky(eta = 1, p = P)
+    ##
+    R[1:P, 1:P] <- t(L[1:P, 1:P] ) %*% L[1:P, 1:P]
+  })
 
-ivd_beta <- function(y, X, unit, burnin = 1000, iter = 1000, chains = 4, priors = NULL,
-                          vars2monitor = c("alpha", "beta", "gamma", "rho", "sigma", "tau1", "tau2", "theta1", "theta2")) {
-  args <- match.call()
+  ## Nimble constants
+  constants <- list(N = length(data$Y),
+                    J = groups,
+                    K = ncol(data$X),  ## number of fixed location effects
+                    S = ncol(data$Z),  ## number of fixed scale effects
+                    P = ncol(data$X) + ncol(data$Z),  ## number of random effects
+                    groupid = group_id,
+                    bval = matrix(c(rep(1,  ncol(data$X)), rep(0.5, ncol(data$Z)) ), ncol = 1)) ## Prior probability for dbern 
+  ## Nimble inits
+  inits <- list(beta = rnorm(constants$K, 5, 10),
+                zeta =  rnorm(constants$S, 1, 3),
+                sigma_rand = diag(rlnorm(constants$P, 0, 1)),
+                L = diag(1,constants$P) )
 
-  if (is.null(priors)) {
-    priors_list <- make_default_priors_beta()
-  } else {
-    priors_list <- make_custom_priors_beta(priors)
-  }
+  ## parallelization
+  nc <- parallel::detectCores( )
+  this_cluster <- makeCluster(nc)
+  useWAIC <- TRUE
+  ## THIS SHOULD NOT BE NECESSARY WITHIN A PACKAGE
+# Assuming 'this_cluster' is already defined as your cluster object
+                                        # Load 'nimble' on each worker
+  clusterEvalQ(cl = this_cluster, {
+    library(nimble)
+  })
+  ## END
 
-  ## Create text model and save it to tempdir for parallel.jags to load
-  model_text <- make_model_text_beta(priors_list = priors_list)
-  jags_tempfile <- paste0(tempdir(),"/model.bug")
-  write(model_text, jags_tempfile)
-  
-  og_units <- unique(unit)
-  X <- cbind(1, X)
-  data_list <- list(y = y,
-                    X = X,
-                    N = length(y),
-                    unit = as.numeric(as.factor(unit)),
-                    J = length(unique(unit)))
+  chain_output <- parLapply(cl = this_cluster, X = 1:4, 
+                            fun = run_MCMC_allcode, 
+                            data = data, constant = constants, inits = inits, code = modelCode, niter = niter,
+                            useWAIC = useWAIC)
 
-  jags_fit <- jags.parallel(data = data_list,
-                     parameters.to.save = vars2monitor,
-                     model.file = jags_tempfile,
-                     n.iter = iter+burnin,
-                     n.burnin = burnin,
-                     n.chains = chains)
-
-  mcmc_list <- as.mcmc(jags_fit)
-  
-  post_samps <- do.call(rbind.data.frame, mcmc_list)
-  post_samps$chain <- rep(1:chains, each = iter)
-
-  # clean up column names
-  cnames <- colnames(post_samps)
-  gamma_mask <- grepl("gamma\\[[0-9]+\\]", cnames)
-  theta1_mask <- grepl("theta1\\[[0-9]+\\]", cnames)
-  theta2_mask <- grepl("theta2\\[[0-9]+\\]", cnames)
-
-  cnames[gamma_mask] <- paste("gamma", og_units, sep = "_")
-  cnames[theta1_mask] <- paste("theta1", og_units, sep = "_")
-  cnames[theta2_mask] <- paste("theta2", og_units, sep = "_")
-
-
-  colnames(post_samps) <- cnames
-  ret <- list(
-    posterior_samples = post_samps,
-    data_list = data_list,
-    model_text = model_text,
-    call = args
-  )
-  class(ret) <- c("ivd", "list")
-  return(ret)
+  ## It's good practice to close the cluster when you're done with it.
+  stopCluster(this_cluster)
+  class(chain_output) <- c("ivd", "list")
+  return(chain_output)
 }
-
-
-
-#' ivd_mv
-#'
-#' `ivd_mv()` fits a multivariate mixed-effects model with
-#' random intercepts and random slopes for two outcomes. A spike-and-slab prior is placed on the random slopes of both outcomes.
-#'
-#'
-#' @param Y A two column matrix containing the outcomes of interest.
-#' @param X A vector containing the predictor variable.
-#' @param unit A vector of containing a unique identifier for each row in `Y`.
-#' @param burnin The number of iterations to use as burnin. Defaults to 1000.
-#' @param iter The number of iterations to use for estimating the parameters. Defaults to 1000.
-#' @param chains The number of MCMC chains to use. Defaults to 4.
-#' @param priors A named list to specify priors.  Defaults to NULL. See README for details.
-#' @param vars2monitor A vector containing the names of which parameters to monitor. See details below.
-#'
-#'
-#' @details The parameters that can be tracked are:
-#' \itemize{
-#'   \item B: The fixed effects.
-#'   \itemize{
-#'     \item B_1_1 and B_1_2 corresponds to the fixed effect intercept and slope for the first outcome, respectively.
-#'     \item B_2_1 and B_2_2 corresponds to the fixed effect intercept and slope for the second outcome, respectively.
-#'   }
-#'   \item gamma1: The inclusion indicators for the slope random effects of the first outcome.
-#'   \item gamma2: The inclusion indicators for the slope random effects of the second outcome.
-#'   \item rb: The between-unit correlations, or the correlations between the random effects.
-#'   \itemize{
-#'     \item rb_1_2: Correlation between random intercept and random slope for the first outcome
-#'     \item rb_1_3: Correlation between random intercept for the first outcome and random intercept for the second outcome
-#'     \item rb_1_4: Correlation between random intercept for the first outcome and random slope for the second outcome
-#'     \item rb_2_3: Correlation between random slope for the first outcome and random intercept for the second outcome
-#'     \item rb_2_4: Correlation between random slope for the first outcome and random slope for the second outcome
-#'     \item rb_3_4: Correlation between random intercept and random slope for the second outcome
-#'   }
-#'   \item rw: The correlation between the residual standard deviations, sigma_1 and sigma_2
-#'   \item sigma: The residual standard deviations sigma_1 (first outcome) and sigma_2 (second outcome)
-#'   \item Tau: The (co-)variances for the random effects
-#'   \itemize{
-#'     \item Tau_1_1: Variance for the random intercept of the first outcome
-#'     \item Tau_2_2: Variance for the random slope of the first outcome
-#'     \item Tau_3_3: Variance for the random intercept of the second outcome
-#'     \item Tau_4_4: Variance for the random slope of the second outcome
-#'   }
-#'   \item theta: The random effects each outcome. The names are formatted as `theta_unitID_randomEffect`. E.g., theta_3_2 would correspond
-#'   to the random intercept of the 2nd outcome for the 3rd unit.
-#' }
-#'
-#' @importFrom R2jags jags.parallel
-#' @importFrom coda as.mcmc
-#' @importFrom stats update
-#' @export
-
-
-ivd_mv <- function(Y, X, unit, burnin = 1000, iter = 1000, chains = 4, priors = NULL,
-                          vars2monitor = c("B", "theta", "gamma1", "gamma2", "sigma", "Tau", "rb", "rw")) {
-  args <- match.call()
-
-  if (is.null(priors)) {
-    priors_list <- make_default_priors_mv()
-  } else {
-    priors_list <- make_custom_priors_mv(priors)
-  }
-
-  ## Create text model and save it to tempdir for parallel.jags to load
-  model_text <- make_model_text_mv(priors_list = priors_list)
-  jags_tempfile <- paste0(tempdir(),"/model.bug")
-  write(model_text, jags_tempfile)
-  
-  og_units <- unique(unit)
-  X <- cbind(1, X)
-  K <- 4
-  data_list <- list(Y = Y,
-                    X = X,
-                    N = nrow(Y),
-                    unit = as.numeric(as.factor(unit)),
-                    J = length(unique(unit)),
-                    O = diag(K),
-                    K = K)
-  
-  jags_fit <- jags.parallel(data = data_list,
-                     parameters.to.save = vars2monitor,
-                     model.file = jags_tempfile,
-                     n.iter = iter+burnin,
-                     n.burnin = burnin,
-                     n.chains = chains)
-
-  mcmc_list <- as.mcmc(jags_fit)
-  
-  post_samps <- do.call(rbind.data.frame, mcmc_list)
-  post_samps$chain <- rep(1:chains, each = iter)
-
-  # clean up column names
-  cnames <- colnames(post_samps)
-  # -- comma to underscore
-  cnames <- gsub(",", "_", cnames)
-  # -- open brackets to underscores
-  cnames <- gsub("\\[", "_", cnames)
-  # -- remove closing brackets
-  cnames <- gsub("\\]", "", cnames)
-
-  colnames(post_samps) <- cnames
-
-  ret <- list(
-    posterior_samples = post_samps,
-    data_list = data_list,
-    model_text = model_text,
-    call = args
-  )
-  class(ret) <- c("ivd", "list")
-  return(ret)
-}
-
-
-
-
-# jcov2cor <- function(x) {
-#   x %>%
-#     select(matches("Tau\\[")) %>%
-#     colMeans() -> x
-#   m <- diag(4)
-#   diag(m) <- c(x["Tau[1,1]"], x["Tau[2,2]"], x["Tau[3,3]"],x["Tau[4,4]"])
-#   m[lower.tri(m)] <- c(
-#     x["Tau[1,2]"],
-#     x["Tau[1,3]"],
-#     x["Tau[1,4]"],
-#     x["Tau[2,3]"],
-#     x["Tau[2,4]"],
-#     x["Tau[3,4]"]
-#   )
-#
-#   m[upper.tri(m)] <- t(m)[upper.tri(m)]
-#
-#   return(m)
-# }
-#
-# diag(sqrt(jcov2cor(post_df)))
-# post_df %>%
-#   select(matches("rho\\[")) %>%
-#   colMeans()

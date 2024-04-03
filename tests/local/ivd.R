@@ -1,5 +1,42 @@
 devtools::load_all( )
 
+library(mlmRev)
+library(ggplot2)
+
+
+school_dat = mlmRev::Hsb82
+
+school_dat$y <- c(scale(school_dat$mAch))
+school_dat$intercept <- 1
+
+
+school_dat$schoolid <- NA
+k <- 0
+for( i in unique(school_dat$school) ) {
+  k <- k+1
+  school_dat[school_dat$school == i, "schoolid"] <- k
+}
+
+
+# Define constants and data for the model
+data <- list(Y = school_dat$mAch,
+             X = cbind(1, school_dat$ses), ## Location design matrix
+             Z = cbind(1, school_dat$ses)) ## Scale design matrix
+
+groups <- length(unique(school_dat$schoolid))
+group_id <- school_dat$schoolid  # Full N length id ordered ID vector
+
+
+
+
+out <- ivd(data = data,  groups = groups,  group_id = group_id, niter = 2000)
+
+
+out[[1]]
+
+
+
+
 d <- mlmRev::Hsb82
 
 head(d)
