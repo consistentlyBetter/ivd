@@ -17,17 +17,18 @@ prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
     predictors <- all.vars(formula)[-length(all.vars(formula) )]
     if (!is_scale_model) {
       predictors <- predictors[-1]  # Exclude the response variable for location model
-    }
-
+    }    
+    
     ## Creating X matrix
-    X_formula <- update.formula(formula, paste("~", paste(predictors, collapse = "+")))
+    X_formula <- update.formula(formula,   fixed_effects )
+      #update.formula(formula, paste("~", paste(predictors, collapse = "*")))
     X_matrix <-  model.matrix(X_formula, data)
     
     ## For Z, random effects predictors
     Z_matrix <- if(length(predictors) > 0 ) {
-                  model.matrix( formula( paste("~", paste(random_effects, collapse = "+")) ), data)
+                  model.matrix( formula( paste("~", random_effects) ), data)
                 } else {
-                  stop("Empty model?")
+                  stop("Random effects missing")
                 }
     list(X = X_matrix, Z = Z_matrix) # Adjusting for intercept
   }

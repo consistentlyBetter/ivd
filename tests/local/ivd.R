@@ -111,11 +111,11 @@ prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
 }
 
 
-dat <- prepare_data_for_nimble(data = school_dat,
-                               location_formula = mAch ~ ses + (ses | schoolid),
-                               scale_formula =  ~ ses + (ses | schoolid) )
+dat <- ivd:::prepare_data_for_nimble(data = school_dat,
+                               location_formula = mAch ~ ses * sector +(ses | schoolid),
+                               scale_formula =  ~ ses*sector + (ses | schoolid) )
 
-dat[[1]]
+head(dat[[1]]$X_scale)
 
 data$X
 data$Z
@@ -134,7 +134,7 @@ devtools::load_all( )
 head(school_dat )
 
 out <- ivd(location_formula = mAch ~ ses * sector + (ses | schoolid),
-           scale_formula =  ~ ses + (ses | schoolid),
+           scale_formula =  ~ ses *sector + (ses | schoolid),
            data = school_dat,
            niter = 2000)
 
