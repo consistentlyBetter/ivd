@@ -47,21 +47,28 @@ run_MCMC_allcode <- function(seed, data, constants, code, niter = 5000, useWAIC 
 #' @importFrom stats update
 #' @export
 
-ivd <- function(data,  groups,  group_id, niter) {
+ivd <- function(location_formula, scale_formula, data, niter) {
+  dat <- prepare_data_for_nimble(data = data,
+                                 location_formula = location_formula,
+                                 scale_formula = scale_formula )
+  data <- dat[[1]]
+  groups <- dat$groups
+  group_id <- dat$group_id
+  
   modelCode <- nimbleCode({
     ## Likelihood components:
     for(i in 1:N) {
       Y[i] ~ dnorm(mu[i], sd = tau[i]) ## explicitly ask for SD not precision
       ## Check if K an S are greater than 1, if not, use simplified computation to avoid indexing issues in nimble
       if(K>1) {
-        mu[i] <- sum(beta[1:K] * X[i, 1:K]) + sum(u[groupid[i], 1:K] * X[i, 1:K])
+        mu[i] <- sum(beta[1:K] * X[i, 1:K]) + sum(u[groupid[i], 1:Kr] * Z[i, 1:Kr])
       } else {
         mu[i] <- beta[1] + u[groupid[i], 1]        
       }
       if(S>1) {
-        tau[i] <- exp( sum(zeta[1:S] * Z[i, 1:S]) + sum(u[groupid[i], (K+1):(K+S)] * Z[i, 1:S]) )
+        tau[i] <- exp( sum(zeta[1:S] * X_scale[i, 1:S]) + sum(u[groupid[i], (Kr+1):(Kr+Sr)] * Z_scale[i, 1:Sr]) )
       } else {
-        tau[i] <- exp( zeta[1] + u[groupid[i], (K+1)]  )        
+        tau[i] <- exp( zeta[1] + u[groupid[i], (Kr+1)]  )        
       }
     }
     ## Obtain correlated random effects
@@ -101,10 +108,12 @@ ivd <- function(data,  groups,  group_id, niter) {
   constants <- list(N = length(data$Y),
                     J = groups,
                     K = ncol(data$X),  ## number of fixed location effects
-                    S = ncol(data$Z),  ## number of fixed scale effects
-                    P = ncol(data$X) + ncol(data$Z),  ## number of random effects
+                    Kr = ncol(data$Z), ## number of fixed random effects
+                    S = ncol(data$X_scale),  ## number of fixed scale effects
+                    Sr = ncol(data$Z_scale),  ## number of random scale effects                    
+                    P = ncol(data$Z) + ncol(data$Z_scale),  ## number of random effects
                     groupid = group_id,
-                    bval = matrix(c(rep(1,  ncol(data$X)), rep(0.5, ncol(data$Z)) ), ncol = 1)) ## Prior probability for dbern 
+                    bval = matrix(c(rep(1,  ncol(data$Z)), rep(0.5, ncol(data$Z_scale)) ), ncol = 1)) ## Prior probability for dbern 
   ## Nimble inits
   inits <- list(beta = rnorm(constants$K, 5, 10),
                 zeta =  rnorm(constants$S, 1, 3),
@@ -131,5 +140,5 @@ ivd <- function(data,  groups,  group_id, niter) {
   ## It's good practice to close the cluster when you're done with it.
   stopCluster(this_cluster)
   class(chain_output) <- c("ivd", "list")
-  return(chain_output)
+  return(list(chain_output, dat))
 }

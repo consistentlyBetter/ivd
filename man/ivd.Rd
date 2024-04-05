@@ -4,7 +4,7 @@
 \alias{ivd}
 \title{ivd}
 \usage{
-ivd(data, groups, group_id, niter)
+ivd(location_formula, scale_formula, data, niter)
 }
 \arguments{
 \item{data}{list of data objects}
