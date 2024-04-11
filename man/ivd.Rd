@@ -4,32 +4,30 @@
 \alias{ivd}
 \title{ivd}
 \usage{
-ivd(location_formula, scale_formula, data, niter)
+ivd(location_formula, scale_formula, data, niter, nburnin = NULL, ...)
 }
 \arguments{
-\item{data}{list of data objects}
+\item{location_formula}{lme4 type formula type}
 
-\item{groups}{Number of groups (clusters)}
+\item{scale_formula}{lme4 type formula type}
 
-\item{group_id}{Vector of length N with sequentially ordered group id's}
+\item{data}{Data in long format}
+
+\item{niter}{Number of iterations after burnin}
+
+\item{nburnin}{Number of burnin. Defaults to the same amount as niter (i.e,. with niter = 5000, nburnin is also 5000).}
+
+\item{...}{not defined}
 }
 \value{
 An object of type \code{ivd}.
 }
 \description{
-ivd
+.. content for \description{} (no empty lines) ..
 }
 \details{
-The parameters that can be tracked are:
-\itemize{
-\item alpha: The fixed effect for the intercept
-\item beta: The fixed effect for the slope
-\item gamma: The inclusion indicators for the slope random effects
-\item rho: The correlation between theta1 and theta2
-\item sigma: The residual standard deviation
-\item tau1: The standard deviation for alpha
-\item tau2: The standard deviation for beta
-\item theta1: The random effects for alpha
-\item theta2: The random effects for beta
+.. content for \details{} ..
 }
+\author{
+Philippe Rast
 }

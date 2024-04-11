@@ -2,6 +2,7 @@
 ##' @param data Data object in long format
 ##' @param location_formula Formula for location
 ##' @param scale_formula Formula for scale
+##' @keywords internal
 prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
   ## Helper function to prepare model parts
   prepare_model_part <- function(data, formula, is_scale_model = FALSE) {
@@ -80,7 +81,8 @@ prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
          Z_scale = scale_data$Z
        ), 
        groups = length(unique(data[[grouping_variable]])), 
-       group_id = data[[grouping_variable]]
+       group_id = data[[grouping_variable]],
+       response_var = all.vars(location_formula)[1]
   )
 }
 

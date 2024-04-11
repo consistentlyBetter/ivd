@@ -9,7 +9,8 @@ run_MCMC_allcode(
   data,
   constants,
   code,
-  niter = 5000,
+  niter,
+  nburnin,
   useWAIC = TRUE,
   inits
 )

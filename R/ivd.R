@@ -1,7 +1,7 @@
 ##'` Create a function with all the needed code
 ##' @import nimble
 
-run_MCMC_allcode <- function(seed, data, constants, code, niter = 5000, useWAIC = TRUE, inits) {
+run_MCMC_allcode <- function(seed, data, constants, code, niter, nburnin, useWAIC = TRUE, inits) {
   myModel <- nimbleModel(code = code,
                           data = data,
                           constants = constants,
@@ -11,43 +11,40 @@ run_MCMC_allcode <- function(seed, data, constants, code, niter = 5000, useWAIC 
     monitors <- myModel$getParents(myModel$getNodeNames(dataOnly = TRUE), stochOnly = TRUE)
   ## Note on reversible jump: Does not work here, as only univariate nodes can be used with RJ
   ## Build original model
-  myMCMC <- buildMCMC(CmyModel, monitors = c("beta", "zeta", "R", "ss")) #monitors)
+  myMCMC <- buildMCMC(CmyModel, monitors = c("beta", "zeta", "R", "ss", "sigma_rand")) #monitors)
   CmyMCMC <- compileNimble(myMCMC ) #cmod <- compileNimble(myMCMC )
   ## compile conf containg additinal monitor  with original model
 #  CmyMCMC <- compileNimble(compiledMCMC, project = cmod) 
-  results <- runMCMC(CmyMCMC, niter = niter, setSeed = seed, nburnin = 1000)
+  results <- runMCMC(CmyMCMC, niter = niter, setSeed = seed, nburnin = nburnin)
   return(results)
 }
 
-##' ivd
+##' .. content for \description{} (no empty lines) ..
 ##'
-##' @param data list of data objects
-##' @param groups Number of groups (clusters)
-##' @param group_id Vector of length N with sequentially ordered group id's
+##' .. content for \details{} ..
+##' @title ivd
+##' @param location_formula lme4 type formula type 
+##' @param scale_formula lme4 type formula type
+##' @param data Data in long format
+##' @param niter Number of iterations after burnin
+##' @param nburnin Number of burnin. Defaults to the same amount as niter (i.e,. with niter = 5000, nburnin is also 5000). 
+##' @param ... not defined
+##' @return An object of type \code{ivd}.
+##' @author Philippe Rast
+##' @importFrom  nimble nimbleCode nimbleModel compileNimble buildMCMC runMCMC
+##' @import parallel
+##' @importFrom coda as.mcmc mcmc.list
+##' @importFrom stats update
+##' @export
 
-#'
-#' @details The parameters that can be tracked are:
-#' \itemize{
-#'   \item alpha: The fixed effect for the intercept
-#'   \item beta: The fixed effect for the slope
-#'   \item gamma: The inclusion indicators for the slope random effects
-#'   \item rho: The correlation between theta1 and theta2
-#'   \item sigma: The residual standard deviation
-#'   \item tau1: The standard deviation for alpha
-#'   \item tau2: The standard deviation for beta
-#'   \item theta1: The random effects for alpha
-#'   \item theta2: The random effects for beta
-#' }
-#'
-#' @return An object of type \code{ivd}.
-#'
-#' @importFrom  nimble nimbleCode nimbleModel compileNimble buildMCMC runMCMC
-#' @import parallel
-#' @importFrom coda as.mcmc
-#' @importFrom stats update
-#' @export
-
-ivd <- function(location_formula, scale_formula, data, niter) {
+ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, ...) {
+  if(is.null(nburnin)) {
+    nburnin <- niter
+  }
+  ## In nimble, niter is total amount of iterations, including burnin.
+  ## Here, niter is iterations after burnin. 
+  niter <- niter + nburnin
+  
   dat <- prepare_data_for_nimble(data = data,
                                  location_formula = location_formula,
                                  scale_formula = scale_formula )
@@ -59,16 +56,25 @@ ivd <- function(location_formula, scale_formula, data, niter) {
     ## Likelihood components:
     for(i in 1:N) {
       Y[i] ~ dnorm(mu[i], sd = tau[i]) ## explicitly ask for SD not precision
-      ## Check if K an S are greater than 1, if not, use simplified computation to avoid indexing issues in nimble
+      ## Check if K (number of fixed location effects) an S (number of fixed scale effecs)
+      ## are greater than 1, if not, use simplified computation to avoid indexing issues in nimble
+      ## Location
       if(K>1) {
-        mu[i] <- sum(beta[1:K] * X[i, 1:K]) + sum(u[groupid[i], 1:Kr] * Z[i, 1:Kr])
+        mu[i] <- sum(beta[1:K] * X[i, 1:K]) + sum( u[groupid[i], 1:Kr] * Z[i, 1:Kr] )
       } else {
         mu[i] <- beta[1] + u[groupid[i], 1]        
       }
+      ## Scale
       if(S>1) {
-        tau[i] <- exp( sum(zeta[1:S] * X_scale[i, 1:S]) + sum(u[groupid[i], (Kr+1):(Kr+Sr)] * Z_scale[i, 1:Sr]) )
+        if(Sr>1) {
+          tau[i] <- exp( sum(zeta[1:S] * X_scale[i, 1:S]) + sum(u[groupid[i], (Kr+1):(Kr+Sr)] * Z_scale[i, 1:Sr]) )  
+        } else {
+         tau[i] <- exp( sum(zeta[1:S] * X_scale[i, 1:S]) + u[groupid[i], (Kr+1)] ) 
+        }
       } else {
-        tau[i] <- exp( zeta[1] + u[groupid[i], (Kr+1)]  )        
+        ## This assumes that if there is only one fixed interceptin scale, there is also exactly one random intercept in scale,
+        ## and no other effects
+        tau[i] <- exp( zeta[1] + u[groupid[i], (Kr+1)] )
       }
     }
     ## Obtain correlated random effects
@@ -124,21 +130,31 @@ ivd <- function(location_formula, scale_formula, data, niter) {
   nc <- parallel::detectCores( )
   this_cluster <- makeCluster(nc)
   useWAIC <- TRUE
-  ## THIS SHOULD NOT BE NECESSARY WITHIN A PACKAGE
-# Assuming 'this_cluster' is already defined as your cluster object
-                                        # Load 'nimble' on each worker
-  clusterEvalQ(cl = this_cluster, {
-    library(nimble)
-  })
-  ## END
+ ##  ## THIS SHOULD NOT BE NECESSARY WITHIN A PACKAGE
+## # Assuming 'this_cluster' is already defined as your cluster object
+##                                         # Load 'nimble' on each worker
+   clusterEvalQ(cl = this_cluster, {
+     library(nimble)
+   })
+##   ## END
 
   chain_output <- parLapply(cl = this_cluster, X = 1:4, 
                             fun = run_MCMC_allcode, 
-                            data = data, constant = constants, inits = inits, code = modelCode, niter = niter,
+                            data = data, constant = constants, inits = inits, code = modelCode, niter = niter, nburnin = nburnin,
                             useWAIC = useWAIC)
 
   ## It's good practice to close the cluster when you're done with it.
   stopCluster(this_cluster)
-  class(chain_output) <- c("ivd", "list")
-  return(list(chain_output, dat))
+
+  out <- list()
+
+  mcmc_chains <- lapply(chain_output, as.mcmc)
+  combined_chains <- mcmc.list(mcmc_chains)
+  
+  out$samples <- combined_chains
+  out$nimble_constants <- constants
+
+  #out <- chain_output
+  class(out) <- c("ivd", "list")
+  return( out )
 }

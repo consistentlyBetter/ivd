@@ -16,3 +16,4 @@ prepare_data_for_nimble(data, location_formula, scale_formula)
 \description{
 Define data from formula
 }
+\keyword{internal}
