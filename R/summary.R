@@ -57,11 +57,28 @@ summary.ivd <- function(object, digits = 2, ...) {
   sm <- summary_table( summary_stats$statistics )
   sq <- summary_table( summary_stats$quantiles )
   ## obtain rhat
-  rhat <- gelman.diag(combined_chains[, rownames(sm )])
+  rhat <- gelman.diag(combined_chains[, rownames(sm)])
   ## combine to printable object
   s_comb <- cbind(sm[,-3],  sq[, c(1, 3, 5)], rhat$psrf )
+  
   table <- round(s_comb, 3)
 
+  cat("Summary statistics for ivd model:\n")
+  .newline
+  
+  print(table)
   class(table) <- "summary.ivd"
-  return(table)
+  invisible(table)
+}
+
+
+##' @title Print helper - Return new line(s).
+##' @param n Integer (Default: 1). Number of new lines.
+##' @return Prints new lines.
+##' @author Philippe Rast
+##' @keywords internal
+.newline <- function(n = 1) {
+    for(i in 1:n) {
+        cat("\n")
+    }
 }
