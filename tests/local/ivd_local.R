@@ -53,7 +53,7 @@ class(out)
 summary(out)
 print(out )
 
-Sys.setenv(DISPLAY ="11:0" )
+##Sys.setenv(DISPLAY ="11:0" )
 Sys.getenv("DISPLAY")
 plot(1:5)
 dev.off( )
