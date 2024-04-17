@@ -27,6 +27,7 @@ run_MCMC_allcode <- function(seed, data, constants, code, niter, nburnin, useWAI
 #' @param data Data frame in long format for analysis
 #' @param niter Total number of MCMC iterations after burnin
 #' @param nburnin Number of burnin iterations, defaults to the same as niter
+#' @param ... Currently not used
 #' @import future
 #' @importFrom future.apply future_lapply
 #' @importFrom coda as.mcmc mcmc.list
@@ -119,7 +120,7 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, ..
 
   future::plan(multisession, workers = 4)
 
-  results <- future_lapply(1:4, function(x) ivd:::run_MCMC_allcode(x, data, constants, modelCode, niter, nburnin, TRUE, inits), future.seed = TRUE, future.packages = c("nimble"))
+  results <- future_lapply(1:4, function(x) run_MCMC_allcode(x, data, constants, modelCode, niter, nburnin, TRUE, inits), future.seed = TRUE, future.packages = c("nimble"))
   
   out <- list()
   mcmc_chains <- lapply(results, as.mcmc)

@@ -16,6 +16,8 @@ ivd(location_formula, scale_formula, data, niter, nburnin = NULL, ...)
 \item{niter}{Total number of MCMC iterations after burnin}
 
 \item{nburnin}{Number of burnin iterations, defaults to the same as niter}
+
+\item{...}{Currently not used}
 }
 \description{
 Main function to set up and run parallel MCMC using nimble and future

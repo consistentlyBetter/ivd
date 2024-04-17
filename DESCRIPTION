@@ -31,6 +31,8 @@ Imports:
     ggplot2,
     patchwork,
     mvtnorm,
+    future,
+    future.apply,
     methods
 Suggests:
     testthat (>= 3.0.0)
