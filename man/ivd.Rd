@@ -2,32 +2,21 @@
 % Please edit documentation in R/ivd.R
 \name{ivd}
 \alias{ivd}
-\title{ivd}
+\title{Main function to set up and run parallel MCMC using nimble and future}
 \usage{
 ivd(location_formula, scale_formula, data, niter, nburnin = NULL, ...)
 }
 \arguments{
-\item{location_formula}{lme4 type formula type}
+\item{location_formula}{A formula for the location model}
 
-\item{scale_formula}{lme4 type formula type}
+\item{scale_formula}{A formula for the scale model}
 
-\item{data}{Data in long format}
+\item{data}{Data frame in long format for analysis}
 
-\item{niter}{Number of iterations after burnin}
+\item{niter}{Total number of MCMC iterations after burnin}
 
-\item{nburnin}{Number of burnin. Defaults to the same amount as niter (i.e,. with niter = 5000, nburnin is also 5000).}
-
-\item{...}{not defined}
-}
-\value{
-An object of type \code{ivd}.
+\item{nburnin}{Number of burnin iterations, defaults to the same as niter}
 }
 \description{
-.. content for \description{} (no empty lines) ..
-}
-\details{
-.. content for \details{} ..
-}
-\author{
-Philippe Rast
+Main function to set up and run parallel MCMC using nimble and future
 }

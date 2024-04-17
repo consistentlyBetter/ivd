@@ -49,15 +49,16 @@
 ##' @param ... Not used
 ##' @return summary.ivd object
 ##' @author Philippe Rast
+##' @importFrom coda gelman.diag
 ##' @export
 
 summary.ivd <- function(object, digits = 2, ...) {
   summary_stats <- summary(object$samples)
   ## summary_stats is a coda object with 2 summaries
-  sm <- summary_table( summary_stats$statistics )
-  sq <- summary_table( summary_stats$quantiles )
+  sm <- .summary_table( summary_stats$statistics )
+  sq <- .summary_table( summary_stats$quantiles )
   ## obtain rhat
-  rhat <- gelman.diag(combined_chains[, rownames(sm)])
+  rhat <- gelman.diag(object$samples[, rownames(sm)])
   ## combine to printable object
   s_comb <- cbind(sm[,-3],  sq[, c(1, 3, 5)], rhat$psrf )
   

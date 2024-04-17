@@ -45,7 +45,7 @@ head(school_dat )
 out <- ivd(location_formula = mAch ~ ses * sector + (ses | schoolid),
            scale_formula =  ~ ses + (1 | schoolid),
            data = school_dat,
-           niter = 1500, nburnin = 1500)
+           niter = 150, nburnin = 150)
 
 str(out)
 class(out)
