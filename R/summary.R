@@ -1,9 +1,11 @@
 ##' @title Filter coda object
-##' @param stats 
+##' @param stats summary object
+##' @param Kr Number of random location efx
+##' @param Sr Number of random scale efx
 ##' @return filtered coda 
 ##' @author philippe
 ##' @keywords internal
-.summary_table <- function(stats) {
+.summary_table <- function(stats, Kr ) {
   ## Convert row names into a format that makes it easy to identify the rows to exclude
   rows_to_exclude <- c()
   for (row_name in rownames(stats)) {
@@ -18,9 +20,9 @@
         }
       }
     } else if (grepl("^ss\\[", row_name)) {
-      ## Exclude the first and second rows of ss TODO: This depnds on the size of ranef
+      ## Exclude the rows that pertain to location as SS is always 1
       row_number <- as.numeric(unlist(regmatches(row_name, gregexpr("[0-9]+", row_name)))[1])
-      if (row_number == 1 || row_number == 2) {
+      if (row_number <= Kr) {
         rows_to_exclude <- c(rows_to_exclude, row_name)
       }
     } else if (grepl("^sigma\\_rand\\[", row_name)) {
@@ -55,8 +57,8 @@
 summary.ivd <- function(object, digits = 2, ...) {
   summary_stats <- summary(object$samples)
   ## summary_stats is a coda object with 2 summaries
-  sm <- .summary_table( summary_stats$statistics )
-  sq <- .summary_table( summary_stats$quantiles )
+  sm <- .summary_table( summary_stats$statistics, Kr = object$nimble_constants$Kr )
+  sq <- .summary_table( summary_stats$quantiles, Kr = object$nimble_constants$Kr )
   ## obtain rhat
   rhat <- gelman.diag(object$samples[, rownames(sm)])
   ## combine to printable object
