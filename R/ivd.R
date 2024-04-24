@@ -2,21 +2,22 @@
 ##' @import nimble
 ##' @export
 
-run_MCMC_allcode <- function(seed, data, constants, code, niter, nburnin, useWAIC = TRUE, inits) {
+run_MCMC_allcode <- function(seed, data, constants, code, niter, nburnin, useWAIC = TRUE, inits, additional_monitors = "NULL") {
   myModel <- nimble::nimbleModel(code = code,
                           data = data,
                           constants = constants,
                           inits = inits)
-  CmyModel <- nimble::compileNimble(myModel)
-  if(useWAIC) 
-    monitors <- myModel$getParents(myModel$getNodeNames(dataOnly = TRUE), stochOnly = TRUE)
-  ## Note on reversible jump: Does not work here, as only univariate nodes can be used with RJ
-  ## Build original model
-  myMCMC <- nimble::buildMCMC(CmyModel, monitors = c("beta", "zeta", "R", "ss", "sigma_rand")) #monitors)
-  CmyMCMC <- nimble::compileNimble(myMCMC ) #cmod <- compileNimble(myMCMC )
-  ## compile conf containg additinal monitor  with original model
-#  CmyMCMC <- compileNimble(compiledMCMC, project = cmod) 
-  results <- nimble::runMCMC(CmyMCMC, niter = niter, setSeed = seed, nburnin = nburnin)
+  cmpModel <- nimble::compileNimble(myModel)
+
+  config <- nimble::configureMCMC(myModel)
+  config$enableWAIC <- useWAIC
+  config$monitors <- c("beta", "zeta", "R", "ss", "sigma_rand", "u")
+  
+  myMCMC <- nimble::buildMCMC(config)
+  compMCMC <- nimble::compileNimble(myMCMC, project = cmpModel)
+  
+  results <- nimble::runMCMC(compMCMC, niter = niter, setSeed = seed, nburnin = nburnin)
+  
   return(results)
 }
 
@@ -94,7 +95,7 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, ..
     }  
     ## Random effects SD
     for(p in 1:P){
-      sigma_rand[p,p] ~ dgamma(1,3)
+      sigma_rand[p,p] ~ T(dt(0, 1, 3), 0, )
     }
     ## Lower cholesky of random effects correlation 
     L[1:P, 1:P] ~ dlkj_corr_cholesky(eta = 1, p = P)
@@ -120,7 +121,8 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, ..
 
   future::plan(multisession, workers = 4)
 
-  results <- future_lapply(1:4, function(x) run_MCMC_allcode(x, data, constants, modelCode, niter, nburnin, TRUE, inits), future.seed = TRUE, future.packages = c("nimble"))
+  results <- future_lapply(1:4, function(x) run_MCMC_allcode(x, data, constants, modelCode, niter, nburnin, TRUE, inits),
+                           future.seed = TRUE, future.packages = c("nimble"))
   
   out <- list()
   mcmc_chains <- lapply(results, as.mcmc)
