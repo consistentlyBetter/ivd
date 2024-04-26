@@ -34,6 +34,8 @@
           rows_to_exclude <- c(rows_to_exclude, row_name)
         }
       }
+    } else if (grepl("^u\\[", row_name)) {
+      rows_to_exclude <- c(rows_to_exclude,  row_name )
     }
   }
   ## Exclude rows

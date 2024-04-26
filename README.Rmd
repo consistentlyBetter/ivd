@@ -24,12 +24,9 @@ knitr::opts_chunk$set(
 [![codecov](https://codecov.io/gh/consistentlyBetter/ivd/graph/badge.svg?token=SD0PM5BVIL)](https://codecov.io/gh/consistentlyBetter/ivd)
 <!-- badges: end -->
 
-*ivd* is an R package for random effects selection that corresponds to the models described in @rodriguez2021. Specifically, `ivd_alpha()` fits a random intercepts model with a spike-and-slab prior on the random effects and `ivd_beta()` fits a model with both random intercepts and random slopes, with a spike-and-slab prior on the random effects for the slope. The function `ivd_mv()` fits a multivariate mixed-effects models for two outcomes and places a spike-and-slab prior on the random slope for each outcome.
-
-This package is repurposed from the orginal verision at [josue-rodriguez/SSranef](https://www.github.com/josue-rodriguez/SSranef)
+*ivd* is an R package for random effects selection in the scale part of Mixed Effects Location Scale Modlels (MELSM). `ivd()` fits a random intercepts model with a spike-and-slab prior on the random effects of the scale.
 
 ## Installation
-
 
 This package can be installed with 
 
@@ -45,90 +42,39 @@ devtools::install_github("consistentlybetter/ivd")
 library(ivd)
 
 d <- mlmRev::Hsb82
+
+## Ensure that school id is a continuous vector
+school_dat$schoolid <- NA
+k <- 0
+for( i in unique(school_dat$school) ) {
+  k <- k+1
+  school_dat[school_dat$school == i, "schoolid"] <- k
+}
 ```
 
-## Alpha model
+## Estimate Model
 ```{r}
-d$y <- c(scale(d$mAch))
-
-alpha <- ivd_alpha(y = d$y, unit = d$school)
-
-posterior_summary(alpha, ci = 0.90, digits = 2)
-```
-
-```{r}
-ranef_summary(alpha, ci = 0.95, digits = 2)
-```
-
-```{r}
-caterpillar_plot(alpha, legend = FALSE)
-```
-
-```{r}
-pip_plot(alpha, legend = FALSE)
-```
-
-## Beta model
-```{r}
-beta <- ivd_beta(y = d$y, X = d$ses, unit = d$school)
-posterior_summary(beta, digits = 2)
+out <- ivd(location_formula = mAch ~ ses + sector + (ses | schoolid),
+           scale_formula =  ~ ses + (1 | schoolid),
+           data = school_dat,
+           niter = 1000, nburnin = 1000)
 ```
 
 ```{r}
-ranef_summary(beta, digits = 2)
+summary(out)
 ```
 
 ```{r}
-caterpillar_plot(beta, legend = FALSE)
+plot(out, type = "pip" )
 ```
 
 ```{r}
-pip_plot(beta, legend = FALSE)
+plot(out, type =  "funnel")
 ```
 
-```{r include=FALSE, eval=FALSE}
-library(lme4)
-summary(lmer(y ~ 1 + (1|school), data = d))
-```
-
-## Multivariate model
-
+Diagnostic plots based on coda plots:
 ```{r}
-mv_data <- gen_mv_data(5, 5)
-str(mv_data)
-
-mv_model <- ivd_mv(Y = cbind(mv_data$y1, mv_data$y2),
-                        X = mv_data$x,
-                        unit = mv_data$id,
-                        burnin = 100,
-                        iter = 500,
-                        chains = 4)
-
-posterior_summary(mv_model)
-```
-
-
-## Priors
-
-Priors can be passed on to either of the `ivd` functions through a named list and using JAGS code, e.g., 
-
-```{r}
-# change prior for mean intercept
-priors <- list(alpha = "alpha ~ dt(0, 1, 3)",
-               # for each jth unit, change prior probability of inclusion
-               gamma = "gamma[j] ~ dbern(0.75)") 
-
-fit <- ivd_alpha(y = d$y, unit = d$school, priors = priors)
-ranef_summary(fit)
-```
-
-## Building on top of SSranef models
-
-The code for each model can also be extracted to make more extensive modifications or build more complex models
-
-```{r}
-jags_model_text <- fit$model_text
-cat(jags_model_text)
+codaplot(out, parameter =  "beta[1]")
 ```
 
 # References

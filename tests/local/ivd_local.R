@@ -6,10 +6,7 @@ library(mlmRev)
 
 school_dat = mlmRev::Hsb82
 
-school_dat$y <- c(scale(school_dat$mAch))
-school_dat$intercept <- 1
-
-
+## Ensure that school id is a continuous vector
 school_dat$schoolid <- NA
 k <- 0
 for( i in unique(school_dat$school) ) {
@@ -26,9 +23,6 @@ dat <- ivd:::prepare_data_for_nimble(data = school_dat,
 str(dat )
 ## head(dat[[1]]$X_scale)
 
-## data$X
-## data$Z
-## dat$data$X
 dat$data$X_scale
 ## dat$data$Z
 dat$data$Z_scale
@@ -52,7 +46,7 @@ out <- ivd(location_formula = mAch ~ ses + sector + (ses | schoolid),
 summary(out)
 print(out )
 
-codaplot(out, parameter =  "u[2, 1]")
+codaplot(out, parameter =  "beta[1]")
 
 plot(out, type = "funnel")
 
