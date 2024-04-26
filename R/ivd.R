@@ -1,4 +1,4 @@
-##'` Create a function with all the needed code
+##'` Create a function to be loaded on each worker. This needs to be exported for future to be able to load it.
 ##' @import nimble
 ##' @export
 
@@ -65,7 +65,7 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, ..
          tau[i] <- exp( sum(zeta[1:S] * X_scale[i, 1:S]) + u[groupid[i], (Kr+1)] * Z_scale[i,1]) 
         }
       } else {
-        ## This assumes that if there is only one fixed interceptin scale, there is also exactly one random intercept in scale,
+        ## This assumes that if there is only one fixed intercept in scale, there is also exactly one random intercept in scale,
         ## and no other effects
         tau[i] <- exp( zeta[1] + u[groupid[i], (Kr+1)] )
       }
@@ -130,6 +130,8 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, ..
   
   out$samples <- combined_chains
   out$nimble_constants <- constants
+  out$X_scale <- data$X_scale
+  out$Z_scale <- data$Z_scale
   
   class(out) <- c("ivd", "list")
   return(out)

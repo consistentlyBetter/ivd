@@ -2,7 +2,7 @@
 % Please edit documentation in R/ivd.R
 \name{run_MCMC_allcode}
 \alias{run_MCMC_allcode}
-\title{` Create a function with all the needed code}
+\title{` Create a function to be loaded on each worker. This needs to be exported for future to be able to load it.}
 \usage{
 run_MCMC_allcode(
   seed,
@@ -12,9 +12,10 @@ run_MCMC_allcode(
   niter,
   nburnin,
   useWAIC = TRUE,
-  inits
+  inits,
+  additional_monitors = "NULL"
 )
 }
 \description{
-` Create a function with all the needed code
+` Create a function to be loaded on each worker. This needs to be exported for future to be able to load it.
 }

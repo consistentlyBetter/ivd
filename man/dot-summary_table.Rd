@@ -4,10 +4,14 @@
 \alias{.summary_table}
 \title{Filter coda object}
 \usage{
-.summary_table(stats)
+.summary_table(stats, Kr)
 }
 \arguments{
-\item{stats}{}
+\item{stats}{summary object}
+
+\item{Kr}{Number of random location efx}
+
+\item{Sr}{Number of random scale efx}
 }
 \value{
 filtered coda

@@ -42,23 +42,30 @@ dat$data$Z_scale
 devtools::load_all( )
 head(school_dat )
 
-out <- ivd(location_formula = mAch ~ ses * sector + (ses | schoolid),
+
+out <- ivd(location_formula = mAch ~ ses + sector + (ses | schoolid),
            scale_formula =  ~ ses + (1 | schoolid),
            data = school_dat,
-           niter = 150, nburnin = 150)
+           niter = 500, nburnin = 700)
 
-str(out)
-class(out)
 
 summary(out)
 print(out )
+
+codaplot(out, parameter =  "u[2, 1]")
+
+
+plot(out, type = "funnel")
+
+
 
 Sys.setenv(DISPLAY ="11:0" )
 Sys.getenv("DISPLAY")
 plot(1:5)
 dev.off( )
 
-
+stats <-
+  out$samples[[1]]
 
 
 
@@ -68,90 +75,100 @@ plot(out$samples[, c( "zeta[1]", "zeta[2]", "beta[1]", "beta[2]")] )
 plot(out$samples[, c( "beta[3]", "beta[4]", "R[2, 1]" ,"R[3, 1]")] )
 plot(out$samples[, c( "sigma_rand[1, 1]", "sigma_rand[2, 2]", "sigma_rand[3, 3]")] )
 
+devtools::load_all( )
+
+
+coda::
+codaplot(out, parameters = "beta[1]")
+
+colnames(out$samples[[1]] )
 
 
 
-colMeans(out[[1]][,1:10])
-
-colMeans(out[[1]][,35:42] )
-str(out )
+## Plot DEVEL
 
 
 
-d <- mlmRev::Hsb82
-
-head(d)
-d$y <- c(scale(d$mAch))
-system.time( {
-  alpha <- ivd_alpha(y = d$y, unit = d$school)
-})
-## 34 second, down to 9 sec
-
-names(alpha$posterior_samples)
-
-alpha$model_text
 
 
 
-posterior_summary(alpha, ci = 0.90, digits = 2)
-
-print(alpha$call)
-caterpillar_plot( alpha, legend = FALSE)
-
-pip_plot( alpha ,  legend = FALSE)
 
 
-beta <- ivd_beta(y = d$y, X = d$ses, unit = d$school)
-ranef_summary(beta)
+## Random efct standard dev:
+## Init:
+cols_to_keep <- c( )
+## Find spike and slab variables
+col_sigma_rand <- col_names[ grepl( "^tau\\[", col_names ) ]
+
+for(col_name in col_sigma_rand) {
+  elements <- as.numeric(unlist(regmatches(col_name, gregexpr("[0-9]+", col_name))))
+  if(elements[1] == elements[2]) {
+    cols_to_keep <- c(cols_to_keep,  col_name )
+  }
+}
+
+cols_to_keep
+
+## Subset each MCMC matrix to keep only the relevant columns
+subsamples <- lapply(out$samples, function(x) x[, cols_to_keep])
+
+## Calculate column means for each subsetted MCMC matrix
+quantile_list <- lapply(subsamples, function(x) quantile(x, c(0.025, 0.5, .975)) )
+quantile_list
+
+##  Aggregate these means across all chains
+# This computes the mean of means for each column across all chains
+final_quantile <- Reduce("+", quantile_list) / length(quantile_list)
 
 
 
-caterpillar_plot(beta, legend =  FALSE)
-
-##
-jags_data <- list(y = d$y,
-                  unit =  d$school,
-                  N = length(d$y)
-                  J = length(unique(d$school)),
-                  n_j = )
 
 
-jags_data <- alpha$data_list
-jags_data
 
-parameters <- c("s_alpha_0", "s_alpha_0_j", "gamma")
 
-#setwd("./tests/local/" )
-library(R2jags)
-fit <- jags.parallel(jags_data, parameters.to.save = parameters, model.file = "model.bug",
-                     n.iter = 1000)
 
-fit
 
-textConnection( alpha$model_text )
 
-model_text <- ivd:::make_model_text_alpha(priors_list = ivd:::make_default_priors_alpha( ))
 
-write(moda,
-      file = "model.bug")
 
-vars2monitor = c("alpha", "gamma", "sigma", "tau", "theta")
+library(ggplot2)
+library(data.table )
 
-fit <- jags.parallel(jags_data,
-                     parameters.to.save = vars2monitor,
-                     model.file = jags_tempfile,
-                     n.iter = 2000)
-data_list <- alpha$data_list
+## Convert the mcmc.list object to a data.table
+mcmc_list <- out$samples
 
-floor(11/2)
 
-tempdir()
+dt_mcmc <- data.table(iter = seq_len(nrow(mcmc_list[[1]])),
+                      chain = rep(1:length(mcmc_list), each = nrow(mcmc_list[[1]])),
+                      parameter = rep(colnames(mcmc_list[[1]]), times = length(mcmc_list)),
+                      value = as.vector(as.matrix(mcmc_list)))
 
-coda.samples(fit,  variable.names = vars2monitor )
+keep_columns <- colnames(mcmc_list[[1]]) %in% ss_param
 
-fit$BUGSoutput
+dt_mcmc <- data.table(
+  iter = rep(seq_len(nrow(mcmc_list[[1]])), times = length(mcmc_list) * sum(keep_columns)),
+  chain = rep(1:length(mcmc_list), each = nrow(mcmc_list[[1]])) %>% rep(times = sum(keep_columns)),
+  parameter = rep(colnames(mcmc_list[[1]])[keep_columns], times = length(mcmc_list)),
+  value = as.vector(sapply(mcmc_list, function(x) as.matrix(x[, keep_columns, drop = FALSE])))
+)
 
-mcmc_list <- as.mcmc(fit )
-str(mcmc_list )
+setorder(dt_mcmc, chain, iter)
 
-do.call(rbind.data.frame, mcmc_list)
+dt_mcmc
+
+# Plotting using ggplot2
+ggplot(data = dt_mcmc[parameter == "ss[1, 124]" & chain == 1], aes(x = iter, y = value, group = chain, colour = as.factor(chain))) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "Trace Plot for zeta[1]",
+       x = "Iteration",
+       y = "Value",
+       colour = "Chain") +
+  scale_color_manual(values = c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3")) # Example colors
+
+
+dt_mcmc
+xtmp <- dt_mcmc[parameter == "zeta[1]", c("iter", "chain", "value", "parameter")]
+setorder(xtmp, chain, iter)
+
+plot(xtmp$iter, xtmp$value, type = 'l')
