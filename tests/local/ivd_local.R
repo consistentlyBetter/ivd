@@ -15,10 +15,14 @@ for( i in unique(school_dat$school) ) {
 }
 
 
+head(school_dat )
+
 
 dat <- ivd:::prepare_data_for_nimble(data = school_dat,
                                 location_formula = mAch ~ ses * sector +(ses | schoolid),
                                 scale_formula =  ~ ses + (1 | schoolid) )
+
+
 
 str(dat )
 ## head(dat[[1]]$X_scale)
@@ -37,18 +41,22 @@ devtools::load_all( )
 head(school_dat )
 
 
-out <- ivd(location_formula = mAch ~ ses + sector + (ses | schoolid),
-           scale_formula =  ~ ses + (1 | schoolid),
+out <- ivd(location_formula = mAch ~  meanses+ses + (ses | schoolid),
+           scale_formula =  ~ meanses+ses + (1 + ses | schoolid),
            data = school_dat,
-           niter = 500, nburnin = 700)
+           niter = 1000, nburnin = 2500)
 
 
 summary(out)
 print(out )
 
-codaplot(out, parameter =  "beta[1]")
+codaplot(out, parameter =  "zeta[1]")
 
-plot(out, type = "funnel")
+plot(out, type = "pip")
+
+plot(out, type = "funnel", variable = "(Intercept)")
+plot(out, type = "funnel", variable = "ses")
+
 
 plot(1:5)
 dev.off( )
@@ -56,6 +64,22 @@ dev.off( )
 stats <-
   out$samples[[1]]
 
+
+
+library(plotly )
+df_funnel
+
+# Assuming 'df_funnel' is your data frame and it is already loaded
+# Create a 3D scatter plot
+plot <- plot_ly(data = df_funnel, x = ~log(tau2), y = ~log(tau), z = ~pip, type = 'scatter3d', mode = 'markers',
+                marker = list(size = 5, color = df_funnel$pip, colorscale = 'Viridis', opacity = 0.8)) %>%
+        layout(title = "3D Plot of pip, tau2, and tau",
+               scene = list(xaxis = list(title = 'tau2'),
+                            yaxis = list(title = 'tau'),
+                            zaxis = list(title = 'pip')))
+
+# If running in an interactive R environment, this will display the plot.
+plot
 
 
 

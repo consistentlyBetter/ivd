@@ -10,8 +10,11 @@
 ##' @export
 
 
-plot.ivd <- function(obj, type = "pip", ci = 0.9, col_id = TRUE, legend = TRUE, ...) {
-
+plot.ivd <- function(obj, type = "pip", variable = NULL, col_id = TRUE, legend = TRUE, ...) {
+  ## Get scale variable names
+  ranef_scale_names <- colnames(obj$Z_scale)
+  fixef_scale_names <- colnames(obj$X_scale)
+  
   col_names <- colnames(obj$samples[[1]])
   Kr <- obj$nimble_constants$Kr
 
@@ -31,13 +34,14 @@ plot.ivd <- function(obj, type = "pip", ci = 0.9, col_id = TRUE, legend = TRUE, 
   ## Calculate column means for each subsetted MCMC matrix
   means_list <- lapply(subsamples, colMeans)
 
-  ##  Aggregate these means across all chains
-                                        # This computes the mean of means for each column across all chains
+  ## Aggregate these means across all chains
+  ## This computes the mean of means for each column across all chains
+  ## TODO: This is combining intercep and slope pips -- FIX
   final_means <- Reduce("+", means_list) / length(means_list)
 
+  ## Define ordered dataset
   df_pip <- data.frame(id = seq_len(length(final_means)),
                        pip = final_means)
-
   df_pip <- df_pip[order(df_pip$pip), ]
   df_pip$ordered <- 1:nrow(df_pip)
 
@@ -59,7 +63,6 @@ plot.ivd <- function(obj, type = "pip", ci = 0.9, col_id = TRUE, legend = TRUE, 
   
   ## Indices of columns where column index is greater than Kr
   scale_ranef_pos <- which(column_indices)
-
 
   
   if( type == "pip") {
@@ -85,27 +88,53 @@ plot.ivd <- function(obj, type = "pip", ci = 0.9, col_id = TRUE, legend = TRUE, 
         u <- colMeans(do.call(rbind, lapply(obj$samples, FUN = function(x) colMeans(x[, scale_ranef_pos]))))
         tau <- exp(zeta + u )
       } else if (no_ranef_s > 1 ) {
-        print("todo")
+       if(is.null(variable)) {
+         ## Prompt user for action when there are multiple random effects
+         variable <- readline(prompt="There are multiple random effects. Please provide the variable name to be plotted or type 'list' \n(or specify as plot(fitted, type = 'funnel', variable = 'variable_name'): ")
+         if (tolower(variable) == "list") {
+           variable <- readline(prompt = cat(ranef_scale_names, ": "))
+         }
+       }
+
+       ## Find position of user requested random effect
+       scale_ranef_position_user <- which(ranef_scale_names == variable)
+       
+       ## Find position of user requested fixed effect
+       ## TODO: When interactions are present plot will change according to moderator...
+       ## Currently only main effect is selected
+       scale_fixef_position_user <- which(fixef_scale_names == variable)
+
+       ## Use ranef_position_user to select corresponding fixed effect
+       zeta <- mean( unlist( lapply(obj$samples, FUN = function(x) mean(x[, paste0("zeta[", scale_fixef_position_user, "]")])) ) )
+
+       ## Extract the posterior mean of each random effect:        
+       pos <- scale_ranef_pos[ grepl( paste0(Kr + scale_ranef_position_user, "\\]"),  names(scale_ranef_pos ) ) ]
+
+       u <- colMeans(do.call(rbind, lapply(obj$samples, FUN = function(x) colMeans(x[, pos]))))
+       tau <- exp(zeta + u )
+
+      } else {
+        print("Invalid action specified. Exiting.")
       }
-
-      ## Add tau to data frame -- ensure correct order
-      df_funnel <- cbind(df_pip[order(df_pip$id), ], tau )
-
-      ## Make nudge scale dependent:
-      nx <- (max(df_funnel$tau ) - min(df_funnel$tau ))/50
-
-      plt <- ggplot(df_funnel, aes(x = tau, y = pip, color = as.factor(id))) +
-        geom_point( ) +
-        guides(color = FALSE) + labs(x = "Within-Cluster SD") +
-        geom_text(data = subset(df_funnel, pip >= 0.75),
-                  aes(label = id),
-                  nudge_x = -nx,
-                  size = 3)+
-        geom_abline(intercept = 0.75, slope = 0, lty =  3)+
-        geom_abline(intercept = 0.25, slope = 0, lty =  3)+
-        ylim(c(0, 1 ) )
-      print( plt )
     }
+
+    ## Add tau to data frame -- ensure correct order
+    df_funnel <- cbind(df_pip[order(df_pip$id), ], tau )
+
+    ## Make nudge scale dependent:
+    nx <- (max(df_funnel$tau ) - min(df_funnel$tau ))/50
+
+    plt <- ggplot(df_funnel, aes(x = tau, y = pip, color = as.factor(id))) +
+      geom_point( ) +
+      guides(color = FALSE) + labs(x = "Within-Cluster SD") +
+      geom_text(data = subset(df_funnel, pip >= 0.75),
+                aes(label = id),
+                nudge_x = -nx,
+                size = 3)+
+      geom_abline(intercept = 0.75, slope = 0, lty =  3)+
+      geom_abline(intercept = 0.25, slope = 0, lty =  3)+
+      ylim(c(0, 1 ) )
+    print( plt )
   }
   return(invisible(plt))  
 }

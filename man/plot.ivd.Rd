@@ -4,20 +4,20 @@
 \alias{plot.ivd}
 \title{Plot method for ivd objects}
 \usage{
-\method{plot}{ivd}(obj, type = "pip", ci = 0.9, col_id = TRUE, legend = TRUE, ...)
+\method{plot}{ivd}(obj, type = "pip", variable = NULL, col_id = TRUE, legend = TRUE, ...)
 }
 \arguments{
 \item{obj}{An object of type \code{ivd}.}
 
 \item{type}{Defaults to 'pip', other options are 'caterpillar' and 'funnel'}
 
-\item{ci}{The width of the credible interval that should be used. Defaults to 0.9.}
-
 \item{col_id}{Whether the plot should color in points by their unique identifier.}
 
 \item{legend}{Should legend be included? Defaults to TRUE}
 
 \item{...}{Currently not in use.}
+
+\item{ci}{The width of the credible interval that should be used. Defaults to 0.9.}
 }
 \description{
 Plot method for ivd objects
