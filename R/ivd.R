@@ -16,7 +16,7 @@ run_MCMC_allcode <- function(seed, data, constants, code, niter, nburnin, useWAI
   myMCMC <- nimble::buildMCMC(config)
   compMCMC <- nimble::compileNimble(myMCMC, project = cmpModel)
   
-  results <- nimble::runMCMC(compMCMC, niter = niter, setSeed = seed, nburnin = nburnin)
+  results <- nimble::runMCMC(compMCMC, niter = niter, setSeed = seed, nburnin = nburnin, WAIC = useWAIC)
   
   return(results)
 }

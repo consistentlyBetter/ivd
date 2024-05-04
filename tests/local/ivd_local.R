@@ -44,13 +44,14 @@ head(school_dat )
 out <- ivd(location_formula = mAch ~  meanses+ses + (ses | schoolid),
            scale_formula =  ~ meanses+ses + (1 + ses | schoolid),
            data = school_dat,
-           niter = 1000, nburnin = 2500)
+           niter = 500, nburnin = 500)
 
+str(out$samples)
 
 summary(out)
 print(out )
 
-codaplot(out, parameter =  "zeta[1]")
+codaplot(out, parameters =  "zeta[1]")
 
 plot(out, type = "pip")
 

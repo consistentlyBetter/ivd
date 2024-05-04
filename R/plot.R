@@ -15,7 +15,7 @@ plot.ivd <- function(obj, type = "pip", variable = NULL, col_id = TRUE, legend =
   ranef_scale_names <- colnames(obj$Z_scale)
   fixef_scale_names <- colnames(obj$X_scale)
   
-  col_names <- colnames(obj$samples[[1]])
+  col_names <- dimnames(.summary_table(obj$samples[[1]]$samples ))[[2]]
   Kr <- obj$nimble_constants$Kr
 
   cols_to_keep <- c( )
@@ -29,8 +29,8 @@ plot.ivd <- function(obj, type = "pip", variable = NULL, col_id = TRUE, legend =
   }
 
   ## Subset each MCMC matrix to keep only the relevant columns
-  subsamples <- lapply(obj$samples, function(x) x[, cols_to_keep])
-
+  subsamples <- lapply(.extract_to_mcmc(obj), function(x) x[, cols_to_keep])
+  
   ## Calculate column means for each subsetted MCMC matrix
   means_list <- lapply(subsamples, colMeans)
 
@@ -83,9 +83,9 @@ plot.ivd <- function(obj, type = "pip", variable = NULL, col_id = TRUE, legend =
       ## Create tau locally
       if(no_ranef_s == 1) {
         ## Extract the posterior mean of the fixed effect:
-        zeta <- mean( unlist( lapply(obj$samples, FUN = function(x) mean(x[, "zeta[1]"])) ) )
+        zeta <- mean( unlist( lapply(.extract_to_mcmc( obj ), FUN = function(x) mean(x[, "zeta[1]"])) ) )
         ## Extract the posterior mean of each random effect:
-        u <- colMeans(do.call(rbind, lapply(obj$samples, FUN = function(x) colMeans(x[, scale_ranef_pos]))))
+        u <- colMeans(do.call(rbind, lapply(.extract_to_mcmc( obj ), FUN = function(x) colMeans(x[, scale_ranef_pos]))))
         tau <- exp(zeta + u )
       } else if (no_ranef_s > 1 ) {
        if(is.null(variable)) {
@@ -105,12 +105,12 @@ plot.ivd <- function(obj, type = "pip", variable = NULL, col_id = TRUE, legend =
        scale_fixef_position_user <- which(fixef_scale_names == variable)
 
        ## Use ranef_position_user to select corresponding fixed effect
-       zeta <- mean( unlist( lapply(obj$samples, FUN = function(x) mean(x[, paste0("zeta[", scale_fixef_position_user, "]")])) ) )
+       zeta <- mean( unlist( lapply(.extract_to_mcmc(obj), FUN = function(x) mean(x[, paste0("zeta[", scale_fixef_position_user, "]")])) ) )
 
        ## Extract the posterior mean of each random effect:        
        pos <- scale_ranef_pos[ grepl( paste0(Kr + scale_ranef_position_user, "\\]"),  names(scale_ranef_pos ) ) ]
 
-       u <- colMeans(do.call(rbind, lapply(obj$samples, FUN = function(x) colMeans(x[, pos]))))
+       u <- colMeans(do.call(rbind, lapply(.extract_to_mcmc(obj ), FUN = function(x) colMeans(x[, pos]))))
        tau <- exp(zeta + u )
 
       } else {
@@ -154,6 +154,9 @@ plot.ivd <- function(obj, type = "pip", variable = NULL, col_id = TRUE, legend =
 ##' @export
 codaplot <- function(obj, parameters = NULL, type = 'traceplot') {
   ## TODO: Inherit variable names from summary object
+
+  ## Extract to mcmc object
+  extract_samples <- .extract_to_mcmc(obj)
   
   ## Check if 'type' corresponds to a valid coda plotting function
   ## Typically, these would be 'plot', 'acfplot', etc.
@@ -164,7 +167,7 @@ codaplot <- function(obj, parameters = NULL, type = 'traceplot') {
   
   if(is.null(parameters)) {
     ## If no parameters specified, apply the chosen function to all samples
-    params <- dimnames(.summary_table(obj$samples[[1]] ))[[2]]
+    params <- dimnames(.summary_table(obj$samples[[1]]$samples ))[[2]]
 
     ## Apply the chosen function to the specified parameters
     if (length(params) > 1) {
@@ -173,7 +176,7 @@ codaplot <- function(obj, parameters = NULL, type = 'traceplot') {
     }
     
     for (param in params) {
-      print(plot_func(obj$samples[, param, drop = FALSE]))
+      print(plot_func(mcmc.list(extract_samples)[, param, drop = FALSE]))
     }
     
     ## Restore default behavior (no prompt) after finishing the plots
@@ -185,10 +188,9 @@ codaplot <- function(obj, parameters = NULL, type = 'traceplot') {
     ## If parameters are specified, subset the samples first
     params <- c(parameters)
     ## Ensure that subsetting does not reduce the data incorrectly
-    if (!all(params %in% colnames(obj$samples[[1]]))) {
+    if (!all( params %in% colnames(extract_samples[[1]]))) {
       stop("Some specified parameters do not exist in the samples.")
     }
-    
     ## Apply the chosen function to the specified parameters
     if (length(params) > 1) {
       ## Prompt user to move between plots when multiple parameters are involved
@@ -196,7 +198,7 @@ codaplot <- function(obj, parameters = NULL, type = 'traceplot') {
     }
     
     for (param in params) {
-      print(plot_func(obj$samples[, param, drop = FALSE]))
+      print(plot_func(mcmc.list(extract_samples)[, param, drop = FALSE]))
     }
     
     ## Restore default behavior (no prompt) after finishing the plots

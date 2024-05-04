@@ -53,16 +53,27 @@
 ##' @param ... Not used
 ##' @return summary.ivd object
 ##' @author Philippe Rast
-##' @importFrom coda gelman.diag
+##' @importFrom coda gelman.diag mcmc mcmc.list
 ##' @export
 
 summary.ivd <- function(object, digits = 2, ...) {
-  summary_stats <- summary(object$samples)
+  ## Extract samples from list: This does not include warmup
+  extract_samples <- .extract_to_mcmc(obj)
+
+  ## rbind lists to one big object
+  combined_samples <- do.call(rbind,  extract_samples)
+  cn <- colnames(combined_samples )
+
+  summary_stats <- summary(mcmc(combined_samples))
+  summary_stats$statistics
+  
   ## summary_stats is a coda object with 2 summaries
   sm <- .summary_table( summary_stats$statistics, Kr = object$nimble_constants$Kr )
   sq <- .summary_table( summary_stats$quantiles, Kr = object$nimble_constants$Kr )
+  
   ## obtain rhat
-  rhat <- gelman.diag(object$samples[, rownames(sm)])
+  rhat <- gelman.diag(mcmc.list(extract_samples)[, rownames(sm)])
+  
   ## combine to printable object
   s_comb <- cbind(sm[,-3],  sq[, c(1, 3, 5)], rhat$psrf )
   

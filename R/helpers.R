@@ -85,4 +85,12 @@ prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
        response_var = all.vars(location_formula)[1]
   )
 }
-
+##' Extract samples to mcmc object
+##' @param obj 
+##' @return mcmc object
+##' @author Philippe Rast
+##' @keywords internal 
+.extract_to_mcmc <- function(obj) {
+  e_to_mcmc <- lapply(obj$samples, FUN = function(x) mcmc(x$samples))
+  return(e_to_mcmc)
+}
