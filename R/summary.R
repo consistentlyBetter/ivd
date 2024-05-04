@@ -58,7 +58,7 @@
 
 summary.ivd <- function(object, digits = 2, ...) {
   ## Extract samples from list: This does not include warmup
-  extract_samples <- .extract_to_mcmc(obj)
+  extract_samples <- .extract_to_mcmc(object)
 
   ## rbind lists to one big object
   combined_samples <- do.call(rbind,  extract_samples)
