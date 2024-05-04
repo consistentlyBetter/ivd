@@ -159,7 +159,7 @@ plot.ivd <- function(obj, type = "pip", variable = NULL, col_id = TRUE, legend =
 
     plt <- ggplot(df_funnel, aes(x = tau, y = pip, color = as.factor(id))) +
       geom_point( ) +
-      guides(color = FALSE) + labs(x = "Within-Cluster SD") +
+      guides(color = "none") + labs(x = "Within-Cluster SD") +
       geom_text(data = subset(df_funnel, pip >= 0.75),
                 aes(label = id),
                 nudge_x = -nx,
