@@ -34,20 +34,49 @@ plot.ivd <- function(obj, type = "pip", variable = NULL, col_id = TRUE, legend =
   ## Calculate column means for each subsetted MCMC matrix
   means_list <- lapply(subsamples, colMeans)
 
-  ## Aggregate these means across all chains
-  ## This computes the mean of means for each column across all chains
-  ## TODO: This is combining intercep and slope pips -- FIX
+  ## Average across the lists and chains
   final_means <- Reduce("+", means_list) / length(means_list)
 
-  ## Define ordered dataset
-  df_pip <- data.frame(id = seq_len(length(final_means)),
-                       pip = final_means)
-  df_pip <- df_pip[order(df_pip$pip), ]
-  df_pip$ordered <- 1:nrow(df_pip)
+  ## assign the means to the specific random effects
+  ss_means <- list()
+  ## Select the ss effect(s)
+  Sr <- obj$nimble_constants$Sr
+  for(i in 1:Sr ) {
+    index <- paste0("\\[",  i+Kr)
+    position_ss_value <- grepl(index, names(means_list[[1]]) )
+    ss_means[[i]] <- final_means[position_ss_value]
+  }
 
   ## Get number of random scale effects:
   no_ranef_s <- obj$nimble_constants$Sr
 
+  ## With multiple random effects, ask user which one to be plotted:
+  if(no_ranef_s == 1) {  
+    ## Define ordered dataset
+    df_pip <- data.frame(id = seq_len(length(ss_means[[1]])),
+                         pip = ss_means[[1]])
+    df_pip <- df_pip[order(df_pip$pip), ]
+    df_pip$ordered <- 1:nrow(df_pip)
+  } else if (no_ranef_s > 1 ) {
+       if(is.null(variable)) {
+         ## Prompt user for action when there are multiple random effects
+         variable <- readline(prompt="There are multiple random effects. Please provide the variable name to be plotted or type 'list' \n(or specify as plot(fitted, type = 'funnel', variable = 'variable_name'): ")
+         if (tolower(variable) == "list") {
+           variable <- readline(prompt = cat(ranef_scale_names, ": "))
+         }
+       }
+
+       ## Find position of user requested random effect
+       scale_ranef_position_user <- which(ranef_scale_names == variable)
+       
+       ## Define ordered dataset
+       df_pip <- data.frame(id = seq_len(length(ss_means[[scale_ranef_position_user]])),
+                            pip = ss_means[[scale_ranef_position_user]])
+       df_pip <- df_pip[order(df_pip$pip), ]
+       df_pip$ordered <- 1:nrow(df_pip)
+  }
+
+  
   ## find scale random effects
   ## Extract numbers and find locations
   column_indices <- sapply(col_names, function(x) {
@@ -63,7 +92,7 @@ plot.ivd <- function(obj, type = "pip", variable = NULL, col_id = TRUE, legend =
   
   ## Indices of columns where column index is greater than Kr
   scale_ranef_pos <- which(column_indices)
-
+  
   
   if( type == "pip") {
     ## 
@@ -75,7 +104,7 @@ plot.ivd <- function(obj, type = "pip", variable = NULL, col_id = TRUE, legend =
                 size = 3) +
       geom_abline(intercept = 0.75, slope = 0, lty =  3)+
       geom_abline(intercept = 0.25, slope = 0, lty =  3)+
-      ylim(c(0, 1 ) ) + 
+      ylim(c(0, 1 ) ) + ggtitle(variable )+
       guides(color ="none")
     print(plt )
   } else {
@@ -88,21 +117,23 @@ plot.ivd <- function(obj, type = "pip", variable = NULL, col_id = TRUE, legend =
         u <- colMeans(do.call(rbind, lapply(.extract_to_mcmc( obj ), FUN = function(x) colMeans(x[, scale_ranef_pos]))))
         tau <- exp(zeta + u )
       } else if (no_ranef_s > 1 ) {
-       if(is.null(variable)) {
-         ## Prompt user for action when there are multiple random effects
-         variable <- readline(prompt="There are multiple random effects. Please provide the variable name to be plotted or type 'list' \n(or specify as plot(fitted, type = 'funnel', variable = 'variable_name'): ")
-         if (tolower(variable) == "list") {
-           variable <- readline(prompt = cat(ranef_scale_names, ": "))
-         }
-       }
+       ## if(is.null(variable)) {
+       ##   ## Prompt user for action when there are multiple random effects
+       ##   variable <- readline(prompt="There are multiple random effects. Please provide the variable name to be plotted or type 'list' \n(or specify as plot(fitted, type = 'funnel', variable = 'variable_name'): ")
+       ##   if (tolower(variable) == "list") {
+       ##     variable <- readline(prompt = cat(ranef_scale_names, ": "))
+       ##   }
+       ## }
 
        ## Find position of user requested random effect
-       scale_ranef_position_user <- which(ranef_scale_names == variable)
+        scale_ranef_position_user <-
+          which(ranef_scale_names == variable)
        
        ## Find position of user requested fixed effect
        ## TODO: When interactions are present plot will change according to moderator...
        ## Currently only main effect is selected
-       scale_fixef_position_user <- which(fixef_scale_names == variable)
+        scale_fixef_position_user <-
+          which(fixef_scale_names == variable)
 
        ## Use ranef_position_user to select corresponding fixed effect
        zeta <- mean( unlist( lapply(.extract_to_mcmc(obj), FUN = function(x) mean(x[, paste0("zeta[", scale_fixef_position_user, "]")])) ) )
@@ -110,7 +141,8 @@ plot.ivd <- function(obj, type = "pip", variable = NULL, col_id = TRUE, legend =
        ## Extract the posterior mean of each random effect:        
        pos <- scale_ranef_pos[ grepl( paste0(Kr + scale_ranef_position_user, "\\]"),  names(scale_ranef_pos ) ) ]
 
-       u <- colMeans(do.call(rbind, lapply(.extract_to_mcmc(obj ), FUN = function(x) colMeans(x[, pos]))))
+        u <-
+          colMeans(do.call(rbind, lapply(.extract_to_mcmc(obj ), FUN = function(x) colMeans(x[, pos]))))
        tau <- exp(zeta + u )
 
       } else {
@@ -119,7 +151,8 @@ plot.ivd <- function(obj, type = "pip", variable = NULL, col_id = TRUE, legend =
     }
 
     ## Add tau to data frame -- ensure correct order
-    df_funnel <- cbind(df_pip[order(df_pip$id), ], tau )
+    df_funnel <-
+      cbind(df_pip[order(df_pip$id), ], tau )
 
     ## Make nudge scale dependent:
     nx <- (max(df_funnel$tau ) - min(df_funnel$tau ))/50
@@ -133,7 +166,7 @@ plot.ivd <- function(obj, type = "pip", variable = NULL, col_id = TRUE, legend =
                 size = 3)+
       geom_abline(intercept = 0.75, slope = 0, lty =  3)+
       geom_abline(intercept = 0.25, slope = 0, lty =  3)+
-      ylim(c(0, 1 ) )
+      ylim(c(0, 1 ) )+ggtitle(variable)
     print( plt )
   }
   return(invisible(plt))  

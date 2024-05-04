@@ -44,7 +44,7 @@ head(school_dat )
 out <- ivd(location_formula = mAch ~  meanses+ses + (ses | schoolid),
            scale_formula =  ~ meanses+ses + (1 + ses | schoolid),
            data = school_dat,
-           niter = 500, nburnin = 500, WAIC = TRUE, workers = 1)
+           niter = 500, nburnin = 500, WAIC = TRUE, workers = 4)
 
 str(out$samples)
 
