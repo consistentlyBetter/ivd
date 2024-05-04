@@ -11,7 +11,7 @@ run_MCMC_allcode(
   code,
   niter,
   nburnin,
-  useWAIC = TRUE,
+  useWAIC = WAIC,
   inits,
   additional_monitors = "NULL"
 )

@@ -2,7 +2,7 @@
 ##' @import nimble
 ##' @export
 
-run_MCMC_allcode <- function(seed, data, constants, code, niter, nburnin, useWAIC = TRUE, inits, additional_monitors = "NULL") {
+run_MCMC_allcode <- function(seed, data, constants, code, niter, nburnin, useWAIC = WAIC, inits, additional_monitors = "NULL") {
   myModel <- nimble::nimbleModel(code = code,
                           data = data,
                           constants = constants,
@@ -28,13 +28,15 @@ run_MCMC_allcode <- function(seed, data, constants, code, niter, nburnin, useWAI
 #' @param data Data frame in long format for analysis
 #' @param niter Total number of MCMC iterations after burnin
 #' @param nburnin Number of burnin iterations, defaults to the same as niter
+#' @param WAIC Compute WAIC, defaults to 'TRUE'
+#' @param workers Number of parallel R processes
 #' @param ... Currently not used
 #' @import future
 #' @importFrom future.apply future_lapply
 #' @importFrom coda as.mcmc mcmc.list
 #' @importFrom  nimble nimbleCode nimbleModel compileNimble buildMCMC runMCMC
 #' @export 
-ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, ...) {
+ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WAIC = TRUE, workers = 4,...) {
   if(is.null(nburnin)) {
     nburnin <- niter
   }
@@ -119,9 +121,9 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, ..
                 sigma_rand = diag(rlnorm(constants$P, 0, 1)),
                 L = diag(1,constants$P) )
 
-  future::plan(multisession, workers = 4)
+  future::plan(multisession, workers = workers)
 
-  results <- future_lapply(1:4, function(x) run_MCMC_allcode(x, data, constants, modelCode, niter, nburnin, TRUE, inits),
+  results <- future_lapply(1:workers, function(x) run_MCMC_allcode(x, data, constants, modelCode, niter, nburnin, TRUE, inits, WAIC),
                            future.seed = TRUE, future.packages = c("nimble"))
   
   out <- list()
@@ -132,6 +134,7 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, ..
   out$nimble_constants <- constants
   out$X_scale <- data$X_scale
   out$Z_scale <- data$Z_scale
+  out$workers <- workers
   
   class(out) <- c("ivd", "list")
   return(out)

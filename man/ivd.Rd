@@ -4,7 +4,16 @@
 \alias{ivd}
 \title{Main function to set up and run parallel MCMC using nimble and future}
 \usage{
-ivd(location_formula, scale_formula, data, niter, nburnin = NULL, ...)
+ivd(
+  location_formula,
+  scale_formula,
+  data,
+  niter,
+  nburnin = NULL,
+  WAIC = TRUE,
+  workers = 4,
+  ...
+)
 }
 \arguments{
 \item{location_formula}{A formula for the location model}
@@ -16,6 +25,10 @@ ivd(location_formula, scale_formula, data, niter, nburnin = NULL, ...)
 \item{niter}{Total number of MCMC iterations after burnin}
 
 \item{nburnin}{Number of burnin iterations, defaults to the same as niter}
+
+\item{WAIC}{Compute WAIC, defaults to 'TRUE'}
+
+\item{workers}{Number of parallel R processes}
 
 \item{...}{Currently not used}
 }

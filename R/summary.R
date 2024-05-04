@@ -72,8 +72,12 @@ summary.ivd <- function(object, digits = 2, ...) {
   sq <- .summary_table( summary_stats$quantiles, Kr = object$nimble_constants$Kr )
   
   ## obtain rhat
-  rhat <- gelman.diag(mcmc.list(extract_samples)[, rownames(sm)])
-  
+  if(object$workers>1 ) {
+    rhat <- gelman.diag(mcmc.list(extract_samples)[, rownames(sm)])
+  } else if(object$workers == 1 ) {
+    rhat <- c()
+    rhat$psrf <- NA
+  }
   ## combine to printable object
   s_comb <- cbind(sm[,-3],  sq[, c(1, 3, 5)], rhat$psrf )
   
@@ -83,6 +87,8 @@ summary.ivd <- function(object, digits = 2, ...) {
   .newline
   
   print(table)
+
+  
   class(table) <- "summary.ivd"
   invisible(table)
 }
