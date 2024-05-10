@@ -57,7 +57,7 @@ for( i in unique(school_dat$school) ) {
 out <- ivd(location_formula = mAch ~ ses + sector + (ses | schoolid),
            scale_formula =  ~ ses + (1 | schoolid),
            data = school_dat,
-           niter = 1000, nburnin = 1000)
+           niter = 1000, nburnin = 2000)
 ```
 
 ```{r}
@@ -75,6 +75,7 @@ plot(out, type =  "funnel")
 Diagnostic plots based on coda plots:
 ```{r}
 codaplot(out, parameter =  "beta[1]")
+codaplot(out, parameter =  "R[2, 1]")
 ```
 
 # References

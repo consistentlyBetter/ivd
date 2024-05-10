@@ -184,6 +184,7 @@ plot.ivd <- function(obj, type = "pip", variable = NULL, col_id = TRUE, legend =
 ##' @return Specified coda plot
 ##' @author Philippe Rast
 ##' @import coda
+##' @importFrom grDevices devAskNewPage
 ##' @export
 codaplot <- function(obj, parameters = NULL, type = 'traceplot') {
   ## TODO: Inherit variable names from summary object

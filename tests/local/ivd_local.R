@@ -24,7 +24,7 @@ dat <- ivd:::prepare_data_for_nimble(location_formula = mAch ~  ses + (1 | schoo
 
 
 
-str(dat )
+is(dat )
 ## head(dat[[1]]$X_scale)
 
 dat$data$X_scale
@@ -46,6 +46,7 @@ out <- ivd(location_formula = mAch ~  ses + (1 | schoolid),
            data = school_dat,
            niter = 500, nburnin = 100, WAIC = TRUE, workers = 1)
 
+is(out )
 str(out$samples)
 
 summary(out)
