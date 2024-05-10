@@ -26,7 +26,7 @@ prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
     X_matrix <-  model.matrix(X_formula, data)
     
     ## For Z, random effects predictors
-    Z_matrix <- if(length(random_effects) > 0 ) {
+    Z_matrix <- if( !is.na(random_effects) ) {
                   model.matrix( formula( paste("~", random_effects) ), data)
                 } else {
                   stop("Random effects missing")
