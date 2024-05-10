@@ -54,17 +54,24 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
       ## Check if K (number of fixed location effects) an S (number of fixed scale effecs)
       ## are greater than 1, if not, use simplified computation to avoid indexing issues in nimble
       ## Location
+      ## Check if we have more than just an intercept:
       if(K>1) {
-        mu[i] <- sum(beta[1:K] * X[i, 1:K]) + sum( u[groupid[i], 1:Kr] * Z[i, 1:Kr] )
+        if(Kr>1) {
+          mu[i] <- sum(beta[1:K] * X[i, 1:K]) + sum( u[groupid[i], 1:Kr] * Z[i, 1:Kr] )
+        } else {
+          mu[i] <- sum(beta[1:K] * X[i, 1:K]) + u[groupid[i], 1]
+        }
       } else {
         mu[i] <- beta[1] + u[groupid[i], 1] * Z[i, 1]        
       }
+    
       ## Scale
-      if(S>1) {
+      ## Check if we have more than just an fixed intercept:
+      if(S>1) { 
         if(Sr>1) {
           tau[i] <- exp( sum(zeta[1:S] * X_scale[i, 1:S]) + sum(u[groupid[i], (Kr+1):(Kr+Sr)] * Z_scale[i, 1:Sr]) )  
         } else {
-         tau[i] <- exp( sum(zeta[1:S] * X_scale[i, 1:S]) + u[groupid[i], (Kr+1)] * Z_scale[i,1]) 
+          tau[i] <- exp( sum(zeta[1:S] * X_scale[i, 1:S]) + u[groupid[i], (Kr+1)] ) 
         }
       } else {
         ## This assumes that if there is only one fixed intercept in scale, there is also exactly one random intercept in scale,
