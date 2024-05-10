@@ -54,10 +54,10 @@ for( i in unique(school_dat$school) ) {
 
 ## Estimate Model
 ```{r}
-out <- ivd(location_formula = mAch ~ ses + sector + (ses | schoolid),
-           scale_formula =  ~ ses + (1 | schoolid),
+out <- ivd(location_formula = mAch ~ meanses + ses + sector + (ses | schoolid),
+           scale_formula =  ~ meanses + ses + (1 | schoolid),
            data = school_dat,
-           niter = 1000, nburnin = 2000)
+           niter = 2000, nburnin = 3000)
 ```
 
 ```{r}
