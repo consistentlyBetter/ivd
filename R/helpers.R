@@ -4,11 +4,12 @@
 ##' @param scale_formula Formula for scale
 ##' @keywords internal
 prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
+  
   ## Helper function to prepare model parts
   prepare_model_part <- function(data, formula, is_scale_model = FALSE) {
     ## Parse the formula to get response and predictors
     response_var <- if(is_scale_model) NA else all.vars(formula)[1]
-
+    
     fixed_effects <- strsplit(deparse(formula ), split = "\\+ \\(", perl = TRUE)[[1]][1]
     ## slplit out random effects, first split contains grouping variable
     random_effects_F <- strsplit(deparse(formula ), split = "\\+ \\(", perl = TRUE)[[1]][2]
@@ -71,10 +72,19 @@ prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
   } else {
     list(X = NULL, Z = NULL)
   }
+
+  ## Check if repsonse_var has attributes, due to scaling with scale()
+  ## Remove attributes, if present
+  if( is.null(attributes( data[[all.vars(location_formula)[1]]] ) ) ) {
+    Y <- data[[all.vars(location_formula)[1]]] # Assuming the first variable is the response
+  } else if ( !is.null(attributes( data[[all.vars(location_formula)[1]]] ) )) {
+    Y <- c(data[[all.vars(location_formula)[1]]]) # Assuming the first variable is the response
+  }
+  
   
   # Assemble the data structure for NIMBLE
   list(data = list(
-         Y = data[[all.vars(location_formula)[1]]],  # Assuming the first variable is the response
+         Y = Y,  
          X = location_data$X, 
          Z = location_data$Z, 
          X_scale = scale_data$X, 
