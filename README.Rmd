@@ -40,39 +40,36 @@ devtools::install_github("consistentlybetter/ivd")
 
 ```{r example}
 library(ivd)
-
-d <- mlmRev::Hsb82
-
-## Ensure that school id is a continuous vector
-school_dat$schoolid <- NA
-k <- 0
-for( i in unique(school_dat$school) ) {
-  k <- k+1
-  school_dat[school_dat$school == i, "schoolid"] <- k
-}
 ```
 
 ## Estimate Model
+
 ```{r}
-out <- ivd(location_formula = mAch ~ meanses + ses + sector + (ses | schoolid),
-           scale_formula =  ~ meanses + ses + (1 | schoolid),
-           data = school_dat,
-           niter = 2000, nburnin = 3000)
+out <- ivd(location_formula = math_proficiency ~ student_ses + (1|school_id),
+           scale_formula =  ~ student_ses + (1|school_id),
+           data = saeb,
+           niter = 2000, nburnin = 5000, WAIC = TRUE, workers = 4)
 ```
 
 ```{r}
 summary(out)
 ```
 
+## Plots
+
+### Posterior inclusion probability plot (PIP)
+
 ```{r}
 plot(out, type = "pip" )
 ```
+### PIP vs. Within-cluster SD
 
 ```{r}
 plot(out, type =  "funnel")
 ```
 
-Diagnostic plots based on coda plots:
+### Diagnostic plots based on coda plots:
+
 ```{r}
 codaplot(out, parameter =  "beta[1]")
 codaplot(out, parameter =  "R[2, 1]")
