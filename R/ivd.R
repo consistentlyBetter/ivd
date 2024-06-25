@@ -29,7 +29,7 @@ run_MCMC_allcode <- function(seed, data, constants, code, niter, nburnin, useWAI
 #' @param niter Total number of MCMC iterations after burnin
 #' @param nburnin Number of burnin iterations, defaults to the same as niter
 #' @param WAIC Compute WAIC, defaults to 'TRUE'
-#' @param workers Number of parallel R processes
+#' @param workers Number of parallel R processes -- doubles as 'chains' argument
 #' @param ... Currently not used
 #' @import future
 #' @importFrom future.apply future_lapply

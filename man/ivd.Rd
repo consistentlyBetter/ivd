@@ -28,7 +28,7 @@ ivd(
 
 \item{WAIC}{Compute WAIC, defaults to 'TRUE'}
 
-\item{workers}{Number of parallel R processes}
+\item{workers}{Number of parallel R processes -- doubles as 'chains' argument}
 
 \item{...}{Currently not used}
 }

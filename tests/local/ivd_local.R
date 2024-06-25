@@ -18,7 +18,7 @@ for( i in unique(school_dat$school) ) {
 head(school_dat )
 
 
-dat <- ivd:::prepare_data_for_nimble(location_formula = mAch_s ~  ses + (1 | schoolid),
+dat <- ivd:::prepare_data_for_nimble(location_formula = mAch ~  ses + (1 | schoolid),
                                      scale_formula =  ~ ses + (1 + ses | schoolid),
                                      data = school_dat)
 
@@ -48,10 +48,12 @@ str(unclass(school_dat$mAch_s))
 str(c(school_dat$mAch_s))
 str(school_dat$mAch)
 
-out <- ivd(location_formula = mAch_s ~  ses + (1 | schoolid),
-           scale_formula =  ~ ses + (1 | schoolid),
+
+out <- ivd(location_formula = mAch ~  meanses + ses + (1 | schoolid),
+           scale_formula =  ~ meanses + ses + (1 | schoolid),
            data = school_dat,
            niter = 500, nburnin = 100, WAIC = TRUE, workers = 2)
+
 
 is(out )
 str(out$samples)
@@ -67,7 +69,6 @@ plot(out, type = "funnel", variable = "(Intercept)")
 plot(out, type = "funnel", variable = "ses")
 
 
-plot(1:5)
 dev.off( )
 
 stats <-

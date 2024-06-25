@@ -10,8 +10,6 @@
 \item{stats}{summary object}
 
 \item{Kr}{Number of random location efx}
-
-\item{Sr}{Number of random scale efx}
 }
 \value{
 filtered coda

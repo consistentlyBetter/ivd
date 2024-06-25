@@ -1,7 +1,6 @@
 ##' @title Filter coda object
 ##' @param stats summary object
 ##' @param Kr Number of random location efx
-##' @param Sr Number of random scale efx
 ##' @return filtered coda 
 ##' @author philippe
 ##' @keywords internal
@@ -64,11 +63,14 @@ summary.ivd <- function(object, digits = 2, ...) {
   combined_samples <- do.call(rbind,  extract_samples)
   cn <- colnames(combined_samples )
 
+  ## mcmc from coda
   summary_stats <- summary(mcmc(combined_samples))
   summary_stats$statistics
   
   ## summary_stats is a coda object with 2 summaries
+  ## Means:
   sm <- .summary_table( summary_stats$statistics, Kr = object$nimble_constants$Kr )
+  ## Quantiles:
   sq <- .summary_table( summary_stats$quantiles, Kr = object$nimble_constants$Kr )
   
   ## obtain rhat
@@ -80,14 +82,36 @@ summary.ivd <- function(object, digits = 2, ...) {
   }
   ## combine to printable object
   s_comb <- cbind(sm[,-3],  sq[, c(1, 3, 5)], rhat$psrf )
-  
+  colnames( s_comb ) <- c("Mean", "SD", "Time-series SE", "2.5%", "50%", "97.5%", "R-hat", "R-hat 95% C.I.")
+
   table <- round(s_comb, 3)
 
   cat("Summary statistics for ivd model:\n")
   .newline
+
+  ##
+  chains <- object$workers
+  cat("Chains/workers:",  chains, "\n\n")
+  
+  ## extract WAIC per chain 
+  waic_values <- sapply(object$samples, FUN = function(chain) chain$WAIC$WAIC)
+  ## extract lppd per chain 
+  lppd_values <- sapply(object$samples, FUN = function(chain) chain$WAIC$lppd)
+  ## extract pWAIC per chain 
+  pwaic_values <- sapply(object$samples, FUN = function(chain) chain$WAIC$pWAIC)
+
+  ## Average across chains
+  average_waic <- mean(waic_values)
+  average_lppd <- mean(lppd_values)
+  average_pwaic <- mean(pwaic_values)
   
   print(table)
-
+  .newline
+  
+  ## Print the results
+  cat("\nWAIC:", average_waic, "\n")
+  cat("elppd:", average_lppd, "\n")
+  cat("lpWAIC:", average_pwaic, "\n")
   
   class(table) <- "summary.ivd"
   invisible(table)
