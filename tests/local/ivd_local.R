@@ -48,9 +48,11 @@ str(unclass(school_dat$mAch_s))
 str(c(school_dat$mAch_s))
 str(school_dat$mAch)
 
+school_dat$ses_s <- scale(school_dat$ses)
+head(school_dat )
 
-out <- ivd(location_formula = mAch ~  meanses + ses + (1 | schoolid),
-           scale_formula =  ~ meanses + ses + (1 | schoolid),
+out <- ivd(location_formula = mAch_s ~  meanses + ses_s + (ses_s | schoolid),
+           scale_formula =  ~ meanses + ses_s + (ses_s | schoolid),
            data = school_dat,
            niter = 500, nburnin = 100, WAIC = TRUE, workers = 2)
 
