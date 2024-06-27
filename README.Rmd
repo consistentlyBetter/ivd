@@ -41,15 +41,46 @@ devtools::install_github("consistentlybetter/ivd")
 ```{r example}
 library(ivd)
 ```
+## Data
+The illustration uses openly accessible data from ... 
+
+Separate within- from between-school effects. That is, besides `student_ses`, compute `school_ses`. 
+```{r}
+# Calculate school-level SES
+school_ses <- saeb[, .(school_ses = mean(student_ses, na.rm = TRUE)), by = school_id]
+
+# Join the school_ses back to the original dataset
+saeb <- saeb[school_ses, on = "school_id"]
+
+head(saeb )
+```
+
+Illustration of school level variability:
+```{r}
+plot0 <- ggplot( data = saeb, aes( x = school_id, y = math_proficiency) )
+plot0 + geom_point(aes(color =  school_id), show.legend =  FALSE)
+```
+
+
 
 ## Estimate Model
 
+We will predict `math_proficiency` which is a standardized variable capturing math proficiency at the end of grade ...
+
+Both, location (means) and scale (residual variances) are modeled as a function of student and school SES. Note that the formula objects for both location and scale follow `lme4` notation.
+
 ```{r}
-out <- ivd(location_formula = math_proficiency ~ student_ses + (1|school_id),
-           scale_formula =  ~ student_ses + (1|school_id),
+out <- ivd(location_formula = math_proficiency ~ student_ses * school_ses + (1|school_id),
+           scale_formula =  ~ student_ses * school_ses + (1|school_id),
            data = saeb,
            niter = 2000, nburnin = 5000, WAIC = TRUE, workers = 4)
 ```
+
+The summary shows the fixed and random effects and it returns all posterior inclusion probabilities (PIP) for each one of the 160 schools' residual variance random effects. The PIP returns the probability of a school belonging to the slab, that is, the probability of the model having to include the random scale effect. 
+
+In other words, large PIP's indicate schools that are substantially deviating from the fixed scale effects either because they are much _more_ or much _less_  variable compared to other schools in math proficiency.
+
+One can readily convert those PIP's to odds, indicating that a school with a PIP = .75 is three times as likely to belonging to the slab than belonging to the spike. With an .50 inclusion prior, these odds can be readily interpreted as Bayes Factors.
 
 ```{r}
 summary(out)

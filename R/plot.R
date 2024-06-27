@@ -1,16 +1,16 @@
 ##' @title Plot method for ivd objects
-##' @param obj An object of type `ivd`.
+##' @param x An object of type `ivd`.
 ##' @param type Defaults to 'pip', other options are 'caterpillar' and 'funnel'
-##' @param ci The width of the credible interval that should be used. Defaults to 0.9.
+##' @param variable Name of a specific variable. Defaults to `NULL`
 ##' @param col_id Whether the plot should color in points by their unique identifier.
-##' @param legend Should legend be included? Defaults to TRUE
+##' @param legend Should legend be included? Defaults to `TRUE`.
 ##' @param ... Currently not in use.
 ##' @author Philippe Rast
-##' @import ggplot2 patchwork
+##' @import ggplot2 
+##' @importFrom patchwork plot_layout
 ##' @export
-
-
-plot.ivd <- function(obj, type = "pip", variable = NULL, col_id = TRUE, legend = TRUE, ...) {
+plot.ivd <- function(x, type = "pip", variable = NULL, col_id = TRUE, legend = TRUE, ...) {
+  obj <- x
   ## Get scale variable names
   ranef_scale_names <- colnames(obj$Z_scale)
   fixef_scale_names <- colnames(obj$X_scale)
