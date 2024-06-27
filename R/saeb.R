@@ -4,8 +4,9 @@
 #' external assessments conducted by Inep (National Institute for 
 #' Educational Studies and Research) to diagnose the state of basic education 
 #' in Brazil and identify factors that may affect student performance.
-#' This dataset contains the 2021 results of a subset of 160 randomly chosen 
-#' schools from the state of Rio de Janeiro.
+#' This dataset contains the standardized math scores of 12th graders from 160 
+#' randomly selected schools in Rio de Janeiro who took the 2021 exam.
+
 #'
 #' @format A data frame with 11386 student's observations including 5 variables:
 #'  \describe{
