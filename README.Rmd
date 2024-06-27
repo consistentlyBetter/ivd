@@ -1,6 +1,8 @@
 ---
 output: github_document
 bibliography: inst/ref.bib
+nocite: '@*'
+csl: https://raw.githubusercontent.com/citation-style-language/styles/master/apa.csl
 ---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
@@ -40,17 +42,22 @@ devtools::install_github("consistentlybetter/ivd")
 
 ```{r example}
 library(ivd)
+library(data.table)
 ```
 ## Data
-The illustration uses openly accessible data from ... 
+The illustration uses openly accessible data from The Basic Education Evaluation System (Saeb) conducted by Brazil's National Institute for Educational Studies and Research (Inep), available at <https://www.gov.br/inep/pt-br/areas-de-atuacao/avaliacao-e-exames-educacionais/saeb/resultados>. It is also available as the `saeb` dataset in the `ivd` package.
 
 Separate within- from between-school effects. That is, besides `student_ses`, compute `school_ses`. 
+
 ```{r}
 # Calculate school-level SES
 school_ses <- saeb[, .(school_ses = mean(student_ses, na.rm = TRUE)), by = school_id]
 
 # Join the school_ses back to the original dataset
 saeb <- saeb[school_ses, on = "school_id"]
+
+# Grand mean center school ses
+saeb$school_ses <- c(scale(saeb$school_ses, scale = FALSE))
 
 head(saeb )
 ```
@@ -65,7 +72,7 @@ plot0 + geom_point(aes(color =  school_id), show.legend =  FALSE)
 
 ## Estimate Model
 
-We will predict `math_proficiency` which is a standardized variable capturing math proficiency at the end of grade ...
+We will predict `math_proficiency` which is a standardized variable capturing math proficiency at the end of grade 12.
 
 Both, location (means) and scale (residual variances) are modeled as a function of student and school SES. Note that the formula objects for both location and scale follow `lme4` notation.
 
@@ -73,7 +80,7 @@ Both, location (means) and scale (residual variances) are modeled as a function 
 out <- ivd(location_formula = math_proficiency ~ student_ses * school_ses + (1|school_id),
            scale_formula =  ~ student_ses * school_ses + (1|school_id),
            data = saeb,
-           niter = 2000, nburnin = 5000, WAIC = TRUE, workers = 4)
+           niter = 5000, nburnin = 5000, WAIC = TRUE, workers = 4)
 ```
 
 The summary shows the fixed and random effects and it returns all posterior inclusion probabilities (PIP) for each one of the 160 schools' residual variance random effects. The PIP returns the probability of a school belonging to the slab, that is, the probability of the model having to include the random scale effect. 
@@ -98,6 +105,29 @@ plot(out, type = "pip" )
 ```{r}
 plot(out, type =  "funnel")
 ```
+
+### PIP vs. math achievement
+
+```{r}
+s_out <- summary(out)
+
+avg_df <- aggregate(math_proficiency ~ school_id, data = saeb, FUN = mean)
+avg_df$pip <- s_out[grep("^ss", rownames(s)), 1]
+
+ggplot(avg_df, aes(x = math_proficiency, y = pip)) +
+  geom_point( aes(color = as.factor(school_id)), size = 3) +
+  geom_text(data = subset(avg_df, pip >= 0.75),
+            aes(label = school_id),
+            nudge_x = -.1,
+            size = 3) +
+  geom_abline(intercept = 0.75, slope = 0, lty =  3)+
+  geom_abline(intercept = 0.25, slope = 0, lty =  3)+
+  ylim(c(0, 1 ) ) + 
+  guides(color ="none") +
+  labs(x = "Math achievement (z-standardized)",
+       y = "pip")
+```
+
 
 ### Diagnostic plots based on coda plots:
 
