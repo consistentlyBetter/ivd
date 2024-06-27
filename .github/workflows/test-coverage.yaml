@@ -35,18 +35,9 @@ jobs:
           covr::codecov(
             quiet = FALSE,
             clean = FALSE,
-            install_path = file.path(Sys.getenv("RUNNER_TEMP"), "package"),
-            file = file.path(Sys.getenv("RUNNER_TEMP"), "package", "coverage.json")
+            install_path = file.path(Sys.getenv("RUNNER_TEMP"), "package")
           )
         shell: Rscript {0}
-
-      - name: Debugging step - List files
-        run: |
-          echo "Listing files in the current directory:"
-          ls -la
-          echo "Listing files in the RUNNER_TEMP directory:"
-          ls -la $RUNNER_TEMP/package
-        shell: bash
 
       - name: Show testthat output
         if: always()
@@ -64,3 +55,9 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_IVD }}
           path: ${{ runner.temp }}/package
 
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-test-failures
+          path: ${{ runner.temp }}/package
