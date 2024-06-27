@@ -65,7 +65,6 @@ summary.ivd <- function(object, digits = 2, ...) {
   
   ## mcmc from coda
   summary_stats <- summary(mcmc(combined_samples))
-  str(summary_stats )
   
   ## Add R-hats
   summary_stats$statistics <- cbind(summary_stats$statistics, object$rhat_values)
@@ -78,7 +77,7 @@ summary.ivd <- function(object, digits = 2, ...) {
   sq <- .summary_table( summary_stats$quantiles, Kr = object$nimble_constants$Kr )
 
   ## combine to printable object and rearrange so that R-hat is in the last column
-  head(sm )
+
   s_comb <- cbind(sm[, c("Mean", "SD", "Time-series SE")],  sq[, c(1, 3, 5)], sm[, "R-hat"])
   colnames( s_comb ) <- c("Mean", "SD", "Time-series SE", "2.5%", "50%", "97.5%", "R-hat")
 
