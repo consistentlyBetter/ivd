@@ -27,6 +27,8 @@ jobs:
           needs: coverage
 
       - name: Test coverage
+        env:
+          R_COVR: true
         run: |
           covr::codecov(
             quiet = FALSE,
@@ -48,3 +50,4 @@ jobs:
         with:
           name: coverage-test-failures
           path: ${{ runner.temp }}/package
+

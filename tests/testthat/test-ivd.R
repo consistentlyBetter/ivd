@@ -42,14 +42,23 @@ test_that("run_MCMC_allcode handles incorrect data types", {
 
 
 ## Testing ivd
-
 test_that("ivd sets up and runs with correct defaults and inputs", {
+  ## Skip the test if the R_COVR environment variable is set to true
+  skip_if(Sys.getenv("R_COVR") == "true", "Skipping ivd test during coverage")
+  
   result <- ivd(location_formula = Y ~ 1 + (1|grouping),
                 scale_formula = ~ 1 + (1|grouping),
                 data = data.frame(Y = rnorm(100), grouping = rep(1:10, each = 10)),
                 niter = 100, nburnin = 50, WAIC = TRUE, workers = 2)
-  is(result )
-  typeof(result)
+  expect_s3_class(result, "ivd")
+  expect_equal(length(result$samples), 2) # Assuming workers = 2
+  expect_equal(result$workers, 2)
+})
+
+  result <- ivd(location_formula = Y ~ 1 + (1|grouping),
+                scale_formula = ~ 1 + (1|grouping),
+                data = data.frame(Y = rnorm(100), grouping = rep(1:10, each = 10)),
+                niter = 100, nburnin = 50, WAIC = TRUE, workers = 2)
   expect_s3_class(result, "ivd")
   expect_equal(length(result$samples), 2) # Assuming workers = 2
   expect_equal(result$workers, 2)
