@@ -76,7 +76,7 @@ We will predict `math_proficiency` which is a standardized variable capturing ma
 
 Both, location (means) and scale (residual variances) are modeled as a function of student and school SES. Note that the formula objects for both location and scale follow `lme4` notation.
 
-```{r}
+```{r warning=FALSE}
 out <- ivd(location_formula = math_proficiency ~ student_ses * school_ses + (1|school_id),
            scale_formula =  ~ student_ses * school_ses + (1|school_id),
            data = saeb,
@@ -90,7 +90,7 @@ In other words, large PIP's indicate schools that are substantially deviating fr
 One can readily convert those PIP's to odds, indicating that a school with a PIP = .75 is three times as likely to belonging to the slab than belonging to the spike. With an .50 inclusion prior, these odds can be readily interpreted as Bayes Factors.
 
 ```{r}
-summary(out)
+s_out <- summary(out)
 ```
 
 ## Plots
@@ -109,10 +109,8 @@ plot(out, type =  "funnel")
 ### PIP vs. math achievement
 
 ```{r}
-s_out <- summary(out)
-
 avg_df <- aggregate(math_proficiency ~ school_id, data = saeb, FUN = mean)
-avg_df$pip <- s_out[grep("^ss", rownames(s)), 1]
+avg_df$pip <- s_out[grep("^ss", rownames(s_out)), 1]
 
 ggplot(avg_df, aes(x = math_proficiency, y = pip)) +
   geom_point( aes(color = as.factor(school_id)), size = 3) +
