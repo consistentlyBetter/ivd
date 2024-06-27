@@ -55,14 +55,6 @@ test_that("ivd sets up and runs with correct defaults and inputs", {
   expect_equal(result$workers, 2)
 })
 
-  result <- ivd(location_formula = Y ~ 1 + (1|grouping),
-                scale_formula = ~ 1 + (1|grouping),
-                data = data.frame(Y = rnorm(100), grouping = rep(1:10, each = 10)),
-                niter = 100, nburnin = 50, WAIC = TRUE, workers = 2)
-  expect_s3_class(result, "ivd")
-  expect_equal(length(result$samples), 2) # Assuming workers = 2
-  expect_equal(result$workers, 2)
-})
 
 test_that("ivd handles missing formulas", {
   expect_error(ivd(data = data.frame(Y = rnorm(100), X = 1:100),
