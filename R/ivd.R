@@ -181,6 +181,7 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   out$X_scale <- data$X_scale
   out$Z_scale <- data$Z_scale
   out$workers <- workers
+  out$Y <- data$Y
   
   class(out) <- c("ivd", "list")
   return(out)
