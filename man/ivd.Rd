@@ -2,7 +2,9 @@
 % Please edit documentation in R/ivd.R
 \name{ivd}
 \alias{ivd}
-\title{Main function to set up and run parallel MCMC using nimble and future}
+\title{Main function to set up and run parallel MCMC using nimble and future.
+\code{ivd} computes a mixed effects location and scale model with Spike and Slab regularization
+on the scale random effects.}
 \usage{
 ivd(
   location_formula,
@@ -33,5 +35,7 @@ ivd(
 \item{...}{Currently not used}
 }
 \description{
-Main function to set up and run parallel MCMC using nimble and future
+Main function to set up and run parallel MCMC using nimble and future.
+\code{ivd} computes a mixed effects location and scale model with Spike and Slab regularization
+on the scale random effects.
 }

@@ -62,27 +62,25 @@ summary.ivd <- function(object, digits = 2, ...) {
   ## rbind lists to one big object
   combined_samples <- do.call(rbind,  extract_samples)
   cn <- colnames(combined_samples )
-
+  
   ## mcmc from coda
   summary_stats <- summary(mcmc(combined_samples))
-  summary_stats$statistics
+  str(summary_stats )
+  
+  ## Add R-hats
+  summary_stats$statistics <- cbind(summary_stats$statistics, object$rhat_values)
+  colnames( summary_stats$statistics )[ncol(summary_stats$statistics)] <- "R-hat"
   
   ## summary_stats is a coda object with 2 summaries
   ## Means:
   sm <- .summary_table( summary_stats$statistics, Kr = object$nimble_constants$Kr )
   ## Quantiles:
   sq <- .summary_table( summary_stats$quantiles, Kr = object$nimble_constants$Kr )
-  
-  ## obtain rhat
-  if(object$workers>1 ) {
-    rhat <- gelman.diag(mcmc.list(extract_samples)[, rownames(sm)])
-  } else if(object$workers == 1 ) {
-    rhat <- c()
-    rhat$psrf <- NA
-  }
-  ## combine to printable object
-  s_comb <- cbind(sm[,-3],  sq[, c(1, 3, 5)], rhat$psrf )
-  colnames( s_comb ) <- c("Mean", "SD", "Time-series SE", "2.5%", "50%", "97.5%", "R-hat", "R-hat 95% C.I.")
+
+  ## combine to printable object and rearrange so that R-hat is in the last column
+  head(sm )
+  s_comb <- cbind(sm[, c("Mean", "SD", "Time-series SE")],  sq[, c(1, 3, 5)], sm[, "R-hat"])
+  colnames( s_comb ) <- c("Mean", "SD", "Time-series SE", "2.5%", "50%", "97.5%", "R-hat")
 
   table <- round(s_comb, 3)
 
@@ -111,7 +109,7 @@ summary.ivd <- function(object, digits = 2, ...) {
   ## Print the results
   cat("\nWAIC:", average_waic, "\n")
   cat("elppd:", average_lppd, "\n")
-  cat("lpWAIC:", average_pwaic, "\n")
+  cat("pWAIC:", average_pwaic, "\n")
   
   class(table) <- "summary.ivd"
   invisible(table)

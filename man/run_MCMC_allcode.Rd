@@ -2,7 +2,8 @@
 % Please edit documentation in R/ivd.R
 \name{run_MCMC_allcode}
 \alias{run_MCMC_allcode}
-\title{` Create a function to be loaded on each worker. This needs to be exported for future to be able to load it.}
+\title{Create a function to be loaded on each worker.
+This function needs to be exported for \code{future} to be able to load it.}
 \usage{
 run_MCMC_allcode(
   seed,
@@ -16,6 +17,26 @@ run_MCMC_allcode(
   additional_monitors = "NULL"
 )
 }
+\arguments{
+\item{seed}{Inherits from ivd}
+
+\item{data}{Inherits from ivd}
+
+\item{constants}{Inherits from ivd}
+
+\item{code}{Inherits from ivd}
+
+\item{niter}{Inherits from ivd}
+
+\item{nburnin}{Inherits from ivd}
+
+\item{useWAIC}{Inherits from ivd}
+
+\item{inits}{Inherits from ivd}
+
+\item{additional_monitors}{Inherits from ivd}
+}
 \description{
-` Create a function to be loaded on each worker. This needs to be exported for future to be able to load it.
+Create a function to be loaded on each worker.
+This function needs to be exported for \code{future} to be able to load it.
 }

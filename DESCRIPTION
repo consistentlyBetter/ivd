@@ -31,13 +31,12 @@ RoxygenNote: 7.3.1
 Imports:
     nimble (>= 1.1.0),
     coda (>= 0.19.4),
-    Matrix,
     ggplot2,
     patchwork,
-    mvtnorm,
     future,
     future.apply,
-    methods
+    utils,
+    rstan
 Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
