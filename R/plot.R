@@ -180,7 +180,7 @@ plot.ivd <- function(x, type = "pip", variable = NULL, col_id = TRUE, legend = T
 ##' @title Traceplot from the coda package
 ##' @param obj ivd object
 ##' @param parameters Provide parameters of interest as c("parameter1", "paramter2") etc.
-##' @param type Coda plot. Defaults to 'traceplot'
+##' @param type Coda plot. Defaults to 'traceplot'. See coda for more options such as 'acfplot', 'densplot' etc.
 ##' @return Specified coda plot
 ##' @author Philippe Rast
 ##' @import coda

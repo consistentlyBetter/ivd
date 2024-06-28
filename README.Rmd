@@ -49,7 +49,7 @@ The illustration uses openly accessible data from The Basic Education Evaluation
 
 Separate within- from between-school effects. That is, besides `student_ses`, compute `school_ses`. 
 
-```{r}
+```{r data}
 # Calculate school-level SES
 school_ses <- saeb[, .(school_ses = mean(student_ses, na.rm = TRUE)), by = school_id]
 
@@ -99,12 +99,12 @@ s_out <- summary(out)
 ### Posterior inclusion probability plot (PIP)
 
 ```{r}
-plot(out, type = "pip", variable = "(Intercept)")
+plot(out, type = "pip")
 ```
 ### PIP vs. Within-cluster SD
 
 ```{r}
-plot(out, type =  "funnel", variable = "ses_s")
+plot(out, type =  "funnel")
 ```
 
 ### PIP vs. math achievement
@@ -129,6 +129,10 @@ ggplot(avg_df, aes(x = math_proficiency, y = pip)) +
 
 
 ### Diagnostic plots based on coda plots:
+
+```{r echo=FALSE}
+library(coda) ## load coda to avoid issues with devtools::build_readme()
+```
 
 ```{r}
 codaplot(out, parameter =  "beta[1]")
