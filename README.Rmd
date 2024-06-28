@@ -135,8 +135,8 @@ library(coda) ## load coda to avoid issues with devtools::build_readme()
 ```
 
 ```{r}
-codaplot(out, parameter =  "beta[1]")
-codaplot(out, parameter =  "R[2, 1]")
+codaplot(out, parameters =  "beta[1]")
+codaplot(out, parameters =  "R[2, 1]")
 ```
 
 # References

@@ -23,3 +23,10 @@ test_that("codaplot works correctly with specified parameters", {
   skip_if(Sys.getenv("R_COVR") == "true", "Skipping ivd test during coverage")
   expect_error(codaplot(testoutput, type = "densplot",  parameters = c("R[1, 2]")), NA) # Expect no error
 })
+
+test_that("codaplot works correctly with ask next page", {
+  skip_if(Sys.getenv("R_COVR") == "true", "Skipping ivd test during coverage")
+  
+  expect_error(codaplot(testoutput, type = "densplot",  parameters = c("R[1, 2]", "beta[1]"),
+                        askNewPage = FALSE), NA) # Expect no error
+})

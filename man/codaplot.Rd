@@ -4,14 +4,16 @@
 \alias{codaplot}
 \title{Traceplot from the coda package}
 \usage{
-codaplot(obj, parameters = NULL, type = "traceplot")
+codaplot(obj, parameters = NULL, type = "traceplot", askNewPage = TRUE)
 }
 \arguments{
 \item{obj}{ivd object}
 
 \item{parameters}{Provide parameters of interest as c("parameter1", "paramter2") etc.}
 
-\item{type}{Coda plot. Defaults to 'traceplot'}
+\item{type}{Coda plot. Defaults to 'traceplot'. See coda for more options such as 'acfplot', 'densplot' etc.}
+
+\item{askNewPage}{Should user be prompted for next plot. Defaults to \code{TRUE}}
 }
 \value{
 Specified coda plot
