@@ -9,7 +9,7 @@
 ##' @import ggplot2 
 ##' @importFrom patchwork plot_layout
 ##' @export
-plot.ivd <- function(x, type = "pip", variable = NULL, col_id = TRUE, legend = TRUE, ...) {
+plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, col_id = TRUE, legend = TRUE, ...) {
   obj <- x
   ## Get scale variable names
   ranef_scale_names <- colnames(obj$Z_scale)
@@ -136,15 +136,17 @@ plot.ivd <- function(x, type = "pip", variable = NULL, col_id = TRUE, legend = T
   if( type == "pip") {
     ## 
     plt <- ggplot(df_pip, aes(x = ordered, y = pip)) +
-      geom_point( aes(color = as.factor(id)), size = 3) +
-      geom_text(data = subset(df_pip, pip >= 0.75),
-                aes(label = id),
-                nudge_x = -10,
-                size = 3) +
-      geom_abline(intercept = 0.75, slope = 0, lty =  3)+
-      geom_abline(intercept = 0.25, slope = 0, lty =  3)+
+      geom_point(data = subset(df_pip, pip < pip_level), alpha = .4 , size = 3) +
+      geom_point(data = subset(df_pip, pip >= pip_level),
+                 aes(color = as.factor(id)), size = 3) +
+      # geom_text(data = subset(df_pip, pip >= pip_level),
+      #           aes(label = id),
+      #           nudge_x = -10,
+      #           size = 3) +
+      geom_abline(intercept = pip_level, slope = 0, lty =  3)+
+      geom_abline(intercept = pip_level - .5, slope = 0, lty =  3)+
       ylim(c(0, 1 ) ) + ggtitle(variable )+
-      guides(color ="none")
+      scale_color_discrete(name = "Cluster ID")
     print(plt )
   } else if ( type == "funnel" ) {
 
@@ -153,34 +155,39 @@ plot.ivd <- function(x, type = "pip", variable = NULL, col_id = TRUE, legend = T
       cbind(df_pip[order(df_pip$id), ], tau )
 
     ## Make nudge scale dependent:
-    nx <- (max(df_funnel$tau ) - min(df_funnel$tau ))/50
+    ## (not used)
+    # nx <- (max(df_funnel$tau ) - min(df_funnel$tau ))/50
 
-    plt <- ggplot(df_funnel, aes(x = tau, y = pip, color = as.factor(id))) +
-      geom_point( ) +
-      guides(color = "none") + labs(x = "Within-Cluster SD") +
-      geom_text(data = subset(df_funnel, pip >= 0.75),
-                aes(label = id),
-                nudge_x = -nx,
-                size = 3)+
-      geom_abline(intercept = 0.75, slope = 0, lty =  3)+
-      geom_abline(intercept = 0.25, slope = 0, lty =  3)+
-      ylim(c(0, 1 ) )+ggtitle(variable)
+    plt <- ggplot(df_funnel, aes(x = tau, y = pip)) +
+      geom_point(data = subset(df_funnel, pip < pip_level), alpha = .4 ) +
+      geom_point(data = subset(df_funnel, pip >= pip_level),
+                 aes(color = as.factor(id))) +
+      labs(x = "Within-Cluster SD") +
+      # geom_text(data = subset(df_funnel, pip >= pip_level),
+      #           aes(label = id),
+      #           nudge_x = -nx,
+      #           size = 3)+
+      geom_abline(intercept = pip_level, slope = 0, lty =  3)+
+      geom_abline(intercept = pip_level - .5, slope = 0, lty =  3)+
+      ylim(c(0, 1 ) )+ggtitle(variable) +
+      scale_color_discrete(name = "Cluster id")
     print( plt )
   } else if ( type == "outcome") {
       df_y <- merge(df_pip,
                     aggregate(Y ~ group_id, data = obj$Y, FUN = mean),
                     by.x = "id", by.y = "group_id")
+      df_y$tau <- tau
       ## 
       plt <- ggplot(df_y, aes(x = Y, y = pip)) +
-        geom_point( aes(color = as.factor(id)), size = 3) +
-        geom_text(data = subset(df_y, pip >= 0.75),
-                  aes(label = id),
-                  nudge_x = -.05,
-                  size = 3) +
-        geom_abline(intercept = 0.75, slope = 0, lty =  3)+
-        geom_abline(intercept = 0.25, slope = 0, lty =  3)+
-        ylim(c(0, 1 ) ) + ggtitle(variable )+
-        guides(color ="none")
+        geom_point(data = subset(df_y, pip < pip_level), aes(size=tau), alpha = .4) +
+        geom_point(data = subset(df_y, pip >= pip_level),
+                   aes(color = as.factor(id), size = tau)) +
+        geom_abline(intercept = pip_level, slope = 0, lty =  3)+
+        geom_abline(intercept = pip_level - .5, slope = 0, lty =  3)+
+        ylim(c(0, 1 ) ) + 
+        ggtitle(variable ) +
+        scale_color_discrete(name = "Cluster ID") +
+        guides(size = "none")
       print(plt )
   } else {
     stop("Invalid plot type. Please choose between 'pip', 'funnel' or 'outcome'.")
