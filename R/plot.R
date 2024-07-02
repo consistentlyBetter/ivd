@@ -93,6 +93,45 @@ plot.ivd <- function(x, type = "pip", variable = NULL, col_id = TRUE, legend = T
   ## Indices of columns where column index is greater than Kr
   scale_ranef_pos <- which(column_indices)
   
+  ## Create tau locally
+  if(no_ranef_s == 1) {
+    ## Extract the posterior mean of the fixed effect:
+    zeta <- mean( unlist( lapply(.extract_to_mcmc( obj ), FUN = function(x) mean(x[, "zeta[1]"])) ) )
+    ## Extract the posterior mean of each random effect:
+    u <- colMeans(do.call(rbind, lapply(.extract_to_mcmc( obj ), FUN = function(x) colMeans(x[, scale_ranef_pos]))))
+    tau <- exp(zeta + u )
+  } else if (no_ranef_s > 1 ) {
+    ## if(is.null(variable)) {
+    ##   ## Prompt user for action when there are multiple random effects
+    ##   variable <- readline(prompt="There are multiple random effects. Please provide the variable name to be plotted or type 'list' \n(or specify as plot(fitted, type = 'funnel', variable = 'variable_name'): ")
+    ##   if (tolower(variable) == "list") {
+    ##     variable <- readline(prompt = cat(ranef_scale_names, ": "))
+    ##   }
+    ## }
+    
+    ## Find position of user requested random effect
+    scale_ranef_position_user <-
+      which(ranef_scale_names == variable)
+    
+    ## Find position of user requested fixed effect
+    ## TODO: When interactions are present plot will change according to moderator...
+    ## Currently only main effect is selected
+    scale_fixef_position_user <-
+      which(fixef_scale_names == variable)
+    
+    ## Use ranef_position_user to select corresponding fixed effect
+    zeta <- mean( unlist( lapply(.extract_to_mcmc(obj), FUN = function(x) mean(x[, paste0("zeta[", scale_fixef_position_user, "]")])) ) )
+    
+    ## Extract the posterior mean of each random effect:        
+    pos <- scale_ranef_pos[ grepl( paste0(Kr + scale_ranef_position_user, "\\]"),  names(scale_ranef_pos ) ) ]
+    
+    u <-
+      colMeans(do.call(rbind, lapply(.extract_to_mcmc(obj ), FUN = function(x) colMeans(x[, pos]))))
+    tau <- exp(zeta + u )
+    
+  } else {
+    print("Invalid action specified. Exiting.")
+  }
   
   if( type == "pip") {
     ## 
@@ -107,48 +146,7 @@ plot.ivd <- function(x, type = "pip", variable = NULL, col_id = TRUE, legend = T
       ylim(c(0, 1 ) ) + ggtitle(variable )+
       guides(color ="none")
     print(plt )
-  } else {
-    if( type == "funnel" ) {
-      ## Create tau locally
-      if(no_ranef_s == 1) {
-        ## Extract the posterior mean of the fixed effect:
-        zeta <- mean( unlist( lapply(.extract_to_mcmc( obj ), FUN = function(x) mean(x[, "zeta[1]"])) ) )
-        ## Extract the posterior mean of each random effect:
-        u <- colMeans(do.call(rbind, lapply(.extract_to_mcmc( obj ), FUN = function(x) colMeans(x[, scale_ranef_pos]))))
-        tau <- exp(zeta + u )
-      } else if (no_ranef_s > 1 ) {
-       ## if(is.null(variable)) {
-       ##   ## Prompt user for action when there are multiple random effects
-       ##   variable <- readline(prompt="There are multiple random effects. Please provide the variable name to be plotted or type 'list' \n(or specify as plot(fitted, type = 'funnel', variable = 'variable_name'): ")
-       ##   if (tolower(variable) == "list") {
-       ##     variable <- readline(prompt = cat(ranef_scale_names, ": "))
-       ##   }
-       ## }
-
-       ## Find position of user requested random effect
-        scale_ranef_position_user <-
-          which(ranef_scale_names == variable)
-       
-       ## Find position of user requested fixed effect
-       ## TODO: When interactions are present plot will change according to moderator...
-       ## Currently only main effect is selected
-        scale_fixef_position_user <-
-          which(fixef_scale_names == variable)
-
-       ## Use ranef_position_user to select corresponding fixed effect
-       zeta <- mean( unlist( lapply(.extract_to_mcmc(obj), FUN = function(x) mean(x[, paste0("zeta[", scale_fixef_position_user, "]")])) ) )
-
-       ## Extract the posterior mean of each random effect:        
-       pos <- scale_ranef_pos[ grepl( paste0(Kr + scale_ranef_position_user, "\\]"),  names(scale_ranef_pos ) ) ]
-
-        u <-
-          colMeans(do.call(rbind, lapply(.extract_to_mcmc(obj ), FUN = function(x) colMeans(x[, pos]))))
-       tau <- exp(zeta + u )
-
-      } else {
-        print("Invalid action specified. Exiting.")
-      }
-    }
+  } else if ( type == "funnel" ) {
 
     ## Add tau to data frame -- ensure correct order
     df_funnel <-
@@ -168,9 +166,8 @@ plot.ivd <- function(x, type = "pip", variable = NULL, col_id = TRUE, legend = T
       geom_abline(intercept = 0.25, slope = 0, lty =  3)+
       ylim(c(0, 1 ) )+ggtitle(variable)
     print( plt )
-  } else {
-    if( type == "outcome") {
-      # df_y <- merge(df_pip,
+  } else if ( type == "outcome") {
+      df_y <- merge(df_pip,
                     aggregate(Y ~ group_id, data = obj$Y, FUN = mean),
                     by.x = "id", by.y = "group_id")
       ## 
@@ -178,15 +175,16 @@ plot.ivd <- function(x, type = "pip", variable = NULL, col_id = TRUE, legend = T
         geom_point( aes(color = as.factor(id)), size = 3) +
         geom_text(data = subset(df_y, pip >= 0.75),
                   aes(label = id),
-                  nudge_x = -.1,
+                  nudge_x = -.05,
                   size = 3) +
         geom_abline(intercept = 0.75, slope = 0, lty =  3)+
         geom_abline(intercept = 0.25, slope = 0, lty =  3)+
         ylim(c(0, 1 ) ) + ggtitle(variable )+
         guides(color ="none")
       print(plt )
+  } else {
+    stop("Invalid plot type. Please choose between 'pip', 'funnel' or 'outcome'.")
     }
-  }
   return(invisible(plt))  
 }
 
