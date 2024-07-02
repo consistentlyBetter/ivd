@@ -109,21 +109,7 @@ plot(out, type =  "funnel")
 ### PIP vs. math achievement
 
 ```{r}
-avg_df <- aggregate(math_proficiency ~ school_id, data = saeb, FUN = mean)
-avg_df$pip <- s_out[grep("^ss", rownames(s_out)), 1]
-
-ggplot(avg_df, aes(x = math_proficiency, y = pip)) +
-  geom_point( aes(color = as.factor(school_id)), size = 3) +
-  geom_text(data = subset(avg_df, pip >= 0.75),
-            aes(label = school_id),
-            nudge_x = -.1,
-            size = 3) +
-  geom_abline(intercept = 0.75, slope = 0, lty =  3)+
-  geom_abline(intercept = 0.25, slope = 0, lty =  3)+
-  ylim(c(0, 1 ) ) + 
-  guides(color ="none") +
-  labs(x = "Math achievement (z-standardized)",
-       y = "pip")
+plot(out, type =  "outcome")
 ```
 
 

@@ -1,6 +1,7 @@
 ##' @title Plot method for ivd objects
 ##' @param x An object of type `ivd`.
-##' @param type Defaults to 'pip', other options are 'caterpillar' and 'funnel'
+##' @param type Defaults to 'pip', other options are 'funnel' and 'outcome'.
+##' @param pip_level Defines a value for the posterior inclusion probability. Defaults to 0.75.
 ##' @param variable Name of a specific variable. Defaults to `NULL`
 ##' @param col_id Whether the plot should color in points by their unique identifier.
 ##' @param legend Should legend be included? Defaults to `TRUE`.
@@ -170,7 +171,7 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, col_id =
       geom_abline(intercept = pip_level, slope = 0, lty =  3)+
       geom_abline(intercept = pip_level - .5, slope = 0, lty =  3)+
       ylim(c(0, 1 ) )+ggtitle(variable) +
-      scale_color_discrete(name = "Cluster id")
+      scale_color_discrete(name = "Cluster ID")
     print( plt )
   } else if ( type == "outcome") {
       df_y <- merge(df_pip,
