@@ -168,6 +168,24 @@ plot.ivd <- function(x, type = "pip", variable = NULL, col_id = TRUE, legend = T
       geom_abline(intercept = 0.25, slope = 0, lty =  3)+
       ylim(c(0, 1 ) )+ggtitle(variable)
     print( plt )
+  } else {
+    if( type == "outcome") {
+      # df_y <- merge(df_pip,
+                    aggregate(Y ~ group_id, data = obj$Y, FUN = mean),
+                    by.x = "id", by.y = "group_id")
+      ## 
+      plt <- ggplot(df_y, aes(x = Y, y = pip)) +
+        geom_point( aes(color = as.factor(id)), size = 3) +
+        geom_text(data = subset(df_y, pip >= 0.75),
+                  aes(label = id),
+                  nudge_x = -.1,
+                  size = 3) +
+        geom_abline(intercept = 0.75, slope = 0, lty =  3)+
+        geom_abline(intercept = 0.25, slope = 0, lty =  3)+
+        ylim(c(0, 1 ) ) + ggtitle(variable )+
+        guides(color ="none")
+      print(plt )
+    }
   }
   return(invisible(plt))  
 }
