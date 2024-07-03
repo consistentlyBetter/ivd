@@ -204,13 +204,14 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, col_id =
 ##' @title Traceplot from the coda package
 ##' @param obj ivd object
 ##' @param parameters Provide parameters of interest as c("parameter1", "paramter2") etc.
-##' @param type Coda plot. Defaults to 'traceplot'
+##' @param type Coda plot. Defaults to 'traceplot'. See coda for more options such as 'acfplot', 'densplot' etc.
+##' @param askNewPage Should user be prompted for next plot. Defaults to `TRUE`
 ##' @return Specified coda plot
 ##' @author Philippe Rast
 ##' @import coda
 ##' @importFrom grDevices devAskNewPage
 ##' @export
-codaplot <- function(obj, parameters = NULL, type = 'traceplot') {
+codaplot <- function(obj, parameters = NULL, type = 'traceplot', askNewPage = TRUE) {
   ## TODO: Inherit variable names from summary object
 
   ## Extract to mcmc object
@@ -226,15 +227,14 @@ codaplot <- function(obj, parameters = NULL, type = 'traceplot') {
   if(is.null(parameters)) {
     ## If no parameters specified, apply the chosen function to all samples
     params <- dimnames(.summary_table(obj$samples[[1]]$samples ))[[2]]
-
-    ## Apply the chosen function to the specified parameters
-    if (length(params) > 1) {
-      ## Prompt user to move between plots when multiple parameters are involved
-      devAskNewPage(TRUE)
-    }
     
+    ## Apply the chosen function to the specified parameters    
     for (param in params) {
-      print(plot_func(mcmc.list(extract_samples)[, param, drop = FALSE]))
+      plot_func(mcmc.list(extract_samples)[, param, drop = FALSE])
+      if (length(params) > 1) {
+        ## Prompt user to move between plots when multiple parameters are involved
+        devAskNewPage(askNewPage)
+      }
     }
     
     ## Restore default behavior (no prompt) after finishing the plots
@@ -249,14 +249,14 @@ codaplot <- function(obj, parameters = NULL, type = 'traceplot') {
     if (!all( params %in% colnames(extract_samples[[1]]))) {
       stop("Some specified parameters do not exist in the samples.")
     }
+
     ## Apply the chosen function to the specified parameters
-    if (length(params) > 1) {
-      ## Prompt user to move between plots when multiple parameters are involved
-      devAskNewPage(TRUE)
-    }
-    
     for (param in params) {
-      print(plot_func(mcmc.list(extract_samples)[, param, drop = FALSE]))
+      plot_func(mcmc.list(extract_samples)[, param, drop = FALSE])
+      if (length(params) > 1) {
+        ## Prompt user to move between plots when multiple parameters are involved
+        devAskNewPage(askNewPage)
+      }
     }
     
     ## Restore default behavior (no prompt) after finishing the plots

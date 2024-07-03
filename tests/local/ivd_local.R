@@ -299,3 +299,9 @@ monitor_results <- rstan::monitor(samples_array, print = FALSE)
 # Extract and print R-hat values
 rhat_values <- monitor_results[, "Rhat"]
 print(rhat_values)
+
+
+  library(covr )
+
+  coverage  <- covr::package_coverage( )
+  print(coverage )
