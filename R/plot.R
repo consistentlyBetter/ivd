@@ -1,6 +1,7 @@
 ##' @title Plot method for ivd objects
 ##' @param x An object of type `ivd`.
-##' @param type Defaults to 'pip', other options are 'caterpillar' and 'funnel'
+##' @param type Defaults to 'pip', other options are 'funnel' and 'outcome'.
+##' @param pip_level Defines a value for the posterior inclusion probability. Defaults to 0.75.
 ##' @param variable Name of a specific variable. Defaults to `NULL`
 ##' @param col_id Whether the plot should color in points by their unique identifier.
 ##' @param legend Should legend be included? Defaults to `TRUE`.
@@ -9,7 +10,7 @@
 ##' @import ggplot2 
 ##' @importFrom patchwork plot_layout
 ##' @export
-plot.ivd <- function(x, type = "pip", variable = NULL, col_id = TRUE, legend = TRUE, ...) {
+plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, col_id = TRUE, legend = TRUE, ...) {
   obj <- x
   ## Get scale variable names
   ranef_scale_names <- colnames(obj$Z_scale)
@@ -93,82 +94,105 @@ plot.ivd <- function(x, type = "pip", variable = NULL, col_id = TRUE, legend = T
   ## Indices of columns where column index is greater than Kr
   scale_ranef_pos <- which(column_indices)
   
+  ## Create tau locally
+  if(no_ranef_s == 1) {
+    ## Extract the posterior mean of the fixed effect:
+    zeta <- mean( unlist( lapply(.extract_to_mcmc( obj ), FUN = function(x) mean(x[, "zeta[1]"])) ) )
+    ## Extract the posterior mean of each random effect:
+    u <- colMeans(do.call(rbind, lapply(.extract_to_mcmc( obj ), FUN = function(x) colMeans(x[, scale_ranef_pos]))))
+    tau <- exp(zeta + u )
+  } else if (no_ranef_s > 1 ) {
+    ## if(is.null(variable)) {
+    ##   ## Prompt user for action when there are multiple random effects
+    ##   variable <- readline(prompt="There are multiple random effects. Please provide the variable name to be plotted or type 'list' \n(or specify as plot(fitted, type = 'funnel', variable = 'variable_name'): ")
+    ##   if (tolower(variable) == "list") {
+    ##     variable <- readline(prompt = cat(ranef_scale_names, ": "))
+    ##   }
+    ## }
+    
+    ## Find position of user requested random effect
+    scale_ranef_position_user <-
+      which(ranef_scale_names == variable)
+    
+    ## Find position of user requested fixed effect
+    ## TODO: When interactions are present plot will change according to moderator...
+    ## Currently only main effect is selected
+    scale_fixef_position_user <-
+      which(fixef_scale_names == variable)
+    
+    ## Use ranef_position_user to select corresponding fixed effect
+    zeta <- mean( unlist( lapply(.extract_to_mcmc(obj), FUN = function(x) mean(x[, paste0("zeta[", scale_fixef_position_user, "]")])) ) )
+    
+    ## Extract the posterior mean of each random effect:        
+    pos <- scale_ranef_pos[ grepl( paste0(Kr + scale_ranef_position_user, "\\]"),  names(scale_ranef_pos ) ) ]
+    
+    u <-
+      colMeans(do.call(rbind, lapply(.extract_to_mcmc(obj ), FUN = function(x) colMeans(x[, pos]))))
+    tau <- exp(zeta + u )
+    
+  } else {
+    print("Invalid action specified. Exiting.")
+  }
   
   if( type == "pip") {
     ## 
     plt <- ggplot(df_pip, aes(x = ordered, y = pip)) +
-      geom_point( aes(color = as.factor(id)), size = 3) +
-      geom_text(data = subset(df_pip, pip >= 0.75),
-                aes(label = id),
-                nudge_x = -10,
-                size = 3) +
-      geom_abline(intercept = 0.75, slope = 0, lty =  3)+
-      geom_abline(intercept = 0.25, slope = 0, lty =  3)+
+      geom_point(data = subset(df_pip, pip < pip_level), alpha = .4 , size = 3) +
+      geom_point(data = subset(df_pip, pip >= pip_level),
+                 aes(color = as.factor(id)), size = 3) +
+      # geom_text(data = subset(df_pip, pip >= pip_level),
+      #           aes(label = id),
+      #           nudge_x = -10,
+      #           size = 3) +
+      geom_abline(intercept = pip_level, slope = 0, lty =  3)+
+      geom_abline(intercept = pip_level - .5, slope = 0, lty =  3)+
       ylim(c(0, 1 ) ) + ggtitle(variable )+
-      guides(color ="none")
+      scale_color_discrete(name = "Cluster ID")
     print(plt )
-  } else {
-    if( type == "funnel" ) {
-      ## Create tau locally
-      if(no_ranef_s == 1) {
-        ## Extract the posterior mean of the fixed effect:
-        zeta <- mean( unlist( lapply(.extract_to_mcmc( obj ), FUN = function(x) mean(x[, "zeta[1]"])) ) )
-        ## Extract the posterior mean of each random effect:
-        u <- colMeans(do.call(rbind, lapply(.extract_to_mcmc( obj ), FUN = function(x) colMeans(x[, scale_ranef_pos]))))
-        tau <- exp(zeta + u )
-      } else if (no_ranef_s > 1 ) {
-       ## if(is.null(variable)) {
-       ##   ## Prompt user for action when there are multiple random effects
-       ##   variable <- readline(prompt="There are multiple random effects. Please provide the variable name to be plotted or type 'list' \n(or specify as plot(fitted, type = 'funnel', variable = 'variable_name'): ")
-       ##   if (tolower(variable) == "list") {
-       ##     variable <- readline(prompt = cat(ranef_scale_names, ": "))
-       ##   }
-       ## }
-
-       ## Find position of user requested random effect
-        scale_ranef_position_user <-
-          which(ranef_scale_names == variable)
-       
-       ## Find position of user requested fixed effect
-       ## TODO: When interactions are present plot will change according to moderator...
-       ## Currently only main effect is selected
-        scale_fixef_position_user <-
-          which(fixef_scale_names == variable)
-
-       ## Use ranef_position_user to select corresponding fixed effect
-       zeta <- mean( unlist( lapply(.extract_to_mcmc(obj), FUN = function(x) mean(x[, paste0("zeta[", scale_fixef_position_user, "]")])) ) )
-
-       ## Extract the posterior mean of each random effect:        
-       pos <- scale_ranef_pos[ grepl( paste0(Kr + scale_ranef_position_user, "\\]"),  names(scale_ranef_pos ) ) ]
-
-        u <-
-          colMeans(do.call(rbind, lapply(.extract_to_mcmc(obj ), FUN = function(x) colMeans(x[, pos]))))
-       tau <- exp(zeta + u )
-
-      } else {
-        print("Invalid action specified. Exiting.")
-      }
-    }
+  } else if ( type == "funnel" ) {
 
     ## Add tau to data frame -- ensure correct order
     df_funnel <-
       cbind(df_pip[order(df_pip$id), ], tau )
 
     ## Make nudge scale dependent:
-    nx <- (max(df_funnel$tau ) - min(df_funnel$tau ))/50
+    ## (not used)
+    # nx <- (max(df_funnel$tau ) - min(df_funnel$tau ))/50
 
-    plt <- ggplot(df_funnel, aes(x = tau, y = pip, color = as.factor(id))) +
-      geom_point( ) +
-      guides(color = "none") + labs(x = "Within-Cluster SD") +
-      geom_text(data = subset(df_funnel, pip >= 0.75),
-                aes(label = id),
-                nudge_x = -nx,
-                size = 3)+
-      geom_abline(intercept = 0.75, slope = 0, lty =  3)+
-      geom_abline(intercept = 0.25, slope = 0, lty =  3)+
-      ylim(c(0, 1 ) )+ggtitle(variable)
+    plt <- ggplot(df_funnel, aes(x = tau, y = pip)) +
+      geom_point(data = subset(df_funnel, pip < pip_level), alpha = .4 ) +
+      geom_point(data = subset(df_funnel, pip >= pip_level),
+                 aes(color = as.factor(id))) +
+      labs(x = "Within-Cluster SD") +
+      # geom_text(data = subset(df_funnel, pip >= pip_level),
+      #           aes(label = id),
+      #           nudge_x = -nx,
+      #           size = 3)+
+      geom_abline(intercept = pip_level, slope = 0, lty =  3)+
+      geom_abline(intercept = pip_level - .5, slope = 0, lty =  3)+
+      ylim(c(0, 1 ) )+ggtitle(variable) +
+      scale_color_discrete(name = "Cluster ID")
     print( plt )
-  }
+  } else if ( type == "outcome") {
+      df_y <- merge(df_pip,
+                    aggregate(Y ~ group_id, data = obj$Y, FUN = mean),
+                    by.x = "id", by.y = "group_id")
+      df_y$tau <- tau
+      ## 
+      plt <- ggplot(df_y, aes(x = Y, y = pip)) +
+        geom_point(data = subset(df_y, pip < pip_level), aes(size=tau), alpha = .4) +
+        geom_point(data = subset(df_y, pip >= pip_level),
+                   aes(color = as.factor(id), size = tau)) +
+        geom_abline(intercept = pip_level, slope = 0, lty =  3)+
+        geom_abline(intercept = pip_level - .5, slope = 0, lty =  3)+
+        ylim(c(0, 1 ) ) + 
+        ggtitle(variable ) +
+        scale_color_discrete(name = "Cluster ID") +
+        guides(size = "none")
+      print(plt )
+  } else {
+    stop("Invalid plot type. Please choose between 'pip', 'funnel' or 'outcome'.")
+    }
   return(invisible(plt))  
 }
 
@@ -180,13 +204,14 @@ plot.ivd <- function(x, type = "pip", variable = NULL, col_id = TRUE, legend = T
 ##' @title Traceplot from the coda package
 ##' @param obj ivd object
 ##' @param parameters Provide parameters of interest as c("parameter1", "paramter2") etc.
-##' @param type Coda plot. Defaults to 'traceplot'
+##' @param type Coda plot. Defaults to 'traceplot'. See coda for more options such as 'acfplot', 'densplot' etc.
+##' @param askNewPage Should user be prompted for next plot. Defaults to `TRUE`
 ##' @return Specified coda plot
 ##' @author Philippe Rast
 ##' @import coda
 ##' @importFrom grDevices devAskNewPage
 ##' @export
-codaplot <- function(obj, parameters = NULL, type = 'traceplot') {
+codaplot <- function(obj, parameters = NULL, type = 'traceplot', askNewPage = TRUE) {
   ## TODO: Inherit variable names from summary object
 
   ## Extract to mcmc object
@@ -202,15 +227,14 @@ codaplot <- function(obj, parameters = NULL, type = 'traceplot') {
   if(is.null(parameters)) {
     ## If no parameters specified, apply the chosen function to all samples
     params <- dimnames(.summary_table(obj$samples[[1]]$samples ))[[2]]
-
-    ## Apply the chosen function to the specified parameters
-    if (length(params) > 1) {
-      ## Prompt user to move between plots when multiple parameters are involved
-      devAskNewPage(TRUE)
-    }
     
+    ## Apply the chosen function to the specified parameters    
     for (param in params) {
-      print(plot_func(mcmc.list(extract_samples)[, param, drop = FALSE]))
+      plot_func(mcmc.list(extract_samples)[, param, drop = FALSE])
+      if (length(params) > 1) {
+        ## Prompt user to move between plots when multiple parameters are involved
+        devAskNewPage(askNewPage)
+      }
     }
     
     ## Restore default behavior (no prompt) after finishing the plots
@@ -225,14 +249,14 @@ codaplot <- function(obj, parameters = NULL, type = 'traceplot') {
     if (!all( params %in% colnames(extract_samples[[1]]))) {
       stop("Some specified parameters do not exist in the samples.")
     }
+
     ## Apply the chosen function to the specified parameters
-    if (length(params) > 1) {
-      ## Prompt user to move between plots when multiple parameters are involved
-      devAskNewPage(TRUE)
-    }
-    
     for (param in params) {
-      print(plot_func(mcmc.list(extract_samples)[, param, drop = FALSE]))
+      plot_func(mcmc.list(extract_samples)[, param, drop = FALSE])
+      if (length(params) > 1) {
+        ## Prompt user to move between plots when multiple parameters are involved
+        devAskNewPage(askNewPage)
+      }
     }
     
     ## Restore default behavior (no prompt) after finishing the plots

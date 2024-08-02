@@ -49,7 +49,7 @@ The illustration uses openly accessible data from The Basic Education Evaluation
 
 Separate within- from between-school effects. That is, besides `student_ses`, compute `school_ses`. 
 
-```{r}
+```{r data}
 # Calculate school-level SES
 school_ses <- saeb[, .(school_ses = mean(student_ses, na.rm = TRUE)), by = school_id]
 
@@ -99,40 +99,33 @@ s_out <- summary(out)
 ### Posterior inclusion probability plot (PIP)
 
 ```{r}
-plot(out, type = "pip", variable = "(Intercept)")
+plot(out, type = "pip")
 ```
+
 ### PIP vs. Within-cluster SD
 
 ```{r}
-plot(out, type =  "funnel", variable = "ses_s")
+plot(out, type =  "funnel")
 ```
 
 ### PIP vs. math achievement
 
-```{r}
-avg_df <- aggregate(math_proficiency ~ school_id, data = saeb, FUN = mean)
-avg_df$pip <- s_out[grep("^ss", rownames(s_out)), 1]
+Note that point size represents the within-cluster standard deviation of each cluster.
 
-ggplot(avg_df, aes(x = math_proficiency, y = pip)) +
-  geom_point( aes(color = as.factor(school_id)), size = 3) +
-  geom_text(data = subset(avg_df, pip >= 0.75),
-            aes(label = school_id),
-            nudge_x = -.1,
-            size = 3) +
-  geom_abline(intercept = 0.75, slope = 0, lty =  3)+
-  geom_abline(intercept = 0.25, slope = 0, lty =  3)+
-  ylim(c(0, 1 ) ) + 
-  guides(color ="none") +
-  labs(x = "Math achievement (z-standardized)",
-       y = "pip")
+```{r}
+plot(out, type =  "outcome")
 ```
 
 
 ### Diagnostic plots based on coda plots:
 
+```{r echo=FALSE}
+library(coda) ## load coda to avoid issues with devtools::build_readme()
+```
+
 ```{r}
-codaplot(out, parameter =  "beta[1]")
-codaplot(out, parameter =  "R[2, 1]")
+codaplot(out, parameters =  "beta[1]")
+codaplot(out, parameters =  "R[2, 1]")
 ```
 
 # References

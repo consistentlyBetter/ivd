@@ -55,7 +55,6 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
     nburnin <- niter
   }
   niter <- niter + nburnin
-  
   dat <- prepare_data_for_nimble(data = data, location_formula = location_formula, scale_formula = scale_formula)
   data <- dat[[1]]
   groups <- dat$groups
@@ -180,6 +179,7 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   out$nimble_constants <- constants
   out$X_scale <- data$X_scale
   out$Z_scale <- data$Z_scale
+  out$Y <- data.frame("group_id" = group_id, "Y" = data$Y)
   out$workers <- workers
   
   class(out) <- c("ivd", "list")
