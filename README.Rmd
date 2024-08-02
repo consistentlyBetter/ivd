@@ -81,7 +81,7 @@ Both, location (means) and scale (residual variances) are modeled as a function 
 out <- ivd(location_formula = math_proficiency ~ student_ses * school_ses + (1|school_id),
            scale_formula =  ~ student_ses * school_ses + (1|school_id),
            data = saeb,
-           niter = 2000, nburnin = 7000, WAIC = TRUE, workers = 4)
+           niter = 2000, nburnin = 8000, WAIC = TRUE, workers = 4)
 ```
 
 The summary shows the fixed and random effects and it returns all posterior inclusion probabilities (PIP) for each one of the 160 schools' residual variance random effects. The PIP returns the probability of a school belonging to the slab, that is, the probability of the model having to include the random scale effect. 
@@ -128,4 +128,10 @@ codaplot(out, parameters =  "beta[1]")
 codaplot(out, parameters =  "R[2, 1]")
 ```
 
-# References
+
+## Acknowledgment
+This work was supported by the Tools Competition catalyst award for the project [consistentlyBetter](https://tools-competition.org/winner/consistentlybetter/) to PR. 
+The content is solely the responsibility of the authors and does not necessarily represent the official views of the funding agency.
+
+
+## References
