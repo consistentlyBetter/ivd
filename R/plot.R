@@ -9,6 +9,7 @@
 ##' @author Philippe Rast
 ##' @import ggplot2 
 ##' @importFrom patchwork plot_layout
+##' @importFrom stats aggregate
 ##' @export
 plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, col_id = TRUE, legend = TRUE, ...) {
   obj <- x
@@ -174,25 +175,28 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, col_id =
       scale_color_discrete(name = "Cluster ID")
     print( plt )
   } else if ( type == "outcome") {
-      df_y <- merge(df_pip,
-                    aggregate(Y ~ group_id, data = obj$Y, FUN = mean),
-                    by.x = "id", by.y = "group_id")
-      df_y$tau <- tau
-      ## 
-      plt <- ggplot(df_y, aes(x = Y, y = pip)) +
-        geom_point(data = subset(df_y, pip < pip_level), aes(size=tau), alpha = .4) +
-        geom_point(data = subset(df_y, pip >= pip_level),
-                   aes(color = as.factor(id), size = tau)) +
-        geom_abline(intercept = pip_level, slope = 0, lty =  3)+
-        geom_abline(intercept = pip_level - .5, slope = 0, lty =  3)+
-        ylim(c(0, 1 ) ) + 
-        ggtitle(variable ) +
-        scale_color_discrete(name = "Cluster ID") +
-        guides(size = "none")
-      print(plt )
+    ## Declare global variable to avoid R CMD check NOTE
+    Y <- NA
+    
+    df_y <- merge(df_pip,
+                  aggregate(Y ~ group_id, data = obj$Y, FUN = mean),
+                  by.x = "id", by.y = "group_id")
+    df_y$tau <- tau
+    ## 
+    plt <- ggplot(df_y, aes(x = Y, y = pip)) +
+      geom_point(data = subset(df_y, pip < pip_level), aes(size=tau), alpha = .4) +
+      geom_point(data = subset(df_y, pip >= pip_level),
+                 aes(color = as.factor(id), size = tau)) +
+      geom_abline(intercept = pip_level, slope = 0, lty =  3)+
+      geom_abline(intercept = pip_level - .5, slope = 0, lty =  3)+
+      ylim(c(0, 1 ) ) + 
+      ggtitle(variable ) +
+      scale_color_discrete(name = "Cluster ID") +
+      guides(size = "none")
+    print(plt )
   } else {
     stop("Invalid plot type. Please choose between 'pip', 'funnel' or 'outcome'.")
-    }
+  }
   return(invisible(plt))  
 }
 

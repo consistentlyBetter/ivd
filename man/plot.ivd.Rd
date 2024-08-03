@@ -4,12 +4,22 @@
 \alias{plot.ivd}
 \title{Plot method for ivd objects}
 \usage{
-\method{plot}{ivd}(x, type = "pip", variable = NULL, col_id = TRUE, legend = TRUE, ...)
+\method{plot}{ivd}(
+  x,
+  type = "pip",
+  pip_level = 0.75,
+  variable = NULL,
+  col_id = TRUE,
+  legend = TRUE,
+  ...
+)
 }
 \arguments{
 \item{x}{An object of type \code{ivd}.}
 
-\item{type}{Defaults to 'pip', other options are 'caterpillar' and 'funnel'}
+\item{type}{Defaults to 'pip', other options are 'funnel' and 'outcome'.}
+
+\item{pip_level}{Defines a value for the posterior inclusion probability. Defaults to 0.75.}
 
 \item{variable}{Name of a specific variable. Defaults to \code{NULL}}
 
