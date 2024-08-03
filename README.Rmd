@@ -47,16 +47,23 @@ library(data.table)
 ## Data
 The illustration uses openly accessible data from The Basic Education Evaluation System (Saeb) conducted by Brazil's National Institute for Educational Studies and Research (Inep), available at <https://www.gov.br/inep/pt-br/areas-de-atuacao/avaliacao-e-exames-educacionais/saeb/resultados>. It is also available as the `saeb` dataset in the `ivd` package.
 
+
 Separate within- from between-school effects. That is, besides `student_ses`, compute `school_ses`. 
 
 ```{r data}
-# Calculate school-level SES
+## Grand mean center student SES
+#saeb$student_ses <- c(scale(saeb$student_ses, scale = FALSE))
+
+## Calculate school-level SES
 school_ses <- saeb[, .(school_ses = mean(student_ses, na.rm = TRUE)), by = school_id]
 
-# Join the school_ses back to the original dataset
+## Join the school_ses back to the original dataset
 saeb <- saeb[school_ses, on = "school_id"]
 
-# Grand mean center school ses
+## Define student level SES as deviation from the school SES
+saeb$student_ses <- saeb$student_ses - saeb$school_ses
+
+## Grand mean center school ses
 saeb$school_ses <- c(scale(saeb$school_ses, scale = FALSE))
 
 head(saeb )
