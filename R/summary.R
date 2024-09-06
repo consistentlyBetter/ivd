@@ -62,13 +62,18 @@ summary.ivd <- function(object, digits = 2, ...) {
   ## rbind lists to one big object
   combined_samples <- do.call(rbind,  extract_samples)
   cn <- colnames(combined_samples )
+
+  ## exclude mu and tau
+  mu_index <- grep('mu',  cn )
+  tau_index <- grep('tau',  cn )
   
   ## mcmc from coda
-  summary_stats <- summary(mcmc(combined_samples))
+  summary_stats <- summary(mcmc(combined_samples[, -c(mu_index, tau_index)]))
   
-  ## Add R-hats
-  summary_stats$statistics <- cbind(summary_stats$statistics, object$rhat_values)
-  colnames( summary_stats$statistics )[ncol(summary_stats$statistics)] <- "R-hat"
+  ## Add n_eff and R-hats
+  summary_stats$statistics <- cbind(summary_stats$statistics,
+                                    n_eff = object$n_eff[-c(mu_index, tau_index)],
+                                    'R-hat' = object$rhat_values[-c(mu_index, tau_index)])
   
   ## summary_stats is a coda object with 2 summaries
   ## Means:
@@ -78,17 +83,52 @@ summary.ivd <- function(object, digits = 2, ...) {
 
   ## combine to printable object and rearrange so that R-hat is in the last column
 
-  s_comb <- cbind(sm[, c("Mean", "SD", "Time-series SE")],  sq[, c(1, 3, 5)], sm[, "R-hat"])
-  colnames( s_comb ) <- c("Mean", "SD", "Time-series SE", "2.5%", "50%", "97.5%", "R-hat")
+  s_comb <- cbind(sm[, c("Mean", "SD", "Time-series SE")],  sq[, c(1, 3, 5)], sm[, c("n_eff", "R-hat")])
+  colnames( s_comb ) <- c("Mean", "SD", "Time-series SE", "2.5%", "50%", "97.5%", "n_eff", "R-hat")
 
   table <- round(s_comb, 3)
 
+  ## Add original variable names to output
+  ## location fixed effects:
+  beta_index <- grep('beta', rownames(table))
+  if(length(beta_index) != length(object$X_location_name)) stop("Check beta_index in summary.R" )
+  rownames(table)[beta_index] <- object$X_location_name
+  ## scale fixed effects:
+  zeta_index <- grep('zeta', rownames(table))
+  if(length(zeta_index) != length(colnames(object$X_scale)) ) stop("Check zeta_index in summary.R" )
+  rownames(table)[zeta_index] <- paste("scl_", colnames(object$X_scale), sep = '')
+  ## random effects sd
+  sigma_rand_index <- grep('sigma_rand', rownames(table))
+  sd_names <- c( object$Z_location_names, paste0("scl_", colnames(object$Z_scale)) )
+  if(length(sigma_rand_index) != length(sd_names) ) stop("Check sd_index in summary.R")
+  rownames(table)[sigma_rand_index] <- paste0("sd_", sd_names)
+  
+  ## Rewrite correlatin variable
+  ## number of random effects:
+  cols <- length(sigma_rand_index)
+  ## Place holder variable: R is indexed as vech
+  M <- matrix(1:cols^2, ncol = cols )
+  ## record positions
+  vech <- M[lower.tri(M )]
+  ## match variable names to position
+  corrvar <- expand.grid(sd_names, sd_names)[vech,]
+  R_index <-  grep('R\\[', rownames(table))
+  if( nrow(corrvar) != length(R_index) )stop("Check R_index in summary.R" )
+  rownames(table)[R_index] <- paste0("R[",paste(corrvar[, 1], corrvar[, 2], sep = ", "), "]")
+
+  ## (Intercept) is annoying long. Change to Int.
+  Int_index <- grep("\\(Intercept\\)", rownames(table))
+  rownames(table)[Int_index] <- gsub("\\(Intercept\\)",  "Intc", rownames(table)[Int_index])
+
+  ## TODO: Link SS to actual clustering units
+  
+  table
   cat("Summary statistics for ivd model:\n")
   .newline
 
   ##
   chains <- object$workers
-  cat("Chains/workers:",  chains, "\n\n")
+  cat("Chains (workers):",  chains, "\n\n")
   
   ## extract WAIC per chain 
   waic_values <- sapply(object$samples, FUN = function(chain) chain$WAIC$WAIC)

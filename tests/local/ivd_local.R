@@ -3,7 +3,6 @@ devtools::load_all( )
 library(mlmRev)
 
 
-
 school_dat = mlmRev::Hsb82
 
 ## Ensure that school id is a continuous vector
@@ -18,13 +17,17 @@ for( i in unique(school_dat$school) ) {
 head(school_dat )
 
 
-dat <- ivd:::prepare_data_for_nimble(location_formula = mAch ~  ses + (1 | schoolid),
+dat <- ivd:::prepare_data_for_nimble(location_formula = mAch ~  meanses*ses_s + (1 | schoolid),
                                      scale_formula =  ~ ses + (1 + ses | schoolid),
                                      data = school_dat)
 
 
-is(dat )
+str(dat )
 ## head(dat[[1]]$X_scale)
+colnames(dat$data$X)
+colnames(dat$data$X_scale)
+data <- dat[[1]]
+colnames(data$X_scale)
 
 attributes(dat$data$Y)
 dat$data$X_scale
@@ -49,26 +52,25 @@ str(c(school_dat$mAch_s))
 str(school_dat$mAch)
 
 school_dat$ses_s <- scale(school_dat$ses)
-head(school_dat )
+nrow(school_dat )
 
-out <- ivd(location_formula = mAch_s ~  meanses + ses_s + (ses_s | schoolid),
-           scale_formula =  ~ meanses + ses_s + (ses_s | schoolid),
+out <- ivd(location_formula = mAch_s ~  meanses * ses_s + (ses_s| schoolid),
+           scale_formula =  ~ meanses + ses_s + (1 + ses_s | schoolid),
            data = school_dat,
-           niter = 500, nburnin = 100, WAIC = TRUE, workers = 2)
-
-
-is(out )
-str(out$samples)
+           niter = 50, nburnin = 50, WAIC = TRUE, workers = 4)
 
 summary(out)
-print(out )
+
+loo::loo(out$logLik_array)
+
+str(out)
 
 codaplot(out, parameters =  "zeta[1]")
 
 plot(out, type = "pip")
 
 plot(out, type = "funnel", variable = "(Intercept)")
-plot(out, type = "funnel", variable = "ses")
+plot(out, type = "funnel", variable = "ses_s")
 
 
 dev.off( )

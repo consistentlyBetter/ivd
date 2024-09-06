@@ -7,7 +7,9 @@ library(nimble)
 # Mock inputs
 mock_code <- nimbleCode({
   for(i in 1:N) {
-    Y[i] ~ dnorm(beta[i], 1)
+    Y[i] ~ dnorm(mu[i], tau[i])
+    mu[i] <- beta[i]
+    tau[i] <- 1
     beta[i] ~ dnorm(0, 1)
   }
   zeta ~ dnorm(0,1)
