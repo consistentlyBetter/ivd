@@ -54,14 +54,32 @@ str(school_dat$mAch)
 school_dat$ses_s <- scale(school_dat$ses)
 nrow(school_dat )
 
-out <- ivd(location_formula = mAch_s ~  meanses * ses_s + (ses_s| schoolid),
-           scale_formula =  ~ meanses + ses_s + (1 + ses_s | schoolid),
-           data = school_dat,
-           niter = 50, nburnin = 50, WAIC = TRUE, workers = 4)
+out <- ivd(location_formula = mAch_s ~  meanses + ( 1 | schoolid),
+           scale_formula =  ~ meanses  + (1 | schoolid),
+           data = school_dat, thin = 2,
+           niter = 1000, nburnin = 1000, WAIC = TRUE, workers = 8)
 
 summary(out)
 
-loo::loo(out$logLik_array)
+str(out$samples)
+acf( out$samples[[1]]$samples[, "beta[1]"] )
+
+
+r_eff <- loo::relative_eff( exp( out$logLik_array ) )
+m1 <- loo::loo(out$logLik_array, r_eff = r_eff)
+
+
+
+out2 <- ivd(location_formula = mAch_s ~  meanses + ses_s + ( 1 | schoolid),
+           scale_formula =  ~ meanses  + ses_s + (1 | schoolid),
+           data = school_dat,
+           niter = 50, nburnin = 50, WAIC = TRUE, workers = 4)
+
+r_eff <- loo::relative_eff( exp( out2$logLik_array ) )
+m2 <- loo::loo(out2$logLik_array, r_eff = r_eff)
+
+loo::loo_compare(m1,  m2 )
+
 
 str(out)
 

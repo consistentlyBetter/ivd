@@ -8,9 +8,10 @@
 ##' @param nburnin Inherits from ivd
 ##' @param useWAIC Inherits from ivd
 ##' @param inits Inherits from ivd
+##' @param ... additional arguments
 ##' @import nimble
 ##' @export
-run_MCMC_allcode <- function(seed, data, constants, code, niter, nburnin, useWAIC = WAIC, inits) {
+run_MCMC_allcode <- function(seed, data, constants, code, niter, nburnin, useWAIC = WAIC, inits, ...) {
   ## See Nimble cheat sheet: https://r-nimble.org/cheatsheets/NimbleCheatSheet.pdf
   ## Create model object
   myModel <- nimble::nimbleModel(code = code,
@@ -37,7 +38,7 @@ run_MCMC_allcode <- function(seed, data, constants, code, niter, nburnin, useWAI
   compMCMC <- nimble::compileNimble(myMCMC, project = cmpModel)
   
   ## Run model
-  results <- nimble::runMCMC(compMCMC, niter = niter, setSeed = seed, nburnin = nburnin, WAIC = useWAIC)
+  results <- nimble::runMCMC(compMCMC, niter = niter, setSeed = seed, nburnin = nburnin, WAIC = useWAIC, ...)
   return( results )
 }
 
@@ -162,7 +163,7 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
 
   results <- future_lapply(1:workers, function(x) run_MCMC_allcode(seed = x, data = data, constants = constants,
                                                                    code = modelCode, niter = niter, nburnin = nburnin,
-                                                                   useWAIC = WAIC, inits = inits),
+                                                                   useWAIC = WAIC, inits = inits, ...),
                            future.seed = TRUE, future.packages = c("nimble"))
 
   ## Prepare object to be returned

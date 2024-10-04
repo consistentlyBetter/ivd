@@ -13,7 +13,8 @@ run_MCMC_allcode(
   niter,
   nburnin,
   useWAIC = WAIC,
-  inits
+  inits,
+  ...
 )
 }
 \arguments{
@@ -32,6 +33,8 @@ run_MCMC_allcode(
 \item{useWAIC}{Inherits from ivd}
 
 \item{inits}{Inherits from ivd}
+
+\item{...}{additional arguments}
 }
 \description{
 Create a function to be loaded on each worker.
