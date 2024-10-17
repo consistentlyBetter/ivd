@@ -280,10 +280,6 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
    
   if (n_eff == 'local') {
     ## Compute split-chain n_eff
-    ## Effective sample size logic from Lambert, eqs 13.19 and later
-
-    ## ## Compute split-chain n_eff
-    ## Effective sample size logic from Lambert, eqs 13.19 and later
     ## ACF is computed using FFT as per Vehtari et al. 
     ## Compute for multiple chains, following eq 10:
     
@@ -301,7 +297,8 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
         ## position contains NA for constants, needs to be addressed here:
         
         if( !is.na(position) ) {
-          ## Pad with zeroes so that all vectors are of same length. Saves me storing the position object
+          ## Pad with NA's so that all vectors are of same length. Saves me storing the position object
+          ## pad with NA so that mean() can be calculated over differing rho's per chains
           rho <- append(acf_values[1:position+1], rep(NA, length(acf_values)-position), after = position)
         } else {
           rho <- rep(NA, n)
