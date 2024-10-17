@@ -104,3 +104,39 @@ prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
   e_to_mcmc <- lapply(obj$samples, FUN = function(x) mcmc(x$samples))
   return(e_to_mcmc)
 }
+
+
+##' Fast Fourier transform algorithm to compute the ACF across the whole chain lengt.
+##' As noted by Vehtari et al. (2021), Section 3.2
+##' @title Use fast Fourier transform to compute ACF
+##' @param chain 
+##' @return acf
+##' @author Philippe Rast
+##' @keywords internal
+.autocorrelation_fft <- function(chain) {
+  ## Ensure the input is a numeric vector
+  ts <- as.numeric(chain)
+  
+  ## Center the time series (subtract the mean)
+  ts_centered <- ts - mean(ts)
+  
+  ## Length of the chain
+  n <- length(ts_centered)
+  
+  ## Zero-padding the series to avoid circular convolution
+  padded_length <- 2 * n
+  
+  ## Compute the FFT of the centered series with zero-padding
+  fft_ts <- fft(ts_centered, padded_length)
+  
+  ## Compute the inverse FFT of the product of FFT and its conjugate
+  acf_raw <- Re(fft(fft_ts * Conj(fft_ts), inverse = TRUE))
+  
+  ## Extract the relevant part and normalize
+  acf_raw <- acf_raw[1:n] / padded_length
+  
+  ## Normalize the result to match the acf() function output
+  acf <- acf_raw / acf_raw[1]
+  
+  return(acf)
+}
