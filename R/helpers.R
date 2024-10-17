@@ -113,6 +113,7 @@ prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
 ##' @return acf
 ##' @author Philippe Rast
 ##' @keywords internal
+##' @importFrom stats fft
 .autocorrelation_fft <- function(chain) {
   ## Ensure the input is a numeric vector
   ts <- as.numeric(chain)
