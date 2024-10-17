@@ -17,8 +17,8 @@ for( i in unique(school_dat$school) ) {
 head(school_dat )
 
 
-dat <- ivd:::prepare_data_for_nimble(location_formula = mAch ~  meanses*ses_s + (1 | schoolid),
-                                     scale_formula =  ~ ses + (1 + ses | schoolid),
+dat <- ivd:::prepare_data_for_nimble(location_formula = mAch ~  meanses+ (1 | schoolid),
+                                     scale_formula =  ~ meanses + (1  | schoolid),
                                      data = school_dat)
 
 
@@ -54,10 +54,22 @@ str(school_dat$mAch)
 school_dat$ses_s <- scale(school_dat$ses)
 nrow(school_dat )
 
+
+location_formula = mAch_s ~  meanses + ( 1 | schoolid)
+scale_formula =  ~ meanses  + (1 | schoolid)
+data = school_dat
+thin = 2
+niter = 1000
+nburnin = 1000
+WAIC = TRUE
+workers = 4
+
+
+
 out <- ivd(location_formula = mAch_s ~  meanses + ( 1 | schoolid),
            scale_formula =  ~ meanses  + (1 | schoolid),
-           data = school_dat, thin = 2,
-           niter = 1000, nburnin = 1000, WAIC = TRUE, workers = 8)
+           data = school_dat, 
+           niter = 1000, nburnin = 3000, WAIC = TRUE, workers = 4, n_eff = 'stan')
 
 summary(out)
 

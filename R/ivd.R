@@ -53,6 +53,7 @@ run_MCMC_allcode <- function(seed, data, constants, code, niter, nburnin, useWAI
 #' @param nburnin Number of burnin iterations, defaults to the same as niter
 #' @param WAIC Compute WAIC, defaults to 'TRUE'
 #' @param workers Number of parallel R processes -- doubles as 'chains' argument
+#' @param n_eff Use stan::monitor function or built local: 'stan' vs. 'local'
 #' @param ... Currently not used
 #' @import future
 #' @importFrom future.apply future_lapply
@@ -62,7 +63,7 @@ run_MCMC_allcode <- function(seed, data, constants, code, niter, nburnin, useWAI
 #' @importFrom stats as.formula model.matrix rlnorm rnorm update.formula dnorm
 #' @importFrom utils head str
 #' @export 
-ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WAIC = TRUE, workers = 4,...) {
+ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WAIC = TRUE, workers = 4, n_eff = 'local', ...) {
   if(is.null(nburnin)) {
     nburnin <- niter
   }
@@ -213,12 +214,12 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   }
   out$logLik_array <- logLik_array
 
-  ## Compute R hats:
+
+
+  ## Compute Rhats and n_eff:
   x <- mcmc.list( lapply(combined_chains, FUN = function(x) mcmc(x$samples)) )
   ## Extract dimensions
-  #iterations <- nrow(cleaned_chains[[1]])
   parameters <- ncol(x[[1]])
-  #chains <- length(cleaned_chains)
   ## Initialize a 3D array
   samples_array <- array(NA, dim = c(iterations, chains, parameters))
 
@@ -226,15 +227,117 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   for (i in seq_along(x)) {
     samples_array[, i, ] <- x[[i]]
   }
+
   ## Use the monitor function from rstan to obtain Rhat (coda's gelman.rhat does not work reliably)
-  print("Compiling results...")
-  monitor_results <- rstan::monitor(samples_array, print = FALSE)
+  print("Compiling results...")   
+
+  
+  ## Split Rhat and split n_eff:
+  ## Vehtari et al doi:10.1214/20-BA1221 available at
+  ## http://www.stat.columbia.edu/~gelman/research/published/rhat.pdf
+  
+  ## Initialize a new array with double the chains, half the iterations
+  split_samples <- array(NA, dim = c(iterations / 2, chains * 2, parameters))
+  
+  ## Split each chain into two halves
+  for (c in 1:chains) {
+    ## First half of the iterations for the first split chain
+    split_samples[, (c * 2) - 1, ] <- samples_array[1:(iterations / 2), c, ]
+    ## Second half of the iterations for the second split chain
+    split_samples[, c * 2, ] <- samples_array[(iterations / 2 + 1):iterations, c, ]
+  }
+
+  ## m - number of chains after splitting
+  m <- dim(split_samples )[2]
+  ## n be the length of th chain
+  n <- dim(split_samples )[1]
+  s <- m*n
+
+  ## B ingredients
+  tdm <- apply(split_samples, 3, function(slice) {
+    apply(slice, 2, mean)
+    })
+  tdd <- colMeans(tdm)  
+  
+  ## Eq. 3.1
+  result <- tdm - matrix(tdd, nrow = nrow(tdm), ncol = ncol(tdm), byrow = TRUE)
+  B <- apply(result, 2, function(x) sum(x^2)*n/(m-1))
+
+  ## Eq. 3.2
+  W <- apply(split_samples, 3, function(param_samples) {
+    chain_variances <- apply(param_samples, 2, function(chain) {
+      chain_mean <- mean(chain)
+      sum((chain - chain_mean)^2) / (n - 1)  # s2m: Variance for each chain
+    })
+    mean(chain_variances)  # Average variance across all split chains
+  })
+
+  ## Eq. 3.3
+  vtp <- (n-1)*W/n + B/n
+  
+  ## Compute R-hat
+  Rhat <- sqrt(vtp / W)
+   
+  if (n_eff == 'local') {
+    ## Compute split-chain n_eff
+    ## Effective sample size logic from Lambert, eqs 13.19 and later
+
+    ## ## Compute split-chain n_eff
+    ## Effective sample size logic from Lambert, eqs 13.19 and later
+    ## ACF is computed using FFT as per Vehtari et al. 
+    ## Compute for multiple chains, following eq 10:
+    
+    mn_s2m_ptm <- apply(split_samples, 3, function(param_samples) {
+      
+      chain_variances <- apply(param_samples, 2, function(chain) {
+        chain_mean <- mean(chain)
+        sum((chain - chain_mean)^2) / (n - 1)  # s2m: Variance for each chain
+      })
+      
+      chain_rho <- apply(param_samples, 2, function(samp_per_chain) {
+        acf_values <- .autocorrelation_fft( samp_per_chain )
+        ## Truncate according to Geyer (1992)
+        position <-  min( seq(2:length(acf_values))[acf_values[-length(acf_values)] + acf_values[-1] < 0] )
+        ## position contains NA for constants, needs to be addressed here:
+        
+        if( !is.na(position) ) {
+          ## Pad with zeroes so that all vectors are of same length. Saves me storing the position object
+          rho <- append(acf_values[1:position+1], rep(NA, length(acf_values)-position), after = position)
+        } else {
+          rho <- rep(NA, n)
+        }
+      })
+      
+      s2m_rtm <- lapply(seq_along(chain_variances), function(i) {
+        chain_variances[i] * chain_rho[,i]
+      })
+
+      ## average across chains    
+      ## Convert list to a matrix
+      matrix_form <- do.call(cbind, s2m_rtm)
+      avg_s2m_rtm <- rowMeans(matrix_form, na.rm = TRUE)
+    })
+
+    ## Eq 10: W - mn_s2m_ptm
+    numerator <- matrix(W, nrow = nrow(mn_s2m_ptm), ncol = length(W), byrow = TRUE) - mn_s2m_ptm
+    rho_t <- 1 - numerator / matrix(vtp, nrow = nrow(numerator), ncol = length(vtp), byrow = TRUE)
+
+    n_eff <- round( n*m / ( 1+2*colSums(rho_t, na.rm = TRUE) ) )
+  
+  }  else if(n_eff == 'stan') {
+    ## Based on rstan, takes forever...
+    monitor_results <- rstan::monitor(samples_array, print = FALSE)
+    n_eff <- monitor_results$n_eff
+  }
+
+  
+    
   ## Extract and print R-hat values
-  out$rhat_values <- monitor_results[, "Rhat"]
+  out$rhat_values <- Rhat  
   if( any(out$rhat_values > 1.1) ) warning("Some R-hat values are greater than 1.10 -- increase warmup and/or sampling iterations." )
 
   ## Effective sample size
-  out$n_eff <- monitor_results[, "n_eff"]
+  out$n_eff <- n_eff
   
   ## Save the rest to the out object
   out$samples <- combined_chains

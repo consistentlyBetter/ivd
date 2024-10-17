@@ -14,6 +14,7 @@ ivd(
   nburnin = NULL,
   WAIC = TRUE,
   workers = 4,
+  n_eff = "local",
   ...
 )
 }
@@ -31,6 +32,8 @@ ivd(
 \item{WAIC}{Compute WAIC, defaults to 'TRUE'}
 
 \item{workers}{Number of parallel R processes -- doubles as 'chains' argument}
+
+\item{n_eff}{Use stan::monitor function or built local: 'stan' vs. 'local'}
 
 \item{...}{Currently not used}
 }
