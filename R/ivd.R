@@ -29,7 +29,7 @@ run_MCMC_allcode <- function(seed, data, constants, code, niter, nburnin, useWAI
     config$enableWAIC <- useWAIC
   }
   config$monitors <- c("beta", "zeta", "R", "ss", "sigma_rand", "u")
-  config$addMonitors(c("mu", "tau"))
+  config$addMonitors(c("mu", "tau", "L"))
   
   ## build mcmc object
   myMCMC <- nimble::buildMCMC(config)

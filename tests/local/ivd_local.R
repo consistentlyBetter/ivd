@@ -14,68 +14,84 @@ for( i in unique(school_dat$school) ) {
 }
 
 
-head(school_dat )
+## head(school_dat )
 
 
-dat <- ivd:::prepare_data_for_nimble(location_formula = mAch ~  meanses+ (1 | schoolid),
-                                     scale_formula =  ~ meanses + (1  | schoolid),
-                                     data = school_dat)
+## dat <- ivd:::prepare_data_for_nimble(location_formula = mAch ~  meanses+ (1 | schoolid),
+##                                      scale_formula =  ~ meanses + (1  | schoolid),
+##                                      data = school_dat)
 
-
-str(dat )
-## head(dat[[1]]$X_scale)
-colnames(dat$data$X)
-colnames(dat$data$X_scale)
-data <- dat[[1]]
-colnames(data$X_scale)
-
-attributes(dat$data$Y)
-dat$data$X_scale
-dat$data$Z
-dat$data$Z_scale
-
-## str(dat)
-
-## ## Maybe change this up to location_formula = , and scale_formula = "
 
 ## str(dat )
+## ## head(dat[[1]]$X_scale)
+## colnames(dat$data$X)
+## colnames(dat$data$X_scale)
+## data <- dat[[1]]
+## colnames(data$X_scale)
 
-devtools::load_all( )
-head(school_dat )
+## attributes(dat$data$Y)
+## dat$data$X_scale
+## dat$data$Z
+## dat$data$Z_scale
+
+## ## str(dat)
+
+## ## ## Maybe change this up to location_formula = , and scale_formula = "
+
+## ## str(dat )
+
+## devtools::load_all( )
+## head(school_dat )
 
 
-head(school_dat )
+## head(school_dat )
 school_dat$mAch_s <- scale(school_dat$mAch,  center = TRUE,  scale = TRUE )
-str(school_dat$mAch_s)
-str(unclass(school_dat$mAch_s))
-str(c(school_dat$mAch_s))
-str(school_dat$mAch)
+## str(school_dat$mAch_s)
+## str(unclass(school_dat$mAch_s))
+## str(c(school_dat$mAch_s))
+## str(school_dat$mAch)
 
 school_dat$ses_s <- scale(school_dat$ses)
-nrow(school_dat )
+#nrow(school_dat )
 
 
-location_formula = mAch_s ~  meanses + ( 1 | schoolid)
-scale_formula =  ~ meanses  + (1 | schoolid)
-data = school_dat
-thin = 2
-niter = 1000
-nburnin = 1000
-WAIC = TRUE
-workers = 4
-
+## location_formula = mAch_s ~  meanses + ( 1 | schoolid)
+## scale_formula =  ~ meanses  + (1 | schoolid)
+## data = school_dat
+## thin = 1
+## niter = 1000
+## nburnin = 1000
+## WAIC = TRUE
+## workers = 4
+## seed <- 123
 
 
 out <- ivd(location_formula = mAch_s ~  meanses + ( 1 | schoolid),
            scale_formula =  ~ meanses  + (1 | schoolid),
-           data = school_dat, 
-           niter = 1000, nburnin = 3000, WAIC = TRUE, workers = 4, n_eff = 'stan')
+           data = school_dat,
+           niter = 1000, nburnin = 1000, WAIC = TRUE, workers = 4, n_eff = 'local')
 
 summary(out)
 
 str(out$samples)
-acf( out$samples[[1]]$samples[, "beta[1]"] )
+grep( "L", colnames(out$samples[[1]]$samples))
+colnames(out$samples[[1]]$samples)[1:4]
+out$samples[[1]]$samples[,3]
 
+ss2pos <- grep( "ss\\[2,", colnames(out$samples[[1]]$samples))
+colnames(out$samples[[1]]$samples)[7200:7210]
+ss2 <- out$samples[[1]]$samples[,ss2pos]
+
+unweightedR <- apply(out$samples[[1]]$samples[,1:4], 1, function(x ) {
+  L <- matrix(x, ncol = 2)
+  R <- t(L)%*%L
+  R[1,2]
+  })
+
+mean(unweightedR)
+weighted <- mean(unlist(lapply(1:160, function(i) sum(unweightedR*ss2[,i])/sum(ss2[,i]) )))
+weighted
+## Practically now difference among estimates if we only use ss==1 samples or all of them
 
 r_eff <- loo::relative_eff( exp( out$logLik_array ) )
 m1 <- loo::loo(out$logLik_array, r_eff = r_eff)
