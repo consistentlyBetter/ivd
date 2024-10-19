@@ -71,7 +71,10 @@ out <- ivd(location_formula = mAch_s ~  meanses + ( 1 | schoolid),
            data = school_dat,
            niter = 1000, nburnin = 1000, WAIC = TRUE, workers = 4, n_eff = 'local')
 
-summary(out)
+out$Z_location_names
+summary(out, pip = 'model')
+
+summary(out )
 
 ## ## Investigate if ss biases correlations (it does not)
 ## ## To do this, add "L" to monitor in the config$addMonitors in nimble

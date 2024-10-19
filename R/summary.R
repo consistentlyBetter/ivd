@@ -49,13 +49,14 @@
 ##' @title Summary of posterior samples
 ##' @param object ivd object
 ##' @param digits Integer (Default: 2, optional). Number of digits to round to when printing.
+##' @param pip Print pip and model parameters ('all'); Only pip ('pip'), or only model parameeters 9('model'). Defaults to 'all'
 ##' @param ... Not used
 ##' @return summary.ivd object
 ##' @author Philippe Rast
 ##' @importFrom coda gelman.diag mcmc mcmc.list
 ##' @export
 
-summary.ivd <- function(object, digits = 2, ...) {
+summary.ivd <- function(object, digits = 2, pip = 'all', ...) {
   ## Extract samples from list: This does not include warmup
   extract_samples <- .extract_to_mcmc(object)
 
@@ -95,7 +96,7 @@ summary.ivd <- function(object, digits = 2, ...) {
   rownames(table)[beta_index] <- object$X_location_name
   ## scale fixed effects:
   zeta_index <- grep('zeta', rownames(table))
-  if(length(zeta_index) != length(colnames(object$X_scale)) ) stop("Check zeta_index in summary.R" )
+  if(length(zeta_index) != length(colnames(object$X_scale)) ) stop("Check zeta_index in summary.R")
   rownames(table)[zeta_index] <- paste("scl_", colnames(object$X_scale), sep = '')
   ## random effects sd
   sigma_rand_index <- grep('sigma_rand', rownames(table))
@@ -103,7 +104,7 @@ summary.ivd <- function(object, digits = 2, ...) {
   if(length(sigma_rand_index) != length(sd_names) ) stop("Check sd_index in summary.R")
   rownames(table)[sigma_rand_index] <- paste0("sd_", sd_names)
   
-  ## Rewrite correlatin variable
+  ## Rewrite correlation variable
   ## number of random effects:
   cols <- length(sigma_rand_index)
   ## Place holder variable: R is indexed as vech
@@ -121,8 +122,16 @@ summary.ivd <- function(object, digits = 2, ...) {
   rownames(table)[Int_index] <- gsub("\\(Intercept\\)",  "Intc", rownames(table)[Int_index])
 
   ## TODO: Link SS to actual clustering units
+  pip_pos <- grep("ss", rownames(table))
+  rownames(table)[pip_pos] <- sub("^ss", "pip", rownames(table)[pip_pos])
   
-  table
+  if(pip == 'all') {
+    table
+  } else if(pip == 'model') {
+    table <- table[-pip_pos,]
+  } else if(pip == 'pip') {
+    table <- table[pip_pos,]
+  } else {stop("'pip =' needs one of 'all', 'pip', or 'model'.")}
   cat("Summary statistics for ivd model:\n")
   .newline
 
@@ -161,7 +170,7 @@ summary.ivd <- function(object, digits = 2, ...) {
 ##' @author Philippe Rast
 ##' @keywords internal
 .newline <- function(n = 1) {
-    for(i in 1:n) {
+  for(i in 1:n) {
         cat("\n")
     }
 }
