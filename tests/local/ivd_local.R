@@ -73,25 +73,27 @@ out <- ivd(location_formula = mAch_s ~  meanses + ( 1 | schoolid),
 
 summary(out)
 
-str(out$samples)
-grep( "L", colnames(out$samples[[1]]$samples))
-colnames(out$samples[[1]]$samples)[1:4]
-out$samples[[1]]$samples[,3]
+## ## Investigate if ss biases correlations (it does not)
+## ## To do this, add "L" to monitor in the config$addMonitors in nimble
+## str(out$samples)
+## grep( "L", colnames(out$samples[[1]]$samples))
+## colnames(out$samples[[1]]$samples)[1:4]
+## out$samples[[1]]$samples[,3]
 
-ss2pos <- grep( "ss\\[2,", colnames(out$samples[[1]]$samples))
-colnames(out$samples[[1]]$samples)[7200:7210]
-ss2 <- out$samples[[1]]$samples[,ss2pos]
+## ss2pos <- grep( "ss\\[2,", colnames(out$samples[[1]]$samples))
+## colnames(out$samples[[1]]$samples)[7200:7210]
+## ss2 <- out$samples[[1]]$samples[,ss2pos]
 
-unweightedR <- apply(out$samples[[1]]$samples[,1:4], 1, function(x ) {
-  L <- matrix(x, ncol = 2)
-  R <- t(L)%*%L
-  R[1,2]
-  })
+## unweightedR <- apply(out$samples[[1]]$samples[,1:4], 1, function(x ) {
+##   L <- matrix(x, ncol = 2)
+##   R <- t(L)%*%L
+##   R[1,2]
+##   })
 
-mean(unweightedR)
-weighted <- mean(unlist(lapply(1:160, function(i) sum(unweightedR*ss2[,i])/sum(ss2[,i]) )))
-weighted
-## Practically now difference among estimates if we only use ss==1 samples or all of them
+## mean(unweightedR)
+## weighted <- mean(unlist(lapply(1:160, function(i) sum(unweightedR*ss2[,i])/sum(ss2[,i]) )))
+## weighted
+## ## Practically now difference among estimates if we only use ss==1 samples or all of them
 
 r_eff <- loo::relative_eff( exp( out$logLik_array ) )
 m1 <- loo::loo(out$logLik_array, r_eff = r_eff)
