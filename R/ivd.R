@@ -55,6 +55,7 @@ run_MCMC_allcode <- function(seed, data, constants, code, niter, nburnin, useWAI
 #' @param WAIC Compute WAIC, defaults to 'TRUE'
 #' @param workers Number of parallel R processes -- doubles as 'chains' argument
 #' @param n_eff Use stan::monitor function or built local: 'stan' vs. 'local'
+#' @param ss_prior_p Prior inclusion probability. Defaults to '.5'.  
 #' @param ... Currently not used
 #' @import future
 #' @importFrom future.apply future_lapply
