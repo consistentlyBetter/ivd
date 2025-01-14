@@ -1,3 +1,4 @@
+
 ##' Create a function to be loaded on each worker.
 ##' This function needs to be exported for `future` to be able to load it.
 ##' @param seed Inherits from ivd  
@@ -63,7 +64,7 @@ run_MCMC_allcode <- function(seed, data, constants, code, niter, nburnin, useWAI
 #' @importFrom stats as.formula model.matrix rlnorm rnorm update.formula dnorm
 #' @importFrom utils head str
 #' @export 
-ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WAIC = TRUE, workers = 4, n_eff = 'local', ...) {
+ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WAIC = TRUE, workers = 4, n_eff = 'local', ss_prior_p = 0.5, ...) {
   if(is.null(nburnin)) {
     nburnin <- niter
   }
@@ -83,7 +84,7 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
                     Sr = ncol(data$Z_scale),  ## number of random scale effects                    
                     P = ncol(data$Z) + ncol(data$Z_scale),  ## number of random effects
                     groupid = group_id,
-                    bval = matrix(c(rep(1,  ncol(data$Z)), rep(0.5, ncol(data$Z_scale)) ), ncol = 1)) ## Prior probability for dbern 
+                    bval = matrix(c(rep(1,  ncol(data$Z)), rep(ss_prior_p, ncol(data$Z_scale)) ), ncol = 1)) ## Prior probability for dbern 
   ## Nimble inits
   inits <- list(beta = rnorm(constants$K, 5, 10), ## TODO: Check inits
                 zeta =  rnorm(constants$S, 1, 3),
@@ -145,8 +146,8 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
     }
     ## Fixed effects: Scale
     for (s in 1:S) {
-      zeta[s] ~ dnorm(0, sd = 1000)
-    }  
+      zeta[s] ~ dnorm(0, sd = 3)
+    }
     ## Random effects SD
     for(p in 1:P){
       sigma_rand[p,p] ~ T(dt(0, 1, 3), 0, )

@@ -358,3 +358,30 @@ print(rhat_values)
 
   coverage  <- covr::package_coverage( )
   print(coverage )
+
+
+
+## Run README examle:
+devtools::load_all( )
+library(data.table)
+ ## Grand mean center student SES
+#saeb$student_ses <- c(scale(saeb$student_ses, scale = FALSE))
+
+## Calculate school-level SES
+school_ses <- saeb[, .(school_ses = mean(student_ses, na.rm = TRUE)), by = school_id]
+
+## Join the school_ses back to the original dataset
+saeb <- saeb[school_ses, on = "school_id"]
+
+## Define student level SES as deviation from the school SES
+saeb$student_ses <- saeb$student_ses - saeb$school_ses
+
+## Grand mean center school ses
+saeb$school_ses <- c(scale(saeb$school_ses, scale = FALSE))
+  
+out <- ivd(location_formula = math_proficiency ~ student_ses * school_ses + (1|school_id),
+           scale_formula =  ~ student_ses * school_ses + (1 |school_id),
+           data = saeb,
+           niter = 2500, nburnin = 15000, WAIC = TRUE, workers = 8)
+
+summary(out)
