@@ -69,7 +69,7 @@ school_dat$ses_s <- scale(school_dat$ses)
 out <- ivd(location_formula = mAch_s ~  meanses + ( 1 | schoolid),
            scale_formula =  ~ meanses  + (1 | schoolid),
            data = school_dat,
-           niter = 1000, nburnin = 1000, WAIC = TRUE, workers = 4, n_eff = 'local')
+           niter = 2000, nburnin = 4000, WAIC = TRUE, workers = 4, n_eff = 'local')
 
 out$Z_location_names
 summary(out, pip = 'model')
@@ -106,7 +106,7 @@ m1 <- loo::loo(out$logLik_array, r_eff = r_eff)
 out2 <- ivd(location_formula = mAch_s ~  meanses + ses_s + ( 1 | schoolid),
            scale_formula =  ~ meanses  + ses_s + (1 | schoolid),
            data = school_dat,
-           niter = 50, nburnin = 50, WAIC = TRUE, workers = 4)
+           niter = 2000, nburnin = 8000, WAIC = TRUE, workers = 6)
 
 r_eff <- loo::relative_eff( exp( out2$logLik_array ) )
 m2 <- loo::loo(out2$logLik_array, r_eff = r_eff)

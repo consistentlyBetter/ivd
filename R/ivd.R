@@ -153,8 +153,57 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
     for(p in 1:P){
       sigma_rand[p,p] ~ T(dt(0, 1, 3), 0, )
     }
+    
+    ## Correlations between random effects
+    for(i in 1:(P-1)) {
+      for(j in (i+1):P) {
+        rho[i,j] ~ dunif(-1, 1)  # correlations between effects i and j
+      }
+    }
+    
+    ## Construct L matrix based on number of random effects
+    if(P == 2) {
+      # 2 random effects case
+      L[1,1] <- 1
+      L[2,1] <- rho[1,2]
+      L[2,2] <- sqrt(1 - rho[1,2]^2)
+      L[1,2] <- 0
+    } else if(P == 3) {
+      # 3 random effects case
+      L[1,1] <- 1
+      L[2,1] <- rho[1,2]
+      L[3,1] <- rho[1,3]
+      L[2,2] <- sqrt(1 - rho[1,2]^2)
+      L[3,2] <- (rho[2,3] - rho[1,2]*rho[1,3])/sqrt(1 - rho[1,2]^2)
+      L[3,3] <- sqrt(1 - rho[1,3]^2 - ((rho[2,3] - rho[1,2]*rho[1,3])^2)/(1 - rho[1,2]^2))
+      L[1,2] <- 0
+      L[1,3] <- 0
+      L[2,3] <- 0
+    } else if(P == 4) {
+      # 4 random effects case
+      L[1,1] <- 1
+      L[2,1] <- rho[1,2]
+      L[3,1] <- rho[1,3]
+      L[4,1] <- rho[1,4]
+      L[2,2] <- sqrt(1 - rho[1,2]^2)
+      L[3,2] <- (rho[2,3] - rho[1,2]*rho[1,3])/sqrt(1 - rho[1,2]^2)
+      L[4,2] <- (rho[2,4] - rho[1,2]*rho[1,4])/sqrt(1 - rho[1,2]^2)
+      L[3,3] <- sqrt(1 - rho[1,3]^2 - ((rho[2,3] - rho[1,2]*rho[1,3])^2)/(1 - rho[1,2]^2))
+      L[4,3] <- (rho[3,4] - rho[1,3]*rho[1,4] - (rho[2,3] - rho[1,2]*rho[1,3])*(rho[2,4] - rho[1,2]*rho[1,4])/(1 - rho[1,2]^2))/
+        sqrt(1 - rho[1,3]^2 - ((rho[2,3] - rho[1,2]*rho[1,3])^2)/(1 - rho[1,2]^2))
+      L[4,4] <- sqrt(1 - rho[1,4]^2 - ((rho[2,4] - rho[1,2]*rho[1,4])^2)/(1 - rho[1,2]^2) - 
+                       (rho[3,4] - rho[1,3]*rho[1,4] - (rho[2,3] - rho[1,2]*rho[1,3])*(rho[2,4] - rho[1,2]*rho[1,4])/(1 - rho[1,2]^2))^2/
+                       (1 - rho[1,3]^2 - ((rho[2,3] - rho[1,2]*rho[1,3])^2)/(1 - rho[1,2]^2)))
+      L[1,2] <- 0
+      L[1,3] <- 0
+      L[1,4] <- 0
+      L[2,3] <- 0
+      L[2,4] <- 0
+      L[3,4] <- 0
+    }
+    
     ## Lower cholesky of random effects correlation 
-    L[1:P, 1:P] ~ dlkj_corr_cholesky(eta = 1, p = P)
+    #L[1:P, 1:P] ~ dlkj_corr_cholesky(eta = 1, p = P)
     ##
     R[1:P, 1:P] <- t(L[1:P, 1:P] ) %*% L[1:P, 1:P]
   })
