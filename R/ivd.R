@@ -157,7 +157,9 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
     ## Correlations between random effects
     for(i in 1:(P-1)) {
       for(j in (i+1):P) {
-        rho[i,j] ~ dunif(-1, 1)  # correlations between effects i and j
+        #rho[i,j] ~ dunif(-1, 1)  # correlations between effects i and j
+        fisherz ~ dnorm(0, 1)
+        rho[i,j] <- tanh(fisherz)      
       }
     }
     
@@ -205,7 +207,7 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
     ## Lower cholesky of random effects correlation 
     #L[1:P, 1:P] ~ dlkj_corr_cholesky(eta = 1, p = P)
     ##
-    R[1:P, 1:P] <- t(L[1:P, 1:P] ) %*% L[1:P, 1:P]
+    R[1:P, 1:P] <- L[1:P, 1:P]  %*% t(L[1:P, 1:P])
   })
 
 
@@ -381,8 +383,8 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   
     
   ## Extract and print R-hat values
-  out$rhat_values <- Rhat  
-  if( any(out$rhat_values > 1.1) ) warning("Some R-hat values are greater than 1.10 -- increase warmup and/or sampling iterations." )
+  out$rhat_values <- Rhat
+  if( any(!is.na(out$rhat_values)[out$rhat_values] > 1.1) ) warning("Some R-hat values are greater than 1.10 -- increase warmup and/or sampling iterations." )
 
   ## Effective sample size
   out$n_eff <- n_eff
