@@ -43,6 +43,47 @@ run_MCMC_allcode <- function(seed, data, constants, code, niter, nburnin, useWAI
   return( results )
 }
 
+## Create Cholesky L
+invvec_to_corr <- nimble::nimbleFunction(
+  run = function(V = double(1), P = integer()) {
+    returnType(double(2))
+    
+    # Create a lower triangular matrix z with diagonal 0
+    z <- matrix(0, nrow = P, ncol = P)
+    index <- 1
+    for (j in 1:(P-1)) {
+      for (i in (j+1):P) {
+        z[i, j] <- V[index]  # Fill the lower triangular part with correlations
+        index <- index + 1
+      }
+    }
+    
+    # Construct the Cholesky factor L
+    L <- matrix(0, nrow = P, ncol = P)
+    
+    for (i in 1:P) {
+      for (j in 1:P) {
+        if (i < j) {
+          L[i, j] <- 0.0
+        }
+        if (i == j) {
+          if (i == 1) {
+            L[i, j] <- 1.0
+          }
+          if (i > 1) {  # Diagonal beyond [1,1]
+            L[i, j] <- sqrt(1 - sum(L[i, 1:j]^2))
+          }
+        }
+        if (i > j) {
+          L[i, j] <- z[i, j] * sqrt(1 - sum(L[i, 1:j]^2))
+        }
+      }
+    }
+    
+    return(L)
+  }
+)
+
 
 #' Main function to set up and run parallel MCMC using nimble and future.
 #' `ivd` computes a mixed effects location and scale model with Spike and Slab regularization
@@ -91,8 +132,6 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
                 zeta =  rnorm(constants$S, 1, 3),
                 sigma_rand = diag(rlnorm(constants$P, 0, 1)),
                 L = diag(1,constants$P) )
-
-
   
   modelCode <- nimbleCode({
     ## Likelihood components:
@@ -155,56 +194,14 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
     }
     
     ## Correlations between random effects
-    for(i in 1:(P-1)) {
-      for(j in (i+1):P) {
-        #rho[i,j] ~ dunif(-1, 1)  # correlations between effects i and j
-        fisherz ~ dnorm(0, 1)
-        rho[i,j] <- tanh(fisherz)      
-      }
-    }
-    
-    ## Construct L matrix based on number of random effects
-    if(P == 2) {
-      # 2 random effects case
-      L[1,1] <- 1
-      L[2,1] <- rho[1,2]
-      L[2,2] <- sqrt(1 - rho[1,2]^2)
-      L[1,2] <- 0
-    } else if(P == 3) {
-      # 3 random effects case
-      L[1,1] <- 1
-      L[2,1] <- rho[1,2]
-      L[3,1] <- rho[1,3]
-      L[2,2] <- sqrt(1 - rho[1,2]^2)
-      L[3,2] <- (rho[2,3] - rho[1,2]*rho[1,3])/sqrt(1 - rho[1,2]^2)
-      L[3,3] <- sqrt(1 - rho[1,3]^2 - ((rho[2,3] - rho[1,2]*rho[1,3])^2)/(1 - rho[1,2]^2))
-      L[1,2] <- 0
-      L[1,3] <- 0
-      L[2,3] <- 0
-    } else if(P == 4) {
-      # 4 random effects case
-      L[1,1] <- 1
-      L[2,1] <- rho[1,2]
-      L[3,1] <- rho[1,3]
-      L[4,1] <- rho[1,4]
-      L[2,2] <- sqrt(1 - rho[1,2]^2)
-      L[3,2] <- (rho[2,3] - rho[1,2]*rho[1,3])/sqrt(1 - rho[1,2]^2)
-      L[4,2] <- (rho[2,4] - rho[1,2]*rho[1,4])/sqrt(1 - rho[1,2]^2)
-      L[3,3] <- sqrt(1 - rho[1,3]^2 - ((rho[2,3] - rho[1,2]*rho[1,3])^2)/(1 - rho[1,2]^2))
-      L[4,3] <- (rho[3,4] - rho[1,3]*rho[1,4] - (rho[2,3] - rho[1,2]*rho[1,3])*(rho[2,4] - rho[1,2]*rho[1,4])/(1 - rho[1,2]^2))/
-        sqrt(1 - rho[1,3]^2 - ((rho[2,3] - rho[1,2]*rho[1,3])^2)/(1 - rho[1,2]^2))
-      L[4,4] <- sqrt(1 - rho[1,4]^2 - ((rho[2,4] - rho[1,2]*rho[1,4])^2)/(1 - rho[1,2]^2) - 
-                       (rho[3,4] - rho[1,3]*rho[1,4] - (rho[2,3] - rho[1,2]*rho[1,3])*(rho[2,4] - rho[1,2]*rho[1,4])/(1 - rho[1,2]^2))^2/
-                       (1 - rho[1,3]^2 - ((rho[2,3] - rho[1,2]*rho[1,3])^2)/(1 - rho[1,2]^2)))
-      L[1,2] <- 0
-      L[1,3] <- 0
-      L[1,4] <- 0
-      L[2,3] <- 0
-      L[2,4] <- 0
-      L[3,4] <- 0
+    for(p in 1:P){
+      zscore ~  dnorm(0, sd = 1)
+      rho[p] <- tanh(zscore)
     }
     
     ## Lower cholesky of random effects correlation 
+    L[1:P, 1:P] <- invvec_to_corr(V = rho[1:P], P = P)
+    
     #L[1:P, 1:P] ~ dlkj_corr_cholesky(eta = 1, p = P)
     ##
     R[1:P, 1:P] <- L[1:P, 1:P]  %*% t(L[1:P, 1:P])
@@ -218,7 +215,8 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   results <- future_lapply(1:workers, function(x) run_MCMC_allcode(seed = x, data = data, constants = constants,
                                                                    code = modelCode, niter = niter, nburnin = nburnin,
                                                                    useWAIC = WAIC, inits = inits, ...),
-                           future.seed = TRUE, future.packages = c("nimble"))
+                           future.seed = TRUE, future.packages = c("nimble"),
+                           future.globals = list(invvec_to_corr = invvec_to_corr))
 
   ## Prepare object to be returned
   out <- list()
