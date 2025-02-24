@@ -382,7 +382,7 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
     
   ## Extract and print R-hat values
   out$rhat_values <- Rhat
-  if( any(!is.na(out$rhat_values)[out$rhat_values] > 1.1) ) warning("Some R-hat values are greater than 1.10 -- increase warmup and/or sampling iterations." )
+  if( any(out$rhat_values[!is.na(out$rhat_values)] > 1.1) ) warning("Some R-hat values are greater than 1.10 -- increase warmup and/or sampling iterations." )
 
   ## Effective sample size
   out$n_eff <- n_eff
