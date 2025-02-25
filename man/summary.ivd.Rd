@@ -4,12 +4,14 @@
 \alias{summary.ivd}
 \title{Summary of posterior samples}
 \usage{
-\method{summary}{ivd}(object, digits = 2, ...)
+\method{summary}{ivd}(object, digits = 2, pip = "all", ...)
 }
 \arguments{
 \item{object}{ivd object}
 
 \item{digits}{Integer (Default: 2, optional). Number of digits to round to when printing.}
+
+\item{pip}{Print pip and model parameters ('all'); Only pip ('pip'), or only model parameeters 9('model'). Defaults to 'all'}
 
 \item{...}{Not used}
 }

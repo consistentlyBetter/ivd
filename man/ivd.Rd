@@ -15,6 +15,7 @@ ivd(
   WAIC = TRUE,
   workers = 4,
   n_eff = "local",
+  ss_prior_p = 0.5,
   ...
 )
 }
@@ -34,6 +35,8 @@ ivd(
 \item{workers}{Number of parallel R processes -- doubles as 'chains' argument}
 
 \item{n_eff}{Use stan::monitor function or built local: 'stan' vs. 'local'}
+
+\item{ss_prior_p}{Prior inclusion probability. Defaults to '.5'.}
 
 \item{...}{Currently not used}
 }
