@@ -129,7 +129,7 @@ summary.ivd <- function(object, digits = 2, pip = 'all', ...) {
     gsub(pattern_replacement[1], pattern_replacement[2], x)
   }, 
   mapply(c, patterns, replacements, SIMPLIFY = FALSE),
-  init = rownames_table)
+  init = rownames(table))
   ## assign back
   rownames(table) <- new_rownames
   
