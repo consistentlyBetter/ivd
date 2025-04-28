@@ -116,14 +116,31 @@ summary.ivd <- function(object, digits = 2, pip = 'all', ...) {
   R_index <-  grep('R\\[', rownames(table))
   if( nrow(corrvar) != length(R_index) )stop("Check R_index in summary.R" )
   rownames(table)[R_index] <- paste0("R[",paste(corrvar[, 1], corrvar[, 2], sep = ", "), "]")
+  
+  ## Link PIP to actual clustering units
+  ## find the positions of the scale random effects in the model
+  scale_ranef <- colnames(object$Z_scale)
+  scale_indexes <- seq_len(length(scale_ranef)) + length(colnames(object$X_scale))
+  ## build patterns and replacements
+  patterns <- paste0("\\[", scale_indexes, ",")
+  replacements <- paste0("[", scale_ranef, ",")
+  ## create a vector with the new rownames
+  new_rownames <- Reduce(function(x, pattern_replacement) {
+    gsub(pattern_replacement[1], pattern_replacement[2], x)
+  }, 
+  mapply(c, patterns, replacements, SIMPLIFY = FALSE),
+  init = rownames_table)
+  ## assign back
+  rownames(table) <- new_rownames
+  
+  # pip_pos <- grep("ss", rownames(table))
+  # rownames(table)[pip_pos] <- sub("^ss", "pip", rownames(table)[pip_pos])
 
   ## (Intercept) is annoying long. Change to Int.
   Int_index <- grep("\\(Intercept\\)", rownames(table))
   rownames(table)[Int_index] <- gsub("\\(Intercept\\)",  "Intc", rownames(table)[Int_index])
 
-  ## TODO: Link SS to actual clustering units
-  pip_pos <- grep("ss", rownames(table))
-  rownames(table)[pip_pos] <- sub("^ss", "pip", rownames(table)[pip_pos])
+  
   
   if(pip == 'all') {
     table
