@@ -52,7 +52,7 @@ school_dat$mAch_s <- scale(school_dat$mAch,  center = TRUE,  scale = TRUE )
 ## str(school_dat$mAch)
 
 school_dat$ses_s <- scale(school_dat$ses)
-#nrow(school_dat )
+# nrow(school_dat )
 
 
 ## location_formula = mAch_s ~  meanses + ( 1 | schoolid)
@@ -65,11 +65,15 @@ school_dat$ses_s <- scale(school_dat$ses)
 ## workers = 4
 ## seed <- 123
 
+system.time({
+    out <- ivd(
+        location_formula = mAch_s ~ 1 + (1 | schoolid),
+        scale_formula = ~ 1 + (1 | schoolid),
+        data = school_dat,
+        niter = 500, nburnin = 500, WAIC = TRUE, workers = 4, n_eff = "local"
+    )
+})
 
-out <- ivd(location_formula = mAch_s ~  meanses + ( 1 | schoolid),
-           scale_formula =  ~ meanses  + (1 | schoolid),
-           data = school_dat,
-           niter = 2000, nburnin = 4000, WAIC = TRUE, workers = 4, n_eff = 'local')
 
 out$Z_location_names
 summary(out, pip = 'model')

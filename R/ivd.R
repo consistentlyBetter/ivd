@@ -1,47 +1,76 @@
-
-##' Create a function to be loaded on each worker.
-##' This function needs to be exported for `future` to be able to load it.
-##' @param seed Inherits from ivd  
-##' @param data Inherits from ivd
-##' @param constants Inherits from ivd
-##' @param code Inherits from ivd
-##' @param niter Inherits from ivd
-##' @param nburnin Inherits from ivd
-##' @param useWAIC Inherits from ivd
-##' @param inits Inherits from ivd
-##' @param ... additional arguments
+##' Build and compile NIMBLE model and MCMC once
+##' This functin is exported for use in 'future'
 ##' @import nimble
 ##' @export
-run_MCMC_allcode <- function(seed, data, constants, code, niter, nburnin, useWAIC = WAIC, inits, ...) {
-  ## See Nimble cheat sheet: https://r-nimble.org/cheatsheets/NimbleCheatSheet.pdf
-  ## Create model object
-  myModel <- nimble::nimbleModel(code = code,
-                                 data = data,
-                                 constants = constants,
-                                 inits = inits)
-  ## Compile baseline model
-  cmpModel <- nimble::compileNimble(myModel)
-
+build_ivd_model <- function(code, constants, dummy_data, dummy_inits, useWAIC = TRUE) {
+  model <- nimbleModel(code = code, data = dummy_data, constants = constants, inits = dummy_inits)
+  cmodel <- compileNimble(model)
   
-  ## Configure MCMC
-  config <- nimble::configureMCMC(myModel)
-  ## Enable WAIC if useWAIC is TRUE
-  if (useWAIC) {
-    config$enableWAIC <- useWAIC
-  }
+  config <- configureMCMC(model)
+  if (useWAIC) config$enableWAIC <- useWAIC
   config$monitors <- c("beta", "zeta", "R", "ss", "sigma_rand", "u")
   config$addMonitors(c("mu", "tau"))
-  
-  ## build mcmc object
-  myMCMC <- nimble::buildMCMC(config)
 
-  ## Recompile myMCMC linking it to cmpModel
-  compMCMC <- nimble::compileNimble(myMCMC, project = cmpModel)
+  mcmc <- buildMCMC(config)
+  cmcmc <- compileNimble(mcmc, project = cmodel)
   
-  ## Run model
-  results <- nimble::runMCMC(compMCMC, niter = niter, setSeed = seed, nburnin = nburnin, WAIC = useWAIC, ...)
-  return( results )
+  list(cmodel = cmodel, cmcmc = cmcmc)
 }
+
+##' Run MCMC on an already compiled model
+##' @import nimble
+##' @export
+run_MCMC_compiled_model <- function(compiled, seed, new_data, new_inits, niter, nburnin, useWAIC = TRUE, ...) {
+  compiled$cmodel$setData(new_data)
+  compiled$cmodel$setInits(new_inits)
+  
+  samples <- runMCMC(compiled$cmcmc, niter = niter, nburnin = nburnin, setSeed = seed, WAIC = useWAIC, ...)
+  return(samples)
+}
+
+## ##' Create a function to be loaded on each worker.
+## ##' This function needs to be exported for `future` to be able to load it.
+## ##' @param seed Inherits from ivd  
+## ##' @param data Inherits from ivd
+## ##' @param constants Inherits from ivd
+## ##' @param code Inherits from ivd
+## ##' @param niter Inherits from ivd
+## ##' @param nburnin Inherits from ivd
+## ##' @param useWAIC Inherits from ivd
+## ##' @param inits Inherits from ivd
+## ##' @param ... additional arguments
+## ##' @import nimble
+## ##' @export
+## run_MCMC_allcode <- function(seed, data, constants, code, niter, nburnin, useWAIC = WAIC, inits, ...) {
+##   ## See Nimble cheat sheet: https://r-nimble.org/cheatsheets/NimbleCheatSheet.pdf
+##   ## Create model object
+##   myModel <- nimble::nimbleModel(code = code,
+##                                  data = data,
+##                                  constants = constants,
+##                                  inits = inits)
+##   ## Compile baseline model
+##   cmpModel <- nimble::compileNimble(myModel)
+
+  
+##   ## Configure MCMC
+##   config <- nimble::configureMCMC(myModel)
+##   ## Enable WAIC if useWAIC is TRUE
+##   if (useWAIC) {
+##     config$enableWAIC <- useWAIC
+##   }
+##   config$monitors <- c("beta", "zeta", "R", "ss", "sigma_rand", "u")
+##   config$addMonitors(c("mu", "tau"))
+  
+##   ## build mcmc object
+##   myMCMC <- nimble::buildMCMC(config)
+
+##   ## Recompile myMCMC linking it to cmpModel
+##   compMCMC <- nimble::compileNimble(myMCMC, project = cmpModel)
+  
+##   ## Run model
+##   results <- nimble::runMCMC(compMCMC, niter = niter, setSeed = seed, nburnin = nburnin, WAIC = useWAIC, ...)
+##   return( results )
+## }
 
 ## Create Cholesky L
 invvec_to_corr <- nimble::nimbleFunction(
@@ -131,7 +160,8 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   inits <- list(beta = rnorm(constants$K, 5, 10), ## TODO: Check inits
                 zeta =  rnorm(constants$S, 1, 3),
                 sigma_rand = diag(rlnorm(constants$P, 0, 1)),
-                L = diag(1,constants$P) )
+                L = diag(1,constants$P),
+                zscore = rnorm(constants$P))
   
   modelCode <- nimbleCode({
     ## Likelihood components:
@@ -190,13 +220,13 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
     }
     ## Random effects SD
     for(p in 1:P){
-      sigma_rand[p,p] ~ T(dt(0, 1, 3), 0, )
+      sigma_rand[p,p] ~ T(dt(0, 1, 1), 0, )  # Half-cauchy with 1,1
     }
     
     ## Correlations between random effects
     for(p in 1:P){
-      zscore ~  dnorm(0, sd = 1)
-      rho[p] <- tanh(zscore)
+      zscore[p] ~ dnorm(0, sd = 1)
+      rho[p] <- tanh(zscore[p])
     }
     
     ## Lower cholesky of random effects correlation 
@@ -206,18 +236,51 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
     ##
     R[1:P, 1:P] <- L[1:P, 1:P]  %*% t(L[1:P, 1:P])
   })
-
-
+  
   ## IMPORTANT: future loads the installed library on its workers - changes in the package that are not in the library(ivd)
   ## are not loaded onto the workers! All changes to run_MCMC_allcode only take effect after reinstalling. 
   future::plan(multisession, workers = workers)
 
-  results <- future_lapply(1:workers, function(x) run_MCMC_allcode(seed = x, data = data, constants = constants,
-                                                                   code = modelCode, niter = niter, nburnin = nburnin,
-                                                                   useWAIC = WAIC, inits = inits, ...),
-                           future.seed = TRUE, future.packages = c("nimble"),
-                           future.globals = list(invvec_to_corr = invvec_to_corr))
+  ## results <- future_lapply(1:workers, function(x) run_MCMC_allcode(seed = x, data = data, constants = constants,
+  ##                                                                  code = modelCode, niter = niter, nburnin = nburnin,
+  ##                                                                  useWAIC = WAIC, inits = inits, ...),
+  ##                          future.seed = TRUE, future.packages = c("nimble"),
+  ##                          future.globals = list(invvec_to_corr = invvec_to_corr))
+  results <- future_lapply(1:workers, function(x) {
+      compiled_model <- build_ivd_model(
+          code = modelCode,
+          constants = constants,
+          dummy_data = data,
+          dummy_inits = inits,
+          useWAIC = WAIC
+      )
+      
+      run_MCMC_compiled_model(
+          compiled = compiled_model,
+          seed = x,
+          new_data = data,
+          new_inits = inits,
+          niter = niter,
+          nburnin = nburnin,
+          useWAIC = WAIC, ...
+      )
+  },
+  future.seed = TRUE,
+  future.packages = c("nimble"),
+  future.globals = list(
+      modelCode = modelCode,
+      constants = constants,
+      data = data,
+      inits = inits,
+      build_ivd_model = build_ivd_model,
+      run_MCMC_compiled_model = run_MCMC_compiled_model,
+      invvec_to_corr = invvec_to_corr
+  )
+  )
 
+
+  
+  
   ## Prepare object to be returned
   out <- list()
   mcmc_chains <- lapply(results, as.mcmc)

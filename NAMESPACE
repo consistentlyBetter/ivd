@@ -2,9 +2,10 @@
 
 S3method(plot,ivd)
 S3method(summary,ivd)
+export(build_ivd_model)
 export(codaplot)
 export(ivd)
-export(run_MCMC_allcode)
+export(run_MCMC_compiled_model)
 import(coda)
 import(future)
 import(ggplot2)
