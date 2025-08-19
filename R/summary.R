@@ -133,7 +133,7 @@ summary.ivd <- function(object, digits = 2, pip = 'all', ...) {
   ## assign back
   rownames(table) <- new_rownames
   
-  # pip_pos <- grep("ss", rownames(table))
+  pip_pos <- grep("ss", rownames(table))
   # rownames(table)[pip_pos] <- sub("^ss", "pip", rownames(table)[pip_pos])
 
   ## (Intercept) is annoying long. Change to Int.
