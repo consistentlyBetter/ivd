@@ -120,7 +120,7 @@ summary.ivd <- function(object, digits = 2, pip = 'all', ...) {
   ## Link PIP to actual clustering units
   ## find the positions of the scale random effects in the model
   scale_ranef <- colnames(object$Z_scale)
-  scale_indexes <- seq_len(length(scale_ranef)) + length(colnames(object$X_scale))
+  scale_indexes <- seq_len(length(scale_ranef)) + length(colnames(object$Z_scale))
   ## build patterns and replacements
   patterns <- paste0("\\[", scale_indexes, ",")
   replacements <- paste0("[", scale_ranef, ",")
@@ -134,7 +134,7 @@ summary.ivd <- function(object, digits = 2, pip = 'all', ...) {
   rownames(table) <- new_rownames
   
   pip_pos <- grep("ss", rownames(table))
-  # rownames(table)[pip_pos] <- sub("^ss", "pip", rownames(table)[pip_pos])
+  rownames(table)[pip_pos] <- sub("^ss", "pip", rownames(table)[pip_pos])
 
   ## (Intercept) is annoying long. Change to Int.
   Int_index <- grep("\\(Intercept\\)", rownames(table))
