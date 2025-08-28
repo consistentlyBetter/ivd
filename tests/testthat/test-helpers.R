@@ -37,8 +37,8 @@ test_that("prepare_data_for_nimble handles incorrect formulas -- missing groupin
 
 test_that("prepare_data_for_nimble handles non-numeric grouping variable", {
   data <- data.frame(
-    Y = rnorm(100), 
-    X1 = runif(100), 
+    Y = rnorm(100),
+    X1 = runif(100),
     group = as.character(sample(1:10, 100, replace = TRUE))
   )
   location_formula <- Y ~ X1 + (1 | group)
@@ -46,6 +46,58 @@ test_that("prepare_data_for_nimble handles non-numeric grouping variable", {
 
   result <- prepare_data_for_nimble(data, location_formula, scale_formula)
   expect_true(is.numeric(result$group_id))
+})
+
+test_that("prepare_data_for_nimble errors when random-effects term is missing", {
+  data <- data.frame(
+    Y = rnorm(5),
+    X = runif(5),
+    group = 1:5
+  )
+  loc_no_re <- Y ~ X
+  scale_re <-  ~ X + (1 | group)
+  expect_error(
+    prepare_data_for_nimble(data, loc_no_re, scale_re),
+    "Random effects missing"
+  )
+
+  loc_re <- Y ~ X + (1 | group)
+  scale_no_re <-  ~ X
+  expect_error(
+    prepare_data_for_nimble(data, loc_re, scale_no_re),
+    "Random effects missing"
+  )
+})
+
+test_that("prepare_data_for_nimble errors with different grouping variables", {
+  data <- data.frame(
+    Y = rnorm(5),
+    X = runif(5),
+    group = 1:5,
+    grp2 = 1:5
+  )
+  location_formula <- Y ~ X + (1 | group)
+  scale_formula <-  ~ X + (1 | grp2)
+
+  expect_error(
+    prepare_data_for_nimble(data, location_formula, scale_formula),
+    "Location and scale grouping variable needs to be the same."
+  )
+})
+
+test_that("prepare_data_for_nimble requires continuous sorted group index", {
+  data <- data.frame(
+    Y = rnorm(5),
+    X = runif(5),
+    group = c(1, 2, 1, 3, 5)
+  )
+  location_formula <- Y ~ X + (1 | group)
+  scale_formula <-  ~ X + (1 | group)
+
+  expect_error(
+    prepare_data_for_nimble(data, location_formula, scale_formula),
+    "Grouping variable is not a sorted and continuous index."
+  )
 })
 
 
