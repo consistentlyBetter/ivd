@@ -25,7 +25,6 @@ mock_inits <- list(beta = rnorm(10))  # mu should have the same length as Y if i
 
 test_that("run_MCMC_allcode processes valid inputs correctly", {
   skip_if(Sys.getenv("R_COVR") == "true", "Skipping run_MCMC_allcode test during coverage")
-  skip_if_not(exists("run_MCMC_allcode"), "run_MCMC_allcode not available")
   
   result <- run_MCMC_allcode(seed = 123,
                              data = mock_data,
@@ -38,7 +37,6 @@ test_that("run_MCMC_allcode processes valid inputs correctly", {
 
 test_that("run_MCMC_allcode handles incorrect data types", {
   skip_if(Sys.getenv("R_COVR") == "true", "Skipping run_MCMC_allcode test during coverage")
-  skip_if_not(exists("run_MCMC_allcode"), "run_MCMC_allcode not available")
   
   expect_error(run_MCMC_allcode(seed = 123, data = "wrong_type",
                                 constants = mock_constants,
