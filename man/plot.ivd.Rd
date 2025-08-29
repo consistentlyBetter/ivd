@@ -27,7 +27,7 @@
 
 \item{legend}{Should legend be included? Defaults to \code{TRUE}.}
 
-\item{...}{Currently not in use.}
+\item{...}{Controls ggrepel aruments.}
 }
 \description{
 Plot method for ivd objects
