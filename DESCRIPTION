@@ -12,14 +12,7 @@ Authors@R:
 	person(given = "Marwin",
 	family = "Carmo",
 	role = "aut",
-	email = "mmcarmo@ucdavis.edu"),
-	person(given = "Josue",
-	family = "Rodriguez",
-	role = "aut",
-	email = "jerrodriguez@ucdavis.edu"),
-	person(given = "Donald",
-	family = "Williams",
-	role = "aut")
+	email = "mmcarmo@ucdavis.edu")
 	)
 Maintainer: Philippe Rast <rast.ph@gmail.com>
 Description: Fit mixed-effects models with spike-and-slab priors on the random effects to identify units with unusual residual variances.
@@ -38,6 +31,7 @@ Imports:
     utils,
     rstan
 Suggests:
+    ggrepel,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 BugReports: https://github.com/ph-rast/ivd/issues
