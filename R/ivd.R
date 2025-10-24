@@ -283,6 +283,14 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   
   ## Prepare object to be returned
   out <- list()
+
+  if (!WAIC) {
+    ## If WAIC is FALSE, results is a list of matrices.
+    ## Transform it into a list of lists, each containing a 'samples' element.
+  results <- lapply(results, function(sample_matrix) {
+    list(samples = sample_matrix)
+  })
+}
   mcmc_chains <- lapply(results, as.mcmc)
   combined_chains <- mcmc.list(mcmc_chains)
 
