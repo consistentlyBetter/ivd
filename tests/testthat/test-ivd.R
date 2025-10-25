@@ -23,25 +23,85 @@ mock_data <- list(Y = rnorm(10))  # Y should have N=10 if N is used like this
 mock_constants <- list(N = 10)  # Make sure N is correctly defined
 mock_inits <- list(beta = rnorm(10))  # mu should have the same length as Y if indexed
 
-test_that("run_MCMC_allcode processes valid inputs correctly", {
-  result <- run_MCMC_allcode(seed = 123,
-                             data = mock_data,
-                             constants = mock_constants,
-                             code = mock_code,
-                             niter = 10, nburnin = 5,
-                             useWAIC = TRUE, inits = mock_inits)
-  expect_type(result, "list")
+## test_that("run_MCMC_allcode processes valid inputs correctly", {
+##   result <- run_MCMC_allcode(seed = 123,
+##                              data = mock_data,
+##                              constants = mock_constants,
+##                              code = mock_code,
+##                              niter = 10, nburnin = 5,
+##                              useWAIC = TRUE, inits = mock_inits)
+##   expect_type(result, "list")
+## })
+
+## test_that("run_MCMC_allcode handles incorrect data types", {
+##   expect_error(run_MCMC_allcode(seed = 123, data = "wrong_type",
+##                                 constants = mock_constants,
+##                                 code = mock_code, niter = 10,
+##                                 nburnin = 5, useWAIC = TRUE, inits = mock_inits))
+## })
+
+# Test that uses the NEW functions: run_MCMC_allcode was replaced by run_MCMC_compiled_model
+test_that("Build and run MCMC processes valid inputs correctly", {
+  skip_if(Sys.getenv("R_COVR") == "true", "Skipping build/run test during coverage")
+
+  # Step 1: Build and compile the model
+  compiled_model <- build_ivd_model(
+      code = mock_code,
+      constants = mock_constants,
+      dummy_data = mock_data,
+      dummy_inits = mock_inits,
+      useWAIC = TRUE
+  )
+
+  # Step 2: Run the compiled MCMC
+  result <- run_MCMC_compiled_model(
+      compiled = compiled_model,
+      seed = 123,
+      new_data = mock_data,
+      new_inits = mock_inits,
+      niter = 10,
+      nburnin = 5,
+      useWAIC = TRUE # Match the useWAIC in build step if needed
+  )
+
+  # Check the result structure (it will be a list if WAIC=T, matrix if WAIC=F)
+  if (TRUE) { # Replace TRUE with the actual value of useWAIC used above
+      expect_type(result, "list")
+      expect_true("samples" %in% names(result))
+      expect_true("WAIC" %in% names(result))
+      expect_true(is.matrix(result$samples))
+  } else {
+      expect_true(is.matrix(result))
+  }
 })
 
-test_that("run_MCMC_allcode handles incorrect data types", {
-  expect_error(run_MCMC_allcode(seed = 123, data = "wrong_type",
-                                constants = mock_constants,
-                                code = mock_code, niter = 10,
-                                nburnin = 5, useWAIC = TRUE, inits = mock_inits))
+# Test with WAIC = FALSE
+test_that("Build and run MCMC with WAIC=FALSE", {
+  skip_if(Sys.getenv("R_COVR") == "true", "Skipping WAIC=FALSE test during coverage")
+
+  # Build/compile (useWAIC in build doesn't affect the run structure, but keep consistent)
+  compiled_model_no_waic <- build_ivd_model(
+      code = mock_code,
+      constants = mock_constants,
+      dummy_data = mock_data,
+      dummy_inits = mock_inits,
+      useWAIC = FALSE
+  )
+
+  # Run MCMC
+  result_no_waic <- run_MCMC_compiled_model(
+      compiled = compiled_model_no_waic,
+      seed = 456,
+      new_data = mock_data,
+      new_inits = mock_inits,
+      niter = 10,
+      nburnin = 5,
+      useWAIC = FALSE
+  )
+
+  # Check expected structure (matrix only)
+  expect_true(is.matrix(result_no_waic))
 })
-
-
-
 
 ## Testing ivd
 test_that("ivd sets up and runs with correct defaults and inputs", {
