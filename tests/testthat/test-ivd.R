@@ -84,6 +84,7 @@ test_that("Build and run MCMC with WAIC=FALSE", {
 
   # Check expected structure (matrix only)
   expect_true(is.matrix(result_no_waic))
+})
 
 test_that("run_MCMC_allcode processes valid inputs correctly", {
   skip_if(Sys.getenv("R_COVR") == "true", "Skipping run_MCMC_allcode test during coverage")
