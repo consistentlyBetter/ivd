@@ -129,8 +129,8 @@ library(coda) ## load coda to avoid issues with devtools::build_readme()
 ```
 
 ```{r}
-codaplot(out, parameters =  "beta[1]")
-codaplot(out, parameters =  "R[2, 1]")
+codaplot(out, parameters =  "Intc")
+codaplot(out, parameters =  "R[scl_Intc, Intc]")
 ```
 
 
