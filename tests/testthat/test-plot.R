@@ -16,17 +16,17 @@ test_that("plot.ivd creates a funnel plot correctly", {
 ## Codaplots
 test_that("codaplot works correctly with specified parameters", {
   skip_if(Sys.getenv("R_COVR") == "true", "Skipping ivd test during coverage")
-  expect_error(codaplot(testoutput, parameters = c("R[1, 2]")), NA) # Expect no error
+  expect_error(codaplot(testoutput, parameters = c("R[scl_Intc, Intc]")), NA) # Expect no error
 })
 
 test_that("codaplot works correctly with specified parameters", {
   skip_if(Sys.getenv("R_COVR") == "true", "Skipping ivd test during coverage")
-  expect_error(codaplot(testoutput, type = "densplot",  parameters = c("R[1, 2]")), NA) # Expect no error
+  expect_error(codaplot(testoutput, type = "densplot",  parameters = c("R[scl_Intc, Intc]")), NA) # Expect no error
 })
 
 test_that("codaplot works correctly with ask next page", {
   skip_if(Sys.getenv("R_COVR") == "true", "Skipping ivd test during coverage")
   
-  expect_error(codaplot(testoutput, type = "densplot",  parameters = c("R[1, 2]", "beta[1]"),
+  expect_error(codaplot(testoutput, type = "densplot",  parameters = c("R[scl_Intc, Intc]", "Intc"),
                         askNewPage = FALSE), NA) # Expect no error
 })
