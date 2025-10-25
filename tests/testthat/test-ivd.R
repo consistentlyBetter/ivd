@@ -104,7 +104,7 @@ test_that("run_MCMC_allcode handles incorrect data types", {
                                 constants = mock_constants,
                                 code = mock_code, niter = 10,
                                 nburnin = 5, useWAIC = TRUE, inits = mock_inits))
->>>>>>> upstream/main
+
 })
 
 ## Testing ivd
