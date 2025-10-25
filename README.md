@@ -716,9 +716,6 @@ plot(out, type =  "funnel")
 
 ### PIP vs. math achievement
 
-Note that point size represents the within-cluster standard deviation of
-each cluster.
-
 ``` r
 plot(out, type =  "outcome")
 ```
