@@ -2,7 +2,8 @@
 % Please edit documentation in R/ivd.R
 \name{run_MCMC_compiled_model}
 \alias{run_MCMC_compiled_model}
-\title{Run MCMC on an already compiled model}
+\title{Run MCMC on an already compiled model
+Exposed but internal function for future()}
 \usage{
 run_MCMC_compiled_model(
   compiled,
@@ -15,6 +16,24 @@ run_MCMC_compiled_model(
   ...
 )
 }
+\arguments{
+\item{compiled}{Compiled nimble model}
+
+\item{seed}{Seed, set by future}
+
+\item{new_data}{Data}
+
+\item{new_inits}{inits}
+
+\item{niter}{Sampling iteratons}
+
+\item{nburnin}{Number of burnin iterations}
+
+\item{useWAIC}{Defaults to TRUE}
+
+\item{...}{Placeholder for nimble arguments}
+}
 \description{
 Run MCMC on an already compiled model
+Exposed but internal function for future()
 }

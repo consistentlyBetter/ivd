@@ -3,11 +3,22 @@
 \name{build_ivd_model}
 \alias{build_ivd_model}
 \title{Build and compile NIMBLE model and MCMC once
-This functin is exported for use in 'future'}
+This function is exported for use in 'future' and is not meant to be called by user.}
 \usage{
 build_ivd_model(code, constants, dummy_data, dummy_inits, useWAIC = TRUE)
 }
+\arguments{
+\item{code}{Nimble code}
+
+\item{constants}{Constants}
+
+\item{dummy_data}{Data}
+
+\item{dummy_inits}{inits}
+
+\item{useWAIC}{Defaults to TRUE. Nimble argument}
+}
 \description{
 Build and compile NIMBLE model and MCMC once
-This functin is exported for use in 'future'
+This function is exported for use in 'future' and is not meant to be called by user.
 }

@@ -8,6 +8,7 @@ test_that("summary.ivd() prints the expected header", {
   # For CRAN or continuous integration, skip
   # MCMC run is likely too time-consuming:
   skip_on_cran()
+  skip_on_ci()
   
   # 1) Create a simple simulated dataset
   set.seed(123)

@@ -1,24 +1,38 @@
 ##' Build and compile NIMBLE model and MCMC once
-##' This functin is exported for use in 'future'
+##' This function is exported for use in 'future' and is not meant to be called by user.
 ##' @import nimble
 ##' @export
+##' @param code Nimble code
+##' @param constants Constants
+##' @param dummy_data Data
+##' @param dummy_inits inits
+##' @param useWAIC Defaults to TRUE. Nimble argument
 build_ivd_model <- function(code, constants, dummy_data, dummy_inits, useWAIC = TRUE) {
-  model <- nimbleModel(code = code, data = dummy_data, constants = constants, inits = dummy_inits)
-  cmodel <- compileNimble(model)
-  
-  config <- configureMCMC(model)
-  if (useWAIC) config$enableWAIC <- useWAIC
-  config$monitors <- c("beta", "zeta", "R", "ss", "sigma_rand", "u")
-  config$addMonitors(c("mu", "tau"))
+    model <- nimbleModel(code = code, data = dummy_data, constants = constants, inits = dummy_inits)
+    cmodel <- compileNimble(model)
 
-  mcmc <- buildMCMC(config)
-  cmcmc <- compileNimble(mcmc, project = cmodel)
-  
-  list(cmodel = cmodel, cmcmc = cmcmc)
+    config <- configureMCMC(model)
+    if (useWAIC) config$enableWAIC <- useWAIC
+    config$monitors <- c("beta", "zeta", "R", "ss", "sigma_rand", "u")
+    config$addMonitors(c("mu", "tau"))
+
+    mcmc <- buildMCMC(config)
+    cmcmc <- compileNimble(mcmc, project = cmodel)
+
+    list(cmodel = cmodel, cmcmc = cmcmc)
 }
 
 ##' Run MCMC on an already compiled model
+##' Exposed but internal function for future()
 ##' @import nimble
+##' @param compiled Compiled nimble model
+##' @param seed Seed, set by future
+##' @param new_data Data
+##' @param new_inits inits
+##' @param niter Sampling iteratons
+##' @param nburnin Number of burnin iterations
+##' @param useWAIC Defaults to TRUE
+##' @param ... Placeholder for nimble arguments
 ##' @export
 run_MCMC_compiled_model <- function(compiled, seed, new_data, new_inits, niter, nburnin, useWAIC = TRUE, ...) {
   compiled$cmodel$setData(new_data)

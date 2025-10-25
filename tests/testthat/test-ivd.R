@@ -23,23 +23,6 @@ mock_data <- list(Y = rnorm(10))  # Y should have N=10 if N is used like this
 mock_constants <- list(N = 10)  # Make sure N is correctly defined
 mock_inits <- list(beta = rnorm(10))  # mu should have the same length as Y if indexed
 
-## test_that("run_MCMC_allcode processes valid inputs correctly", {
-##   result <- run_MCMC_allcode(seed = 123,
-##                              data = mock_data,
-##                              constants = mock_constants,
-##                              code = mock_code,
-##                              niter = 10, nburnin = 5,
-##                              useWAIC = TRUE, inits = mock_inits)
-##   expect_type(result, "list")
-## })
-
-## test_that("run_MCMC_allcode handles incorrect data types", {
-##   expect_error(run_MCMC_allcode(seed = 123, data = "wrong_type",
-##                                 constants = mock_constants,
-##                                 code = mock_code, niter = 10,
-##                                 nburnin = 5, useWAIC = TRUE, inits = mock_inits))
-## })
-
 # Test that uses the NEW functions: run_MCMC_allcode was replaced by run_MCMC_compiled_model
 test_that("Build and run MCMC processes valid inputs correctly", {
   skip_if(Sys.getenv("R_COVR") == "true", "Skipping build/run test during coverage")
@@ -101,6 +84,27 @@ test_that("Build and run MCMC with WAIC=FALSE", {
 
   # Check expected structure (matrix only)
   expect_true(is.matrix(result_no_waic))
+
+test_that("run_MCMC_allcode processes valid inputs correctly", {
+  skip_if(Sys.getenv("R_COVR") == "true", "Skipping run_MCMC_allcode test during coverage")
+  
+  result <- run_MCMC_allcode(seed = 123,
+                             data = mock_data,
+                             constants = mock_constants,
+                             code = mock_code,
+                             niter = 10, nburnin = 5,
+                             useWAIC = TRUE, inits = mock_inits)
+  expect_type(result, "list")
+})
+
+test_that("run_MCMC_allcode handles incorrect data types", {
+  skip_if(Sys.getenv("R_COVR") == "true", "Skipping run_MCMC_allcode test during coverage")
+  
+  expect_error(run_MCMC_allcode(seed = 123, data = "wrong_type",
+                                constants = mock_constants,
+                                code = mock_code, niter = 10,
+                                nburnin = 5, useWAIC = TRUE, inits = mock_inits))
+>>>>>>> upstream/main
 })
 
 ## Testing ivd

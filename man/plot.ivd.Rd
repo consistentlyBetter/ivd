@@ -9,8 +9,7 @@
   type = "pip",
   pip_level = 0.75,
   variable = NULL,
-  col_id = TRUE,
-  legend = TRUE,
+  label_points = TRUE,
   ...
 )
 }
@@ -23,9 +22,7 @@
 
 \item{variable}{Name of a specific variable. Defaults to \code{NULL}}
 
-\item{col_id}{Whether the plot should color in points by their unique identifier.}
-
-\item{legend}{Should legend be included? Defaults to \code{TRUE}.}
+\item{label_points}{Should points above the pip threshold be labelled? Defaults to \code{TRUE}.}
 
 \item{...}{Controls ggrepel aruments.}
 }
