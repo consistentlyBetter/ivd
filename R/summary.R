@@ -56,7 +56,7 @@
 ##' @importFrom coda gelman.diag mcmc mcmc.list
 ##' @export
 
-summary.ivd <- function(object, digits = 2, pip = 'all', ...) {
+summary.ivd <- function(object, digits = 3, pip = 'all', ...) {
   ## Extract samples from list: This does not include warmup
   extract_samples <- .extract_to_mcmc(object)
 
@@ -87,7 +87,7 @@ summary.ivd <- function(object, digits = 2, pip = 'all', ...) {
   s_comb <- cbind(sm[, c("Mean", "SD", "Time-series SE")],  sq[, c(1, 3, 5)], sm[, c("n_eff", "R-hat")])
   colnames( s_comb ) <- c("Mean", "SD", "Time-series SE", "2.5%", "50%", "97.5%", "n_eff", "R-hat")
 
-  table <- round(s_comb, 3)
+  table <- round(s_comb, digits)
 
   ## Add original variable names to output
   ## location fixed effects:
@@ -155,27 +155,36 @@ summary.ivd <- function(object, digits = 2, pip = 'all', ...) {
   ##
   chains <- object$workers
   cat("Chains (workers):",  chains, "\n\n")
-  
-  ## extract WAIC per chain 
-  waic_values <- sapply(object$samples, FUN = function(chain) chain$WAIC$WAIC)
-  ## extract lppd per chain 
-  lppd_values <- sapply(object$samples, FUN = function(chain) chain$WAIC$lppd)
-  ## extract pWAIC per chain 
-  pwaic_values <- sapply(object$samples, FUN = function(chain) chain$WAIC$pWAIC)
 
-  ## Average across chains
-  average_waic <- mean(waic_values)
-  average_lppd <- mean(lppd_values)
-  average_pwaic <- mean(pwaic_values)
-  
+  ## Supress warnings when WAIC metrics return NA
+  suppressWarnings({
+
+    ## extract WAIC per chain
+    waic_values <- sapply(object$samples, FUN = function(chain) chain$WAIC$WAIC)
+    ## extract lppd per chain
+    lppd_values <- sapply(object$samples, FUN = function(chain) chain$WAIC$lppd)
+    ## extract pWAIC per chain
+    pwaic_values <- sapply(object$samples, FUN = function(chain) chain$WAIC$pWAIC)
+
+    ## Average across chains
+    average_waic <- mean(waic_values)
+    average_lppd <- mean(lppd_values)
+    average_pwaic <- mean(pwaic_values)
+
+  })
+
   print(table)
-  .newline
-  
-  ## Print the results
-  cat("\nWAIC:", average_waic, "\n")
-  cat("elppd:", average_lppd, "\n")
-  cat("pWAIC:", average_pwaic, "\n")
-  
+
+  ## Only print WAIC metrics if WAIC = TRUE
+  if (!is.null(object$samples[[1]]$WAIC)) {
+    .newline
+
+    ## Print the results
+    cat("\nWAIC:", average_waic, "\n")
+    cat("elppd:", average_lppd, "\n")
+    cat("pWAIC:", average_pwaic, "\n")
+  }
+
   class(table) <- "summary.ivd"
   invisible(table)
 }

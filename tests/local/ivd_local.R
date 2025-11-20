@@ -70,7 +70,7 @@ system.time({
         location_formula = mAch_s ~ 1 + (1 | schoolid),
         scale_formula = ~ 1 + (1 | schoolid),
         data = school_dat,
-        niter = 1000, nburnin = 1500, WAIC = TRUE, workers = 4, n_eff = "local"
+        niter = 3000, nburnin = 1500, WAIC = FALSE, workers = 4, n_eff = "local"
     )
 })
 
@@ -386,6 +386,65 @@ saeb$school_ses <- c(scale(saeb$school_ses, scale = FALSE))
 out <- ivd(location_formula = math_proficiency ~ student_ses * school_ses + (1|school_id),
            scale_formula =  ~ student_ses * school_ses + (1 |school_id),
            data = saeb,
-           niter = 2500, nburnin = 15000, WAIC = TRUE, workers = 8)
+           niter = 3000, nburnin = 5000, WAIC = TRUE, workers = 6)
 
 summary(out)
+
+### Simulated data --------------------------------------------------------
+devtools::load_all()
+
+## Sample size
+n_students = 80
+n_schools = 160
+
+## School data
+N <- n_students * n_schools
+school_id <- rep(1:n_schools, each = n_students)
+
+# Random effects' diagonal SD matrix
+tau <- matrix(
+  c(0.3, 0,
+    0, 0.1), 2, 2)
+
+## Random effects' correlation matrix
+R <- matrix(c(
+  1, 0.5,
+  0.5, 1), 2, 2)
+
+## Random effects' covariance matrix
+Sigma <- tau %*% R %*% t(tau)
+
+## Random effects
+u <- MASS::mvrnorm(
+             n = n_schools,
+             mu = c(0, 0), Sigma
+           )
+
+
+## Location model components
+loc_rand_intc <- u[, 1][school_id]
+linpred <- 0 + loc_rand_intc
+
+ ## Scale model components
+scl_rand_intc <- u[, 2][school_id]
+school_sd  <- exp(0 + scl_rand_intc)
+
+y_residuals <- rnorm(N, 0, school_sd)
+
+y <- linpred + y_residuals
+
+school_dat <- data.frame(
+  y = y,
+  school_id = school_id
+)
+
+  ## A correlation of 0.5 between the random effects is expected
+
+out <- ivd(
+        location_formula = y ~ 1 + (1 | school_id),
+        scale_formula = ~ 1 + (1 | school_id),
+        data = school_dat,
+        niter = 5000, nburnin = 2500, WAIC = FALSE, workers = 4, n_eff = "local"
+)
+
+summary(out, pip = "model")

@@ -87,46 +87,55 @@ run_MCMC_compiled_model <- function(compiled, seed, new_data, new_inits, niter, 
 ## }
 
 ## Create Cholesky L
-invvec_to_corr <- nimble::nimbleFunction(
-  run = function(V = double(1), P = integer()) {
-    returnType(double(2))
-    
-    # Create a lower triangular matrix z with diagonal 0
-    z <- matrix(0, nrow = P, ncol = P)
-    index <- 1
-    for (j in 1:(P-1)) {
-      for (i in (j+1):P) {
-        z[i, j] <- V[index]  # Fill the lower triangular part with correlations
-        index <- index + 1
-      }
-    }
-    
-    # Construct the Cholesky factor L
-    L <- matrix(0, nrow = P, ncol = P)
-    
-    for (i in 1:P) {
-      for (j in 1:P) {
-        if (i < j) {
-          L[i, j] <- 0.0
-        }
-        if (i == j) {
-          if (i == 1) {
-            L[i, j] <- 1.0
-          }
-          if (i > 1) {  # Diagonal beyond [1,1]
-            L[i, j] <- sqrt(1 - sum(L[i, 1:j]^2))
-          }
-        }
-        if (i > j) {
-          L[i, j] <- z[i, j] * sqrt(1 - sum(L[i, 1:j]^2))
-        }
-      }
-    }
-    
-    return(L)
-  }
-)
+## invvec_to_corr <- nimble::nimbleFunction(
+##   run = function(V = double(1), P = integer()) {
+##     returnType(double(2))
 
+##     # Create a lower triangular matrix z with diagonal 0
+##     z <- matrix(0, nrow = P, ncol = P)
+##     index <- 1
+##     for (j in 1:(P-1)) {
+##       for (i in (j+1):P) {
+##         z[i, j] <- V[index]  # Fill the lower triangular part with correlations
+##         index <- index + 1
+##       }
+##     }
+
+##     # Construct the Cholesky factor L
+##     L <- matrix(0, nrow = P, ncol = P)
+
+##     for (i in 1:P) {
+##       for (j in 1:P) {
+##         if (i < j) {
+##           L[i, j] <- 0.0
+##         }
+##         if (i == j) {
+##           if (i == 1) {
+##             L[i, j] <- 1.0
+##           }
+##           if (i > 1) {  # Diagonal beyond [1,1]
+##             L[i, j] <- sqrt(1 - sum(L[i, 1:j]^2))
+##           }
+##         }
+##         if (i > j) {
+##           L[i, j] <- z[i, j] * sqrt(1 - sum(L[i, 1:j]^2))
+##         }
+##       }
+##     }
+
+##     return(L)
+##   }
+## )
+
+uppertri_mult_diag <- nimbleFunction(
+    run = function(mat = double(2), vec = double(1)) {
+        returnType(double(2))
+        p <- length(vec)
+        out <- matrix(nrow = p, ncol = p, init = FALSE)
+        for(i in 1:p)
+            out[ , i] <- mat[ , i] * vec[i]
+        return(out)
+    })
 
 #' Main function to set up and run parallel MCMC using nimble and future.
 #' `ivd` computes a mixed effects location and scale model with Spike and Slab regularization
@@ -173,7 +182,7 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   ## Nimble inits
   inits <- list(beta = rnorm(constants$K, 5, 10), ## TODO: Check inits
                 zeta =  rnorm(constants$S, 1, 3),
-                sigma_rand = diag(rlnorm(constants$P, 0, 1)),
+                #sigma_rand = diag(rlnorm(constants$P, 0, 1)),
                 L = diag(1,constants$P),
                 zscore = rnorm(constants$P))
   
@@ -221,7 +230,8 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
       }
       ## Transpose L to get lower cholesky
       ## then compute the hadamard (element-wise) product with the ss vector
-      u[j,1:P] <- t( sigma_rand[1:P, 1:P] %*% L[1:P, 1:P]  %*% z[1:P,j] * ss[1:P,j] )
+      ##u[j,1:P] <- t( sigma_rand[1:P, 1:P] %*% L[1:P, 1:P]  %*% z[1:P,j] * ss[1:P,j] )
+      u[j, 1:P] <- t( t(U[1:P, 1:P]) %*% z[1:P, j] ) * ss[1:P, j]
     }
     ## Priors:
     ## Fixed effects: Location
@@ -234,7 +244,9 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
     }
     ## Random effects SD
     for(p in 1:P){
-      sigma_rand[p,p] ~ T(dt(0, 1, 1), 0, )  # Half-cauchy with 1,1
+      #sigma_rand[p,p] ~ T(dt(0, 1, 1), 0, )  # Half-cauchy with 1,1
+      ## reconstruct sigma_rand as vector
+      sigma_rand[p] ~ T(dt(0, 1, 3), 0, )
     }
     
     ## Correlations between random effects
@@ -244,11 +256,13 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
     }
     
     ## Lower cholesky of random effects correlation 
-    L[1:P, 1:P] <- invvec_to_corr(V = rho[1:P], P = P)
-    
-    #L[1:P, 1:P] ~ dlkj_corr_cholesky(eta = 1, p = P)
+    #L[1:P, 1:P] <- invvec_to_corr(V = rho[1:P], P = P)
+
+    Ustar[1:P, 1:P] ~ dlkj_corr_cholesky(eta = 1, p = P)
+    U[1:P, 1:P] <- uppertri_mult_diag(Ustar[1:P, 1:P], sigma_rand[1:P])
     ##
-    R[1:P, 1:P] <- L[1:P, 1:P]  %*% t(L[1:P, 1:P])
+    ##R[1:P, 1:P] <- L[1:P, 1:P]  %*% t(L[1:P, 1:P])
+    R[1:P, 1:P] <- t(Ustar[1:P, 1:P] ) %*% Ustar[1:P, 1:P]
   })
   
   ## IMPORTANT: future loads the installed library on its workers - changes in the package that are not in the library(ivd)
@@ -287,8 +301,9 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
       data = data,
       inits = inits,
       build_ivd_model = build_ivd_model,
-      run_MCMC_compiled_model = run_MCMC_compiled_model,
-      invvec_to_corr = invvec_to_corr
+    run_MCMC_compiled_model = run_MCMC_compiled_model,
+    uppertri_mult_diag = uppertri_mult_diag
+      #invvec_to_corr = invvec_to_corr
   )
   )
 
@@ -297,6 +312,14 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   
   ## Prepare object to be returned
   out <- list()
+
+  if (!WAIC) {
+    ## If WAIC is FALSE, results is a list of matrices.
+    ## Transform it into a list of lists, each containing a 'samples' element.
+  results <- lapply(results, function(sample_matrix) {
+    list(samples = sample_matrix)
+  })
+}
   mcmc_chains <- lapply(results, as.mcmc)
   combined_chains <- mcmc.list(mcmc_chains)
 

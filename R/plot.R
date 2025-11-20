@@ -374,7 +374,7 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
 ##' For more plots see coda
 ##' @title Traceplot from the coda package
 ##' @param obj ivd object
-##' @param parameters Provide parameters of interest as c("parameter1", "paramter2") etc.
+##' @param parameters Provide parameters of interest using names from the summary() output (e.g., "Intc", "scl_Intc", "sd_Intc", "R[scl_Intc, Intc]", "pip[Intc, 5]"). Defaults to NULL (plots all parameters).
 ##' @param type Coda plot. Defaults to 'traceplot'. See coda for more options such as 'acfplot', 'densplot' etc.
 ##' @param askNewPage Should user be prompted for next plot. Defaults to `TRUE`
 ##' @return Specified coda plot
@@ -385,9 +385,85 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
 codaplot <- function(obj, parameters = NULL, type = 'traceplot', askNewPage = TRUE) {
   ## TODO: Inherit variable names from summary object
 
+  ## Prepare reduced options of parameters to be plotted (i.e., only those
+  ## in the summary table)
+
   ## Extract to mcmc object
   extract_samples <- .extract_to_mcmc(obj)
-  
+  Kr <- obj$nimble_constants$Kr
+  ## Extract relevant names with summary_table function
+  mat_transposed <- .summary_table(t(extract_samples[[1]]), Kr)
+
+  ## Exclude mu and tau indexes
+  mu_index <- grep('mu',  rownames(mat_transposed) )
+  tau_index <- grep('tau',  rownames(mat_transposed))
+
+  raw_internal_names <- rownames(mat_transposed[-c(mu_index, tau_index), ])
+  internal_names <- raw_internal_names
+
+  ## Location fixed effects
+  beta_index <- grep('^beta\\[', internal_names)
+  if(length(beta_index) > 0 && length(beta_index) == length(obj$X_location_names)) {
+    internal_names[beta_index] <- obj$X_location_names
+  }
+  ## Scale fixed effects
+  zeta_index <- grep('^zeta\\[', internal_names)
+  if(length(zeta_index) > 0 && length(zeta_index) == length(colnames(obj$X_scale))) {
+    internal_names[zeta_index] <- paste0("scl_", colnames(obj$X_scale))
+  }
+  ## Random effects SD (diagonal of sigma_rand)
+  sigma_rand_index <- grep('^sigma_rand\\[(\\d+), \\1\\]', internal_names) # Only diagonal
+  sd_names <- c(obj$Z_location_names, paste0("scl_", colnames(obj$Z_scale)))
+  if(length(sigma_rand_index) > 0 && length(sigma_rand_index) == length(sd_names)) {
+    internal_names[sigma_rand_index] <- paste0("sd_", sd_names)
+  }
+
+  ## Rewrite correlation variable
+  ## number of random effects:
+  cols <- length(sigma_rand_index)
+  ## Place holder variable: R is indexed as vech
+  M <- matrix(1:cols^2, ncol = cols )
+  ## record positions
+  vech <- M[lower.tri(M )]
+  ## match variable names to position
+  corrvar <- expand.grid(sd_names, sd_names)[vech,]
+  R_index <-  grep('R\\[', internal_names)
+  if( nrow(corrvar) != length(R_index) )stop("Check R_index in summary.R" )
+  internal_names[R_index] <- paste0("R[",paste(corrvar[, 1], corrvar[, 2], sep = ", "), "]")
+
+
+  ## Link PIP to actual clustering units
+  ## find the positions of the scale random effects in the model
+  scale_ranef <- colnames(obj$Z_scale)
+  scale_indexes <- seq_len(length(scale_ranef)) + length(colnames(obj$Z_scale))
+  ## build patterns and replacements
+  patterns <- paste0("\\[", scale_indexes, ",")
+  replacements <- paste0("[", scale_ranef, ",")
+  ## create a vector with the new rownames
+  new_rownames <- Reduce(function(x, pattern_replacement) {
+    gsub(pattern_replacement[1], pattern_replacement[2], x)
+  },
+  mapply(c, patterns, replacements, SIMPLIFY = FALSE),
+  init = internal_names)
+  ## assign back
+  internal_names <- new_rownames
+
+  pip_pos <- grep("ss", internal_names)
+  internal_names[pip_pos] <- sub("^ss", "pip", internal_names[pip_pos])
+
+  ## (Intercept) is annoying long. Change to Int.
+  Int_index <- grep("\\(Intercept\\)", internal_names)
+  internal_names[Int_index] <- gsub("\\(Intercept\\)",  "Intc", internal_names[Int_index])
+
+  ## Filter each chain in the list for the relevant parameters
+  extract_samples_filtered <- lapply(extract_samples, function(chain) {
+    chain_names <- colnames(chain)
+    matching_cols <- chain_names %in% raw_internal_names
+    filtered_chain <- chain[, matching_cols, drop = FALSE]
+    colnames(filtered_chain) <- internal_names
+    return(filtered_chain)
+  })
+
   ## Check if 'type' corresponds to a valid coda plotting function
   ## Typically, these would be 'plot', 'acfplot', etc.
   ## The user needs to ensure the correct function name is provided.
@@ -396,12 +472,14 @@ codaplot <- function(obj, parameters = NULL, type = 'traceplot', askNewPage = TR
   plot_func <- match.fun(type)
   
   if(is.null(parameters)) {
+
     ## If no parameters specified, apply the chosen function to all samples
-    params <- dimnames(.summary_table(obj$samples[[1]]$samples ))[[2]]
+    #params <- dimnames(.summary_table(obj$samples[[1]]$samples ))[[2]]
+    params = internal_names
     
     ## Apply the chosen function to the specified parameters    
     for (param in params) {
-      plot_func(mcmc.list(extract_samples)[, param, drop = FALSE])
+      plot_func(mcmc.list(extract_samples_filtered)[, param, drop = FALSE])
       if (length(params) > 1) {
         ## Prompt user to move between plots when multiple parameters are involved
         devAskNewPage(askNewPage)
@@ -417,13 +495,13 @@ codaplot <- function(obj, parameters = NULL, type = 'traceplot', askNewPage = TR
     ## If parameters are specified, subset the samples first
     params <- c(parameters)
     ## Ensure that subsetting does not reduce the data incorrectly
-    if (!all( params %in% colnames(extract_samples[[1]]))) {
+    if (!all( params %in% colnames(extract_samples_filtered[[1]]))) {
       stop("Some specified parameters do not exist in the samples.")
     }
 
     ## Apply the chosen function to the specified parameters
     for (param in params) {
-      plot_func(mcmc.list(extract_samples)[, param, drop = FALSE])
+      plot_func(mcmc.list(extract_samples_filtered)[, param, drop = FALSE])
       if (length(params) > 1) {
         ## Prompt user to move between plots when multiple parameters are involved
         devAskNewPage(askNewPage)
