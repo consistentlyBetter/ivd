@@ -20,5 +20,5 @@
 #'   It takes a value of 1 for urban schools and 2 for rural schools.}
 #'
 #'   }
-#' @source \url{https://www.gov.br/inep/pt-br/areas-de-atuacao/avaliacao-e-exames-educacionais/saeb/resultados}
+#' @source \url{https://web.archive.org/web/20250202015037/https://www.gov.br/inep/pt-br/areas-de-atuacao/avaliacao-e-exames-educacionais/saeb/resultados}
 "saeb"

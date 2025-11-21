@@ -70,9 +70,11 @@ system.time({
         location_formula = mAch_s ~ 1 + (1 | schoolid),
         scale_formula = ~ 1 + (1 | schoolid),
         data = school_dat,
-        niter = 3000, nburnin = 1500, WAIC = FALSE, workers = 4, n_eff = "local"
+        niter = 1000, nburnin = 500, WAIC = FALSE, workers = 4, n_eff = "local"
     )
 })
+summary(out )
+codaplot(out, parameters = "Intc")
 
 
 out$Z_location_names

@@ -9,7 +9,7 @@ codaplot(obj, parameters = NULL, type = "traceplot", askNewPage = TRUE)
 \arguments{
 \item{obj}{ivd object}
 
-\item{parameters}{Provide parameters of interest as c("parameter1", "paramter2") etc.}
+\item{parameters}{Provide parameters of interest using names from the summary() output (e.g., "Intc", "scl_Intc", "sd_Intc", "R\[scl_Intc, Intc\]", "pip\[Intc, 5\]"). Defaults to NULL (plots all parameters).}
 
 \item{type}{Coda plot. Defaults to 'traceplot'. See coda for more options such as 'acfplot', 'densplot' etc.}
 
