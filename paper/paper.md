@@ -11,13 +11,12 @@ authors:
     orcid: 0000-0003-3630-6629
     affiliation: 1
   - name: Marwin Carmo
-	orcid: 0000-0002-1052-6300 
+    orcid: 0000-0002-1052-6300 
     affiliation: 1
 affiliations:
  - name: University of California, Davis, USA
    index: 1
-date: 19 November 2025
-bibliography: paper.bib
+bibliography: references.bib
 ---
 
 
@@ -31,23 +30,19 @@ Research in fields such as psychology and education typically focus on average p
 
 Standard mixed-effects models partition variance into between-group and within-group components, typically assuming the within-group residual variance ($\sigma^2$) is homogeneous across all groups [@raudenbush_hierarchical_2002]. While Mixed-Effects Location Scale Models (MELSM) relax this assumption by allowing $\sigma^2$ to vary as a function of covariates and random effects [@hedeker_application_2008], they do not inherently provide a decision rule for identifying *which* specific units deviate significantly from the average consistency.
 
-In the `ivd` package MELSMs are expanded with the implementation of the SS-MELSM. This method computes a Posterior Inclusion Probability (PIP) for each cluster's scale random effect. A high PIP indicates strong evidence that a specific cluster belongs to the "slab" distribution, as it translates into a larger Bayes factor for including the $k$th random effect for the $j$th school, meaning it exhibits unusually high or low variability compared to other clustering units [@rodriguez_who_2022, williams_putting_2021].
+In the `ivd` package MELSMs are expanded with the implementation of the SS-MELSM. This method computes a Posterior Inclusion Probability (PIP) for each cluster's scale random effect. The  model simultaneously estimates fixed and random effects for both the location and the scale. For the scale model, the residual standard deviation $\sigma_{ij}$ is modeled as a log-linear function of covariates. The random effects associated with the scale intercept are subject to the spike-and-slab prior, where a binary indicator $\delta_{jk}$ determines inclusion. A high PIP for $\delta_j$ indicates strong evidence that the unit belongs to the "slab" distribution, as it translates into a larger Bayes factor for including the $k$th random effect for the $j$th school [@rodriguez_who_2022, @williams_putting_2021]. The PIPs are determined by the proportion of MCMC samples where $\delta_{jk} = 1$. 
 
-# `ivd`
-
-The package serves as a user-friendly frontend for **nimble** [@de_valpine_programming_2017], allowing SS-MELSMs to be fitted using standard R formula syntax without needing to write custom BUGS or NIMBLE code. The core function, `ivd()`, accepts two formulas: a `location_formula` for the mean structure and a `scale_formula` for the within-cluster variance structure.
-
-The statistical model simultaneously estimates fixed and random effects for both the location and the scale. For the scale model, the residual standard deviation $\sigma_{ij}$ is modeled as a log-linear function of covariates. The random effects associated with the scale intercept are subject to the spike-and-slab prior, where a binary indicator $\delta_j$ determines inclusion. A high PIP for $\delta_j$ indicates strong evidence that the unit belongs to the "slab" distribution. `ivd` leverages the **future** package, enabling parallel processing of Markov Chain Monte Carlo (MCMC) chains.
+The package serves as a user-friendly frontend for NIMBLE [@de_valpine_programming_2017], allowing SS-MELSMs to be fitted using standard R formula syntax without needing to write custom BUGS or NIMBLE code. Popular probabilistic programming languages like Stan do not support discrete parameters directly, making the implementation of such models difficult for applied researchers. The core function, `ivd()`, accepts two formulas: a `location_formula` for the mean structure and a `scale_formula` for the within-cluster variance structure. `ivd` leverages the future package [@bengtsson_2021], enabling parallel processing of Markov Chain Monte Carlo (MCMC) chains.
 
 ## Analysis and Visualization
 
-The `summary()` method returns the fixed effects for both location and scale, along with the PIPs for the random scale effects. To facilitate the detection of atypical units, the package includes several visualization methods via the `plot()` function.
+The `summary()` method returns the fixed effects for both location and scale, along with the PIPs for the random scale effects. Convergence of each estimate is summarised with computation of $\hat{R}$, and estimation efficiency by the effective sample size [@vehtariRankNormalization2021].
 
-Users can generate different plots by specifying the `type` argument in the `plot()` function: `pip` is the default argument and is used to show units exceeding a certain probability threshold (e.g., 0.75 as default). `funnel` visualizes the relationship between the PIP and the estimated within-cluster standard deviation. Additionally, `outcome` displays the interaction between average performance and consistency. For MCMC convergence diagnostics, the `codaplot()` function offers access to trace and density plots for specific parameters.
+To facilitate the detection of atypical units, the package includes several visualization methods, specified by the `type` argument in the `plot()` function: `pip` is the default argument and is used to show units exceeding a certain probability threshold (e.g., 0.75 as default). `funnel` visualizes the relationship between the PIP and the estimated within-cluster standard deviation. Finally, `outcome` displays the interaction between average performance and consistency. For MCMC convergence diagnostics, the `codaplot()` function offers access to trace and density plots for specific parameters.
 
 ## Model Comparison
 
-Comparison of competing models is supported through the Widely Applicable Information Criterion (WAIC), which can be computed during estimation (`WAIC = TRUE` is set by default). Furthermore, `ivd` stores the pointwise log-likelihood matrix, making it compatible with the **loo** package for computing the Leave-One-Out Information Criterion (LOO-IC).
+Comparison of competing models is supported through the Widely Applicable Information Criterion (WAIC), which can be computed during estimation (`WAIC = TRUE` is set by default). Furthermore, `ivd` stores the pointwise log-likelihood matrix, making it compatible with the loo package [@loo] for computing predictive accuracy with the Pareto smoothed importance sampling Leave-one-out cross-validation (PSIS-LOO) [@vehtari_practical_2017].
 
 # Usage Example
 
@@ -88,3 +83,7 @@ plot(model, type = "funnel")
 ## Check convergence for the intercept
 codaplot(model, parameters = "Intc")
 ```
+
+# Acknowledgements
+
+This work was supported by the Tools Competition catalyst award for the project consistentlyBetter to PR.
