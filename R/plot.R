@@ -28,353 +28,367 @@
 ##' @importFrom utils menu
 ##' @export
 plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_points = TRUE, ...) {
-  obj <- x
-  ## Get scale variable names
-  ranef_scale_names <- colnames(obj$Z_scale)
-  fixef_scale_names <- colnames(obj$X_scale)
-  
-  col_names <- dimnames(.summary_table(obj$samples[[1]]$samples ))[[2]]
-  Kr <- obj$nimble_constants$Kr
+    obj <- x
+    ## Get scale variable names
+    ranef_scale_names <- colnames(obj$Z_scale)
+    fixef_scale_names <- colnames(obj$X_scale)
 
-  cols_to_keep <- c( )
-  ## Find spike and slab variables
-  col_ss <- col_names[ grepl( "^ss\\[", col_names ) ]
-  for(col_name in col_ss) {
-    col_number <- as.numeric(unlist(regmatches(col_name, gregexpr("[0-9]+", col_name)))[1])
-    if(col_number >  Kr ) {
-      cols_to_keep <- c(cols_to_keep,  col_name )
+    col_names <- dimnames(.summary_table(obj$samples[[1]]$samples))[[2]]
+    Kr <- obj$nimble_constants$Kr
+
+    cols_to_keep <- c()
+    ## Find spike and slab variables
+    col_ss <- col_names[grepl("^ss\\[", col_names)]
+    for (col_name in col_ss) {
+        col_number <- as.numeric(unlist(regmatches(col_name, gregexpr("[0-9]+", col_name)))[1])
+        if (col_number > Kr) {
+            cols_to_keep <- c(cols_to_keep, col_name)
+        }
     }
-  }
 
-  ## Subset each MCMC matrix to keep only the relevant columns
-  subsamples <- lapply(.extract_to_mcmc(obj), function(x) x[, cols_to_keep])
-  
-  ## Calculate column means for each subsetted MCMC matrix
-  means_list <- lapply(subsamples, colMeans)
+    ## Subset each MCMC matrix to keep only the relevant columns
+    subsamples <- lapply(.extract_to_mcmc(obj), function(x) x[, cols_to_keep])
 
-  ## Average across the lists and chains
-  final_means <- Reduce("+", means_list) / length(means_list)
+    ## Calculate column means for each subsetted MCMC matrix
+    means_list <- lapply(subsamples, colMeans)
 
-  ## assign the means to the specific random effects
-  ss_means <- list()
-  ## Select the ss effect(s)
-  Sr <- obj$nimble_constants$Sr
-  for(i in 1:Sr ) {
-    index <- paste0("\\[",  i+Kr)
-    position_ss_value <- grepl(index, names(means_list[[1]]) )
-    ss_means[[i]] <- final_means[position_ss_value]
-  }
+    ## Average across the lists and chains
+    final_means <- Reduce("+", means_list) / length(means_list)
 
-  ## Get number of random scale effects:
-  no_ranef_s <- obj$nimble_constants$Sr
+    ## assign the means to the specific random effects
+    ss_means <- list()
+    ## Select the ss effect(s)
+    Sr <- obj$nimble_constants$Sr
+    for (i in 1:Sr) {
+        index <- paste0("\\[", i + Kr)
+        position_ss_value <- grepl(index, names(means_list[[1]]))
+        ss_means[[i]] <- final_means[position_ss_value]
+    }
 
-  ## With multiple random effects, ask user which one to be plotted:
-  if(no_ranef_s == 1) {
-    ## Define ordered dataset
-    df_pip <- data.frame(id = seq_len(length(ss_means[[1]])),
-                         pip = ss_means[[1]])
-    df_pip <- df_pip[order(df_pip$pip), ]
-    df_pip$ordered <- 1:nrow(df_pip)
-  } else if (no_ranef_s > 1 ) {
-    
-       if(is.null(variable)) {
-         ## Introduces a choice menu replacing manual typing the variable name
-         choice <- menu(
-           choices = ranef_scale_names, 
-           title = "There are multiple random effects. Please choose one to plot:"
-         )
-         
-         # Handle the case where the user cancels (enters 0)
-         if (choice == 0) {
-           stop("No variable selected. Halting plot generation.", call. = FALSE)
-         }
-         
-         scale_ranef_position_user <- choice
-         variable <- ranef_scale_names[scale_ranef_position_user]
+    ## Get number of random scale effects:
+    no_ranef_s <- obj$nimble_constants$Sr
 
-         
-         ## ## Prompt user for action when there are multiple random effects
-         ## variable <- readline(prompt="There are multiple random effects. Please provide the variable name to be plotted or type 'list' \n(or specify as plot(fitted, type = 'funnel', variable = 'variable_name'): ")
-         ## if (tolower(variable) == "list") {
-         ##   variable <- readline(prompt = cat(ranef_scale_names, ": "))
-         ## }
-       }
+    ## With multiple random effects, ask user which one to be plotted:
+    if (no_ranef_s == 1) {
+        ## Define ordered dataset
+        df_pip <- data.frame(
+            id = seq_len(length(ss_means[[1]])),
+            pip = ss_means[[1]]
+        )
+        df_pip <- df_pip[order(df_pip$pip), ]
+        df_pip$ordered <- 1:nrow(df_pip)
+    } else if (no_ranef_s > 1) {
+        if (is.null(variable)) {
+            ## Introduces a choice menu replacing manual typing the variable name
+            choice <- menu(
+                choices = ranef_scale_names,
+                title = "There are multiple random effects. Please choose one to plot:"
+            )
 
-       ## Find position of user requested random effect
-       scale_ranef_position_user <- which(ranef_scale_names == variable)
-       
-       ## Define ordered dataset
-       df_pip <- data.frame(id = seq_len(length(ss_means[[scale_ranef_position_user]])),
-                            pip = ss_means[[scale_ranef_position_user]])
-       df_pip <- df_pip[order(df_pip$pip), ]
-       df_pip$ordered <- 1:nrow(df_pip)
-  }
+            # Handle the case where the user cancels (enters 0)
+            if (choice == 0) {
+                stop("No variable selected. Halting plot generation.", call. = FALSE)
+            }
 
-  
-  ## find scale random effects
-  ## Extract numbers and find locations
-  column_indices <- sapply(col_names, function(x) {
-    if (grepl("^u\\[", x)) {  # Check if the name starts with 'u['
-      ## Extracting numbers
-      nums <- as.numeric(unlist(strsplit(gsub("[^0-9,]", "", x), ",")))
-      ## Check if second number (column index) is greater than Kr
-      return(nums[2] > Kr)
+            scale_ranef_position_user <- choice
+            variable <- ranef_scale_names[scale_ranef_position_user]
+
+
+            ## ## Prompt user for action when there are multiple random effects
+            ## variable <- readline(prompt="There are multiple random effects. Please provide the variable name to be plotted or type 'list' \n(or specify as plot(fitted, type = 'funnel', variable = 'variable_name'): ")
+            ## if (tolower(variable) == "list") {
+            ##   variable <- readline(prompt = cat(ranef_scale_names, ": "))
+            ## }
+        }
+
+        ## Find position of user requested random effect
+        scale_ranef_position_user <- which(ranef_scale_names == variable)
+
+        ## Define ordered dataset
+        df_pip <- data.frame(
+            id = seq_len(length(ss_means[[scale_ranef_position_user]])),
+            pip = ss_means[[scale_ranef_position_user]]
+        )
+        df_pip <- df_pip[order(df_pip$pip), ]
+        df_pip$ordered <- 1:nrow(df_pip)
+    }
+
+
+    ## find scale random effects
+    ## Extract numbers and find locations
+    column_indices <- sapply(col_names, function(x) {
+        if (grepl("^u\\[", x)) { # Check if the name starts with 'u['
+            ## Extracting numbers
+            nums <- as.numeric(unlist(strsplit(gsub("[^0-9,]", "", x), ",")))
+            ## Check if second number (column index) is greater than Kr
+            return(nums[2] > Kr)
+        } else {
+            return(FALSE)
+        }
+    })
+
+    ## Indices of columns where column index is greater than Kr
+    scale_ranef_pos <- which(column_indices)
+
+    ## Create tau locally
+    if (no_ranef_s == 1) {
+        ## Extract the posterior mean of the fixed effect:
+        zeta <- mean(unlist(lapply(.extract_to_mcmc(obj), FUN = function(x) mean(x[, "zeta[1]"]))))
+        ## Extract the posterior mean of each random effect:
+        u <- colMeans(do.call(rbind, lapply(.extract_to_mcmc(obj), FUN = function(x) colMeans(x[, scale_ranef_pos]))))
+        tau <- exp(zeta + u)
+    } else if (no_ranef_s > 1) {
+        ## if(is.null(variable)) {
+        ##   ## Prompt user for action when there are multiple random effects
+        ##   variable <- readline(prompt="There are multiple random effects. Please provide the variable name to be plotted or type 'list' \n(or specify as plot(fitted, type = 'funnel', variable = 'variable_name'): ")
+        ##   if (tolower(variable) == "list") {
+        ##     variable <- readline(prompt = cat(ranef_scale_names, ": "))
+        ##   }
+        ## }
+
+        ## Find position of user requested random effect
+        scale_ranef_position_user <-
+            which(ranef_scale_names == variable)
+
+        ## Find position of user requested fixed effect
+        ## TODO: When interactions are present plot will change according to moderator...
+        ## Currently only main effect is selected
+        scale_fixef_position_user <-
+            which(fixef_scale_names == variable)
+
+        ## Use ranef_position_user to select corresponding fixed effect
+        zeta <- mean(unlist(lapply(.extract_to_mcmc(obj), FUN = function(x) mean(x[, paste0("zeta[", scale_fixef_position_user, "]")]))))
+
+        ## Extract the posterior mean of each random effect:
+        pos <- scale_ranef_pos[grepl(paste0(Kr + scale_ranef_position_user, "\\]"), names(scale_ranef_pos))]
+
+        u <-
+            colMeans(do.call(rbind, lapply(.extract_to_mcmc(obj), FUN = function(x) colMeans(x[, pos]))))
+        tau <- exp(zeta + u)
     } else {
-      return(FALSE )
+        print("Invalid action specified. Exiting.")
     }
-  })
-  
-  ## Indices of columns where column index is greater than Kr
-  scale_ranef_pos <- which(column_indices)
-  
-  ## Create tau locally
-  if(no_ranef_s == 1) {
-    ## Extract the posterior mean of the fixed effect:
-    zeta <- mean( unlist( lapply(.extract_to_mcmc( obj ), FUN = function(x) mean(x[, "zeta[1]"])) ) )
-    ## Extract the posterior mean of each random effect:
-    u <- colMeans(do.call(rbind, lapply(.extract_to_mcmc( obj ), FUN = function(x) colMeans(x[, scale_ranef_pos]))))
-    tau <- exp(zeta + u )
-  } else if (no_ranef_s > 1 ) {
-    ## if(is.null(variable)) {
-    ##   ## Prompt user for action when there are multiple random effects
-    ##   variable <- readline(prompt="There are multiple random effects. Please provide the variable name to be plotted or type 'list' \n(or specify as plot(fitted, type = 'funnel', variable = 'variable_name'): ")
-    ##   if (tolower(variable) == "list") {
-    ##     variable <- readline(prompt = cat(ranef_scale_names, ": "))
-    ##   }
-    ## }
-    
-    ## Find position of user requested random effect
-    scale_ranef_position_user <-
-      which(ranef_scale_names == variable)
-    
-    ## Find position of user requested fixed effect
-    ## TODO: When interactions are present plot will change according to moderator...
-    ## Currently only main effect is selected
-    scale_fixef_position_user <-
-      which(fixef_scale_names == variable)
-    
-    ## Use ranef_position_user to select corresponding fixed effect
-    zeta <- mean( unlist( lapply(.extract_to_mcmc(obj), FUN = function(x) mean(x[, paste0("zeta[", scale_fixef_position_user, "]")])) ) )
-    
-    ## Extract the posterior mean of each random effect:        
-    pos <- scale_ranef_pos[ grepl( paste0(Kr + scale_ranef_position_user, "\\]"),  names(scale_ranef_pos ) ) ]
-    
-    u <-
-      colMeans(do.call(rbind, lapply(.extract_to_mcmc(obj ), FUN = function(x) colMeans(x[, pos]))))
-    tau <- exp(zeta + u )
-    
-  } else {
-    print("Invalid action specified. Exiting.")
-  }
 
-   ## Get mu's across chains
-  mu_combined <- lapply(obj$samples, function(chain) {
-    mu_indices <- grep("mu", colnames(chain$samples))
-    mu_samples <- chain$samples[, mu_indices, drop = FALSE]
-    return(mu_samples)
-  })
+    ## Get mu's across chains
+    mu_combined <- lapply(obj$samples, function(chain) {
+        mu_indices <- grep("mu", colnames(chain$samples))
+        mu_samples <- chain$samples[, mu_indices, drop = FALSE]
+        return(mu_samples)
+    })
 
-  ## Get tau's across chains
-  ## tau_combined <- lapply(obj$samples, function(chain) {
-  ##   tau_indices <- grep("tau", colnames(chain$samples))
-  ##   tau_samples <- chain$samples[, tau_indices, drop = FALSE]
-  ##   return(tau_samples)
-  ## })
+    ## Get tau's across chains
+    ## tau_combined <- lapply(obj$samples, function(chain) {
+    ##   tau_indices <- grep("tau", colnames(chain$samples))
+    ##   tau_samples <- chain$samples[, tau_indices, drop = FALSE]
+    ##   return(tau_samples)
+    ## })
 
-# Combine chains into one large matrix
+    # Combine chains into one large matrix
 
-  # Compute the posterior means
-  #posterior_tau_means <- colMeans(do.call(rbind, tau_combined))
-  posterior_mu_means <- colMeans(do.call(rbind, mu_combined))
+    # Compute the posterior means
+    # posterior_tau_means <- colMeans(do.call(rbind, tau_combined))
+    posterior_mu_means <- colMeans(do.call(rbind, mu_combined))
 
-  #tau <- tapply(posterior_tau_means, obj$Y$group_id, mean)
-  mu <- tapply(posterior_mu_means, obj$Y$group_id, mean)
+    # tau <- tapply(posterior_tau_means, obj$Y$group_id, mean)
+    mu <- tapply(posterior_mu_means, obj$Y$group_id, mean)
 
-  ## Add tau and mu to data frame -- ensure correct order
-  df_pip <-
-    cbind(df_pip[order(df_pip$id), ], tau )
-  df_pip <-
-    cbind(df_pip[order(df_pip$id), ], mu )
+    ## Add tau and mu to data frame -- ensure correct order
+    df_pip <-
+        cbind(df_pip[order(df_pip$id), ], tau)
+    df_pip <-
+        cbind(df_pip[order(df_pip$id), ], mu)
 
-  
-  if( type == "pip") {
-      ##
-      ## plt <- ggplot(df_pip, aes(x = ordered, y = pip)) +
-      ##   geom_point(data = subset(df_pip, pip < pip_level), alpha = .4 , size = 3) +
-      ##   geom_point(data = subset(df_pip, pip >= pip_level),
-      ##              aes(color = as.factor(id)), size = 3) +
-      ##   geom_abline(intercept = pip_level, slope = 0, lty =  3)+
-      ##   geom_abline(intercept = pip_level - .5, slope = 0, lty =  3)+
-      ##   ylim(c(0, 1 ) ) + ggtitle(variable )+
-      ##   scale_color_discrete(name = "Cluster ID")
-      ## print(plt )
-      ## 1. Create the base plot *without* the labels
-      plt <- ggplot(df_pip, aes(x = ordered, y = pip)) +
-          geom_point(data = subset(df_pip, pip < pip_level),
-                     alpha = .3, size = 5, shape = 21,
-                     fill = "grey40", color = "black") +
-          geom_jitter(data = subset(df_pip, pip >= pip_level),
-                      fill = "#0265a5", size = 5, shape = 21,
-                      color = "white") +
-          geom_abline(intercept = pip_level, slope = 0, lty = 3) +
-          labs(x = "Ordered index",
-               y = "Posterior Inclusion Probability",
-               title = "Intercept") +
-          theme(
-              axis.title.x = element_text(hjust = 0.5),
-              axis.title.y = element_text(hjust = 0.5)
-          )
 
-      ## 2. Conditionally add the label layer to the existing plot object
-      if (label_points) {
-          .require_suggest("ggrepel", "`geom_label_repel()`")
-          plt <- plt + ggrepel::geom_label_repel(
-                                    data = subset(df_pip, pip >= pip_level),
-                                    aes(label = id),
-                                    force = 100,
-                                    box.padding = 0.35,
-                                    point.padding = 0.5,
-                                    segment.color = "grey50",
-                                    direction = "x",
-                                    ...
-                                )
-      }
-      
-      print(plt)
-      
-  } else if ( type == "funnel" ) {
-      
-      ## Make nudge scale dependent:
-      ## (not used)
-      # nx <- (max(df_funnel$tau ) - min(df_funnel$tau ))/50
+    if (type == "pip") {
+        ##
+        ## plt <- ggplot(df_pip, aes(x = ordered, y = pip)) +
+        ##   geom_point(data = subset(df_pip, pip < pip_level), alpha = .4 , size = 3) +
+        ##   geom_point(data = subset(df_pip, pip >= pip_level),
+        ##              aes(color = as.factor(id)), size = 3) +
+        ##   geom_abline(intercept = pip_level, slope = 0, lty =  3)+
+        ##   geom_abline(intercept = pip_level - .5, slope = 0, lty =  3)+
+        ##   ylim(c(0, 1 ) ) + ggtitle(variable )+
+        ##   scale_color_discrete(name = "Cluster ID")
+        ## print(plt )
+        ## 1. Create the base plot *without* the labels
+        plt <- ggplot(df_pip, aes(x = ordered, y = pip)) +
+            geom_point(
+                data = subset(df_pip, pip < pip_level),
+                alpha = .3, size = 5, shape = 21,
+                fill = "grey40", color = "black"
+            ) +
+            geom_jitter(
+                data = subset(df_pip, pip >= pip_level),
+                fill = "#0265a5", size = 5, shape = 21,
+                color = "white"
+            ) +
+            geom_abline(intercept = pip_level, slope = 0, lty = 3) +
+            labs(
+                x = "Ordered index",
+                y = "Posterior Inclusion Probability",
+                title = "Intercept"
+            ) +
+            theme(
+                axis.title.x = element_text(hjust = 0.5),
+                axis.title.y = element_text(hjust = 0.5)
+            )
 
-      ## plt <- ggplot(df_funnel, aes(x = tau, y = pip)) +
-      ##   geom_point(data = subset(df_funnel, pip < pip_level), alpha = .4 ) +
-      ##   geom_point(data = subset(df_funnel, pip >= pip_level),
-      ##              aes(color = as.factor(id))) +
-      ##   labs(x = "Within-Cluster SD") +
-      ##   # geom_text(data = subset(df_funnel, pip >= pip_level),
-      ##   #           aes(label = id),
-      ##   #           nudge_x = -nx,
-      ##   #           size = 3)+
-      ##   geom_abline(intercept = pip_level, slope = 0, lty =  3)+
-      ##   geom_abline(intercept = pip_level - .5, slope = 0, lty =  3)+
-      ##   ylim(c(0, 1 ) )+ggtitle(variable) +
-      ##   scale_color_discrete(name = "Cluster ID")
+        ## 2. Conditionally add the label layer to the existing plot object
+        if (label_points) {
+            .require_suggest("ggrepel", "`geom_label_repel()`")
+            plt <- plt + ggrepel::geom_label_repel(
+                data = subset(df_pip, pip >= pip_level),
+                aes(label = id),
+                force = 100,
+                box.padding = 0.35,
+                point.padding = 0.5,
+                segment.color = "grey50",
+                direction = "x",
+                ...
+            )
+        }
 
-      plt <- ggplot(df_pip, aes(x = tau, y = pip)) +
-          geom_point(data = subset(df_pip, pip < pip_level),
-                     alpha = .3,
-                     size = 5,
-                     shape = 21,
-                     fill = "grey40",
-                     color = "white") +
-          geom_jitter(data = subset(df_pip, pip >= pip_level),
-                      fill = "#0265a5",
-                      size = 5,
-                      shape = 21,
-                      position = "jitter",
-                      color = "white") +
-          labs(x = "Within-Cluster SD") +
-          
-          geom_abline(intercept = pip_level, slope = 0, lty =  3) +
-          ggtitle(variable) +
-          guides(fill = "none")
-      
-      if (label_points) {
-          .require_suggest("ggrepel", "`geom_text_repel()`")
-          plt <- plt + ggrepel::geom_text_repel(
-                                    data = subset(df_pip, pip >= pip_level),
-                                    aes(label = id),
-                                    point.padding = 0.5,
-                                    ...
-                                )
-      }
-      
-      print( plt )
-      
-      
-  } else if ( type == "outcome") {
-      ## Declare global variable to avoid R CMD check NOTE
-      
-      plt <- ggplot(df_pip, aes(x = mu, y = pip, fill = tau)) +
-          geom_point(data = subset(df_pip, pip < pip_level),
-                     alpha = .3, stroke = 1,
-                     shape = 21, color = "grey40", size = 5) +
-          geom_point(data = subset(df_pip, pip >= pip_level),
-                     shape = 21,
-                     size=5) +
-          geom_abline(intercept = pip_level, slope = 0, lty =  3) +
-          scale_fill_gradient2(
-              midpoint = median(df_pip$tau, na.rm = TRUE),
-            , low = "#2166ACFF", high = "#B2182BFF"
-            , mid = "#F7F7F7FF"
-            , name = "Within-cluster SD"
-          ) +
-          scale_color_gradient2(
-              midpoint = median(df_pip$tau, na.rm = TRUE),
-            , low = "#2166ACFF", high = "#B2182BFF"
-            , mid = "#F7F7F7FF", guide='none') +
-          labs(x = "Cluster mean",
-               y = "Posterior Inclusion Probability",
-               title = variable) +
-          guides(
-              fill = guide_colorbar(
-                  direction = "vertical",
-                  title.position = "left",
-                  barwidth = unit(0.8, "lines"),
-                  barheight = unit(10, "lines")
-              )
-          ) +
-          theme(
-              axis.title.x = element_text(hjust = 0.5),
-              axis.title.y = element_text(hjust = 0.5),
-              legend.position = "right",
-              legend.title = element_text(
-                  angle = 90,
-                  hjust = 0.5
-              )
-          )
+        print(plt)
+    } else if (type == "funnel") {
+        ## Make nudge scale dependent:
+        ## (not used)
+        # nx <- (max(df_funnel$tau ) - min(df_funnel$tau ))/50
 
-      if (label_points) {
-          .require_suggest("ggrepel", "`geom_text_repel()`")
-          plt <- plt + geom_text_repel(data = subset(df_pip, pip >= pip_level),
-                                       aes(label = id),
-                                       point.padding = 0.5,
-                                       ...
-                                       )
-      }
-      
-      print(plt )
-      ## Y <- NA
+        ## plt <- ggplot(df_funnel, aes(x = tau, y = pip)) +
+        ##   geom_point(data = subset(df_funnel, pip < pip_level), alpha = .4 ) +
+        ##   geom_point(data = subset(df_funnel, pip >= pip_level),
+        ##              aes(color = as.factor(id))) +
+        ##   labs(x = "Within-Cluster SD") +
+        ##   # geom_text(data = subset(df_funnel, pip >= pip_level),
+        ##   #           aes(label = id),
+        ##   #           nudge_x = -nx,
+        ##   #           size = 3)+
+        ##   geom_abline(intercept = pip_level, slope = 0, lty =  3)+
+        ##   geom_abline(intercept = pip_level - .5, slope = 0, lty =  3)+
+        ##   ylim(c(0, 1 ) )+ggtitle(variable) +
+        ##   scale_color_discrete(name = "Cluster ID")
 
-    ## df_y <- merge(df_pip,
-    ##               aggregate(Y ~ group_id, data = obj$Y, FUN = mean),
-    ##               by.x = "id", by.y = "group_id")
-    ## df_y$tau <- tau
-    ## ##
-    ## plt <- ggplot(df_y, aes(x = Y, y = pip)) +
-    ##   geom_point(data = subset(df_y, pip < pip_level), aes(size=tau), alpha = .4) +
-    ##   geom_point(data = subset(df_y, pip >= pip_level),
-    ##              aes(color = as.factor(id), size = tau)) +
-    ##   geom_abline(intercept = pip_level, slope = 0, lty =  3)+
-    ##   geom_abline(intercept = pip_level - .5, slope = 0, lty =  3)+
-    ##   ylim(c(0, 1 ) ) +
-    ##   ggtitle(variable ) +
-    ##   scale_color_discrete(name = "Cluster ID") +
-    ##   guides(size = "none")
+        plt <- ggplot(df_pip, aes(x = tau, y = pip)) +
+            geom_point(
+                data = subset(df_pip, pip < pip_level),
+                alpha = .3,
+                size = 5,
+                shape = 21,
+                fill = "grey40",
+                color = "white"
+            ) +
+            geom_jitter(
+                data = subset(df_pip, pip >= pip_level),
+                fill = "#0265a5",
+                size = 5,
+                shape = 21,
+                position = "jitter",
+                color = "white"
+            ) +
+            labs(x = "Within-Cluster SD") +
+            geom_abline(intercept = pip_level, slope = 0, lty = 3) +
+            ggtitle(variable) +
+            guides(fill = "none")
 
-  } else {
-    stop("Invalid plot type. Please choose between 'pip', 'funnel' or 'outcome'.")
-  }
-  return(invisible(plt))  
+        if (label_points) {
+            .require_suggest("ggrepel", "`geom_text_repel()`")
+            plt <- plt + ggrepel::geom_text_repel(
+                data = subset(df_pip, pip >= pip_level),
+                aes(label = id),
+                point.padding = 0.5,
+                ...
+            )
+        }
+
+        print(plt)
+    } else if (type == "outcome") {
+        ## Declare global variable to avoid R CMD check NOTE
+
+        plt <- ggplot(df_pip, aes(x = mu, y = pip, fill = tau)) +
+            geom_point(
+                data = subset(df_pip, pip < pip_level),
+                alpha = .3, stroke = 1,
+                shape = 21, color = "grey40", size = 5
+            ) +
+            geom_point(
+                data = subset(df_pip, pip >= pip_level),
+                shape = 21,
+                size = 5
+            ) +
+            geom_abline(intercept = pip_level, slope = 0, lty = 3) +
+            scale_fill_gradient2(
+                midpoint = median(df_pip$tau, na.rm = TRUE), ,
+                low = "#2166ACFF", high = "#B2182BFF",
+                mid = "#F7F7F7FF",
+                name = "Within-cluster SD"
+            ) +
+            scale_color_gradient2(
+                midpoint = median(df_pip$tau, na.rm = TRUE), ,
+                low = "#2166ACFF", high = "#B2182BFF",
+                mid = "#F7F7F7FF", guide = "none"
+            ) +
+            labs(
+                x = "Cluster mean",
+                y = "Posterior Inclusion Probability",
+                title = variable
+            ) +
+            guides(
+                fill = guide_colorbar(
+                    direction = "vertical",
+                    title.position = "left",
+                    barwidth = unit(0.8, "lines"),
+                    barheight = unit(10, "lines")
+                )
+            ) +
+            theme(
+                axis.title.x = element_text(hjust = 0.5),
+                axis.title.y = element_text(hjust = 0.5),
+                legend.position = "right",
+                legend.title = element_text(
+                    angle = 90,
+                    hjust = 0.5
+                )
+            )
+
+        if (label_points) {
+            .require_suggest("ggrepel", "`geom_text_repel()`")
+            plt <- plt + geom_text_repel(
+                data = subset(df_pip, pip >= pip_level),
+                aes(label = id),
+                point.padding = 0.5,
+                ...
+            )
+        }
+
+        print(plt)
+        ## Y <- NA
+
+        ## df_y <- merge(df_pip,
+        ##               aggregate(Y ~ group_id, data = obj$Y, FUN = mean),
+        ##               by.x = "id", by.y = "group_id")
+        ## df_y$tau <- tau
+        ## ##
+        ## plt <- ggplot(df_y, aes(x = Y, y = pip)) +
+        ##   geom_point(data = subset(df_y, pip < pip_level), aes(size=tau), alpha = .4) +
+        ##   geom_point(data = subset(df_y, pip >= pip_level),
+        ##              aes(color = as.factor(id), size = tau)) +
+        ##   geom_abline(intercept = pip_level, slope = 0, lty =  3)+
+        ##   geom_abline(intercept = pip_level - .5, slope = 0, lty =  3)+
+        ##   ylim(c(0, 1 ) ) +
+        ##   ggtitle(variable ) +
+        ##   scale_color_discrete(name = "Cluster ID") +
+        ##   guides(size = "none")
+    } else {
+        stop("Invalid plot type. Please choose between 'pip', 'funnel' or 'outcome'.")
+    }
+    return(invisible(plt))
 }
 
 
 ##' For more plots see coda
 ##' @title Traceplot from the coda package
 ##' @param obj ivd object
-##' @param parameters Provide parameters of interest using names from the summary() output (e.g., "Intc", "scl_Intc", "sd_Intc", "R[scl_Intc, Intc]", "pip[Intc, 5]"). Defaults to NULL (plots all parameters).
+##' @param parameters Provide parameters of interest using names from the summary() output (e.g., "Intc", "scl_Intc", "sd_Intc", "R\\[scl_Intc, Intc\\]", "pip\\[Intc, 5\\]"). Defaults to NULL (plots all parameters).
 ##' @param type Coda plot. Defaults to 'traceplot'. See coda for more options such as 'acfplot', 'densplot' etc.
 ##' @param askNewPage Should user be prompted for next plot. Defaults to `TRUE`
 ##' @return Specified coda plot
@@ -412,7 +426,7 @@ codaplot <- function(obj, parameters = NULL, type = 'traceplot', askNewPage = TR
     internal_names[zeta_index] <- paste0("scl_", colnames(obj$X_scale))
   }
   ## Random effects SD (diagonal of sigma_rand)
-  sigma_rand_index <- grep('^sigma_rand\\[(\\d+), \\1\\]', internal_names) # Only diagonal
+  sigma_rand_index <- grep('^sigma_rand\\[(\\d+)]', internal_names) # Only diagonal
   sd_names <- c(obj$Z_location_names, paste0("scl_", colnames(obj$Z_scale)))
   if(length(sigma_rand_index) > 0 && length(sigma_rand_index) == length(sd_names)) {
     internal_names[sigma_rand_index] <- paste0("sd_", sd_names)
@@ -424,7 +438,7 @@ codaplot <- function(obj, parameters = NULL, type = 'traceplot', askNewPage = TR
   ## Place holder variable: R is indexed as vech
   M <- matrix(1:cols^2, ncol = cols )
   ## record positions
-  vech <- M[lower.tri(M )]
+  vech <- M[lower.tri(M)]
   ## match variable names to position
   corrvar <- expand.grid(sd_names, sd_names)[vech,]
   R_index <-  grep('R\\[', internal_names)

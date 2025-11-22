@@ -4,7 +4,7 @@
 \alias{summary.ivd}
 \title{Summary of posterior samples}
 \usage{
-\method{summary}{ivd}(object, digits = 2, pip = "all", ...)
+\method{summary}{ivd}(object, digits = 3, pip = "all", ...)
 }
 \arguments{
 \item{object}{ivd object}

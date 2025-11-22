@@ -16,7 +16,8 @@ test_that("plot.ivd creates a funnel plot correctly", {
 ## Codaplots
 test_that("codaplot works correctly with specified parameters", {
   skip_if(Sys.getenv("R_COVR") == "true", "Skipping ivd test during coverage")
-  expect_error(codaplot(testoutput, parameters = c("R[scl_Intc, Intc]")), NA) # Expect no error
+  expect_error(codaplot(testoutput, parameters = c("Intc")), NA
+  ) # Expect no error
 })
 
 test_that("codaplot works correctly with specified parameters", {
