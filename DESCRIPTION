@@ -1,6 +1,6 @@
 Package: ivd
 Type: Package
-Title: Individual Variance Detection 
+Title: "Individual Variance Detection"
 Version: 1.0.0.9000
 Authors@R:
 	c(
@@ -15,7 +15,7 @@ Authors@R:
 	email = "mmcarmo@ucdavis.edu")
 	)
 Maintainer: Philippe Rast <rast.ph@gmail.com>
-Description: Fit mixed-effects models with spike-and-slab priors on the random effects to identify units with unusual residual variances.
+Description: Fit mixed-effects location scale models with spike-and-slab priors on the location random effects to identify units with unusual residual variances. The method is described in detail in Carmo, Williams and Rast (2025) <doi:https://doi.org/10.31234/osf.io/sh6ne>.
 License: GPL (>=3)
 Encoding: UTF-8
 LazyData: true

@@ -21,6 +21,23 @@
 ##' @param variable Name of a specific variable. Defaults to `NULL`
 ##' @param label_points Should points above the pip threshold be labelled? Defaults to `TRUE`.
 ##' @param ... Controls ggrepel aruments.
+#' @return
+#' Invisibly returns a \code{ggplot} object corresponding to the selected plot
+#' type. The primary purpose of this method is the side effect of displaying the
+#' plot.
+#'
+#' The exact plot depends on the value of \code{type}:
+#' \itemize{
+#'   \item \code{"pip"} — Posterior inclusion probability plot for random scale
+#'         effects.
+#'   \item \code{"funnel"} — Funnel plot showing the relation between within-cluster
+#'         standard deviation (\code{tau}) and posterior inclusion probabilities.
+#'   \item \code{"outcome"} — Outcome plot relating cluster means (\code{mu}),
+#'         posterior inclusion probability, and within-cluster SD.
+#' }
+#'
+#' When \code{label_points = TRUE}, labels for clusters exceeding the
+#' \code{pip_level} threshold are added using \pkg{ggrepel} (if available).
 ##' @author Philippe Rast
 ##' @import ggplot2
 ##' @importFrom patchwork plot_layout
@@ -93,12 +110,6 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
             scale_ranef_position_user <- choice
             variable <- ranef_scale_names[scale_ranef_position_user]
 
-
-            ## ## Prompt user for action when there are multiple random effects
-            ## variable <- readline(prompt="There are multiple random effects. Please provide the variable name to be plotted or type 'list' \n(or specify as plot(fitted, type = 'funnel', variable = 'variable_name'): ")
-            ## if (tolower(variable) == "list") {
-            ##   variable <- readline(prompt = cat(ranef_scale_names, ": "))
-            ## }
         }
 
         ## Find position of user requested random effect
@@ -112,7 +123,6 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
         df_pip <- df_pip[order(df_pip$pip), ]
         df_pip$ordered <- 1:nrow(df_pip)
     }
-
 
     ## find scale random effects
     ## Extract numbers and find locations
@@ -138,13 +148,6 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
         u <- colMeans(do.call(rbind, lapply(.extract_to_mcmc(obj), FUN = function(x) colMeans(x[, scale_ranef_pos]))))
         tau <- exp(zeta + u)
     } else if (no_ranef_s > 1) {
-        ## if(is.null(variable)) {
-        ##   ## Prompt user for action when there are multiple random effects
-        ##   variable <- readline(prompt="There are multiple random effects. Please provide the variable name to be plotted or type 'list' \n(or specify as plot(fitted, type = 'funnel', variable = 'variable_name'): ")
-        ##   if (tolower(variable) == "list") {
-        ##     variable <- readline(prompt = cat(ranef_scale_names, ": "))
-        ##   }
-        ## }
 
         ## Find position of user requested random effect
         scale_ranef_position_user <-
@@ -176,13 +179,6 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
         return(mu_samples)
     })
 
-    ## Get tau's across chains
-    ## tau_combined <- lapply(obj$samples, function(chain) {
-    ##   tau_indices <- grep("tau", colnames(chain$samples))
-    ##   tau_samples <- chain$samples[, tau_indices, drop = FALSE]
-    ##   return(tau_samples)
-    ## })
-
     # Combine chains into one large matrix
 
     # Compute the posterior means
@@ -200,16 +196,6 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
 
 
     if (type == "pip") {
-        ##
-        ## plt <- ggplot(df_pip, aes(x = ordered, y = pip)) +
-        ##   geom_point(data = subset(df_pip, pip < pip_level), alpha = .4 , size = 3) +
-        ##   geom_point(data = subset(df_pip, pip >= pip_level),
-        ##              aes(color = as.factor(id)), size = 3) +
-        ##   geom_abline(intercept = pip_level, slope = 0, lty =  3)+
-        ##   geom_abline(intercept = pip_level - .5, slope = 0, lty =  3)+
-        ##   ylim(c(0, 1 ) ) + ggtitle(variable )+
-        ##   scale_color_discrete(name = "Cluster ID")
-        ## print(plt )
         ## 1. Create the base plot *without* the labels
         plt <- ggplot(df_pip, aes(x = ordered, y = pip)) +
             geom_point(
@@ -250,24 +236,6 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
 
         print(plt)
     } else if (type == "funnel") {
-        ## Make nudge scale dependent:
-        ## (not used)
-        # nx <- (max(df_funnel$tau ) - min(df_funnel$tau ))/50
-
-        ## plt <- ggplot(df_funnel, aes(x = tau, y = pip)) +
-        ##   geom_point(data = subset(df_funnel, pip < pip_level), alpha = .4 ) +
-        ##   geom_point(data = subset(df_funnel, pip >= pip_level),
-        ##              aes(color = as.factor(id))) +
-        ##   labs(x = "Within-Cluster SD") +
-        ##   # geom_text(data = subset(df_funnel, pip >= pip_level),
-        ##   #           aes(label = id),
-        ##   #           nudge_x = -nx,
-        ##   #           size = 3)+
-        ##   geom_abline(intercept = pip_level, slope = 0, lty =  3)+
-        ##   geom_abline(intercept = pip_level - .5, slope = 0, lty =  3)+
-        ##   ylim(c(0, 1 ) )+ggtitle(variable) +
-        ##   scale_color_discrete(name = "Cluster ID")
-
         plt <- ggplot(df_pip, aes(x = tau, y = pip)) +
             geom_point(
                 data = subset(df_pip, pip < pip_level),
@@ -361,23 +329,6 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
         }
 
         print(plt)
-        ## Y <- NA
-
-        ## df_y <- merge(df_pip,
-        ##               aggregate(Y ~ group_id, data = obj$Y, FUN = mean),
-        ##               by.x = "id", by.y = "group_id")
-        ## df_y$tau <- tau
-        ## ##
-        ## plt <- ggplot(df_y, aes(x = Y, y = pip)) +
-        ##   geom_point(data = subset(df_y, pip < pip_level), aes(size=tau), alpha = .4) +
-        ##   geom_point(data = subset(df_y, pip >= pip_level),
-        ##              aes(color = as.factor(id), size = tau)) +
-        ##   geom_abline(intercept = pip_level, slope = 0, lty =  3)+
-        ##   geom_abline(intercept = pip_level - .5, slope = 0, lty =  3)+
-        ##   ylim(c(0, 1 ) ) +
-        ##   ggtitle(variable ) +
-        ##   scale_color_discrete(name = "Cluster ID") +
-        ##   guides(size = "none")
     } else {
         stop("Invalid plot type. Please choose between 'pip', 'funnel' or 'outcome'.")
     }

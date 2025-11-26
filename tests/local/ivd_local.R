@@ -64,15 +64,23 @@ school_dat$ses_s <- scale(school_dat$ses)
 ## WAIC = TRUE
 ## workers = 4
 ## seed <- 123
+school_dat$mAch
 
 system.time({
     out <- ivd(
         location_formula = mAch_s ~ 1 + (1 | schoolid),
         scale_formula = ~ 1 + (1 | schoolid),
         data = school_dat,
-        niter = 1000, nburnin = 500, WAIC = FALSE, workers = 4, n_eff = "local"
+        niter = 300, nburnin = 250, workers = 4, n_eff = "local"
     )
 })
+
+str(out)
+out$nimble_constants
+
+
+plot(out, type = "pip")
+
 summary(out )
 codaplot(out, parameters = "Intc")
 

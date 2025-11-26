@@ -35,7 +35,7 @@ library(data.table)
 The illustration uses openly accessible data from The Basic Education
 Evaluation System (Saeb) conducted by Brazil’s National Institute for
 Educational Studies and Research (Inep), available at
-<https://www.gov.br/inep/pt-br/areas-de-atuacao/avaliacao-e-exames-educacionais/saeb/resultados>.
+<https://web.archive.org/web/20250202015037/https://www.gov.br/inep/pt-br/areas-de-atuacao/avaliacao-e-exames-educacionais/saeb/resultados>.
 It is also available as the `saeb` dataset in the `ivd` package.
 
 Separate within- from between-school effects. That is, besides

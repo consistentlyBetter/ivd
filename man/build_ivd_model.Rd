@@ -18,6 +18,20 @@ build_ivd_model(code, constants, dummy_data, dummy_inits, useWAIC = TRUE)
 
 \item{useWAIC}{Defaults to TRUE. Nimble argument}
 }
+\value{
+A named \code{list} with two elements:
+\itemize{
+\item \code{cmodel}: The compiled NIMBLE model object produced by
+\code{compileNimble()}.
+\item \code{cmcmc}: The compiled NIMBLE MCMC object, created using
+\code{buildMCMC()} and \code{compileNimble()}, configured to
+monitor the model parameters (including WAIC monitors if
+\code{useWAIC = TRUE}).
+}
+
+The function is intended for internal use (e.g., within parallel workers)
+and is not meant to be called directly by end users.
+}
 \description{
 Build and compile NIMBLE model and MCMC once
 This function is exported for use in 'future' and is not meant to be called by user.

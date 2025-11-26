@@ -33,6 +33,28 @@ run_MCMC_compiled_model(
 
 \item{...}{Placeholder for nimble arguments}
 }
+\value{
+The output produced by \code{nimble::runMCMC()} when applied to a compiled
+NIMBLE MCMC object.  The returned value depends on the \code{useWAIC}
+argument:
+
+\itemize{
+\item If \code{useWAIC = TRUE}, a named \code{list} containing:
+\itemize{
+\item \code{samples}: A matrix of posterior draws
+(iterations × parameters).
+\item \code{WAIC}: The WAIC value computed by NIMBLE.
+\item \code{...}: Additional elements returned by
+\code{runMCMC()} when WAIC is enabled.
+}
+
+\item If \code{useWAIC = FALSE}, a numeric matrix containing the posterior
+samples (iterations × parameters) with no additional elements.
+}
+
+This function is intended for internal use (e.g., within \code{future}
+workers) and is not meant to be called directly by end users.
+}
 \description{
 Run MCMC on an already compiled model
 Exposed but internal function for future()

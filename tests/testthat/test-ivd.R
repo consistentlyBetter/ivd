@@ -1,7 +1,7 @@
 ## Testing run_MCMC_allcode
 
 library(testthat)
-library(ivd) 
+library(ivd)
 library(nimble)
 
 # Mock inputs
@@ -88,37 +88,46 @@ test_that("Build and run MCMC with WAIC=FALSE", {
 
 
 test_that("run_MCMC_allcode handles incorrect data types", {
-  skip_if(Sys.getenv("R_COVR") == "true", "Skipping run_MCMC_allcode test during coverage")
-  
-  expect_error(run_MCMC_allcode(seed = 123, data = "wrong_type",
-                                constants = mock_constants,
-                                code = mock_code, niter = 10,
-                                nburnin = 5, useWAIC = TRUE, inits = mock_inits))
+    skip_if(Sys.getenv("R_COVR") == "true", "Skipping run_MCMC_allcode test during coverage")
+    
+    expect_error(run_MCMC_allcode(
+        seed = 123, data = "wrong_type",
+        constants = mock_constants,
+        code = mock_code, niter = 10,
+        nburnin = 5, useWAIC = TRUE, inits = mock_inits
+    ))
 
 })
 
 ## Testing ivd
 test_that("ivd sets up and runs with correct defaults and inputs", {
-  ## Skip the test if the R_COVR environment variable is set to true
-  skip_if(Sys.getenv("R_COVR") == "true", "Skipping ivd test during coverage")
-  
-  testoutput <- ivd(location_formula = Y ~ 1 + (1|grouping),
-                    scale_formula = ~ 1 + (1|grouping),
-                    data = data.frame(Y = rnorm(100), grouping = rep(1:10, each = 10)),
-                    niter = 100, nburnin = 50, WAIC = TRUE, workers = 2)
-  expect_s3_class(testoutput, "ivd")
-  expect_equal(length(testoutput$samples), 2) # Assuming workers = 2
-  expect_equal(testoutput$workers, 2)
+    ## Skip the test if the R_COVR environment variable is set to true
+    skip_if(Sys.getenv("R_COVR") == "true", "Skipping ivd test during coverage")
+
+    testoutput <- suppressWarnings({
+        ivd(
+            location_formula = Y ~ 1 + (1 | grouping),
+            scale_formula = ~ 1 + (1 | grouping),
+            data = data.frame(Y = rnorm(100), grouping = rep(1:10, each = 10)),
+            niter = 100, nburnin = 50, WAIC = TRUE, workers = 2
+        )
+    })
+    expect_s3_class(testoutput, "ivd")
+    expect_equal(length(testoutput$samples), 2) # Assuming workers = 2
+    expect_equal(testoutput$workers, 2)
 })
 
-
 test_that("ivd handles missing formulas", {
-  expect_error(ivd(data = data.frame(Y = rnorm(100), X = 1:100),
-                   niter = 100, nburnin = 50, workers = 2))
+    expect_error(ivd(
+        data = data.frame(Y = rnorm(100), X = 1:100),
+        niter = 100, nburnin = 50, workers = 2
+    ))
 })
 
 test_that("ivd manages zero workers", {
-  expect_error(ivd(location_formula = ~1, scale_formula = ~1,
-                   data = data.frame(Y = rnorm(100), X = 1:100),
-                   niter = 100, nburnin = 50, WAIC = TRUE, workers = 0))
+    expect_error(ivd(
+        location_formula = ~1, scale_formula = ~1,
+        data = data.frame(Y = rnorm(100), X = 1:100),
+        niter = 100, nburnin = 50, WAIC = TRUE, workers = 0
+    ))
 })

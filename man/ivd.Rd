@@ -40,8 +40,63 @@ ivd(
 
 \item{...}{Currently not used}
 }
+\value{
+An object of class \code{"ivd"} (and \code{"list"}), which contains the
+results from fitting a mixed-effects location-scale model with Spike-and-Slab
+regularization using NIMBLE and parallel MCMC sampling.
+
+The returned object is a named list with the following components:
+\itemize{
+\item \code{samples}: An \code{mcmc.list} object containing posterior
+samples for all monitored parameters across all chains.
+
+\item \code{logLik_array}: A 3D array of pointwise log-likelihood
+values with dimensions \code{iterations × chains × N}.
+
+\item \code{rhat_values}: Vector of split-\eqn{\hat{R}} convergence
+diagnostics (Vehtari et al., 2021).
+
+\item \code{n_eff}: Vector of effective sample sizes, either computed
+internally ("local") or via \code{rstan::monitor()} ("stan").
+
+\item \code{nimble_constants}: List of model constants used by the
+underlying NIMBLE model (e.g., number of groups, number of parameters).
+
+\item \code{X_location_names}, \code{Z_location_names}:
+Names of fixed and random effects in the location submodel.
+
+\item \code{X_scale}, \code{Z_scale}:
+Matrices used for the scale submodel’s fixed and random effects.
+
+\item \code{Y}: Data frame with the response vector and group identifiers.
+
+\item \code{workers}: Number of parallel chains used.
+
+\item \code{...}: Additional elements created internally and used for
+downstream S3 methods (\code{print()}, \code{summary()}, etc.).
+}
+
+The object is designed to support S3 methods for printing, summarizing,
+and extracting results from the \code{ivd} model.
+}
 \description{
 Main function to set up and run parallel MCMC using nimble and future.
 \code{ivd} computes a mixed effects location and scale model with Spike and Slab regularization
 on the scale random effects.
+}
+\examples{
+\donttest{
+out <- ivd(location_formula = math_proficiency ~ 1 + (1 | school_id),
+   scale_formula =  ~ 1 + (1 | school_id),
+   data = saeb,
+   niter = 1000, nburnin = 2000, WAIC = TRUE, workers = 6)
+## Posterior inclusion probability plot (PIP)
+plot(out, type = "pip")
+## PIP vs. Within-cluster SD
+plot(out, type =  "funnel")
+## Diagnostic plots based on coda plots:
+library(coda)
+codaplot(out, parameters =  "Intc")
+codaplot(out, parameters =  "R[scl_Intc, Intc]")
+}
 }

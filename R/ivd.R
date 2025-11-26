@@ -7,6 +7,19 @@
 ##' @param dummy_data Data
 ##' @param dummy_inits inits
 ##' @param useWAIC Defaults to TRUE. Nimble argument
+##' @return
+#' A named \code{list} with two elements:
+#' \itemize{
+#'   \item \code{cmodel}: The compiled NIMBLE model object produced by
+#'         \code{compileNimble()}.
+#'   \item \code{cmcmc}: The compiled NIMBLE MCMC object, created using
+#'         \code{buildMCMC()} and \code{compileNimble()}, configured to
+#'         monitor the model parameters (including WAIC monitors if
+#'         \code{useWAIC = TRUE}).
+#' }
+#'
+#' The function is intended for internal use (e.g., within parallel workers)
+#' and is not meant to be called directly by end users.
 build_ivd_model <- function(code, constants, dummy_data, dummy_inits, useWAIC = TRUE) {
     model <- nimbleModel(code = code, data = dummy_data, constants = constants, inits = dummy_inits)
     cmodel <- compileNimble(model)
@@ -33,6 +46,27 @@ build_ivd_model <- function(code, constants, dummy_data, dummy_inits, useWAIC = 
 ##' @param nburnin Number of burnin iterations
 ##' @param useWAIC Defaults to TRUE
 ##' @param ... Placeholder for nimble arguments
+#' @return
+#' The output produced by \code{nimble::runMCMC()} when applied to a compiled
+#' NIMBLE MCMC object.  The returned value depends on the \code{useWAIC}
+#' argument:
+#'
+#' \itemize{
+#'   \item If \code{useWAIC = TRUE}, a named \code{list} containing:
+#'     \itemize{
+#'       \item \code{samples}: A matrix of posterior draws
+#'             (iterations × parameters).
+#'       \item \code{WAIC}: The WAIC value computed by NIMBLE.
+#'       \item \code{...}: Additional elements returned by
+#'             \code{runMCMC()} when WAIC is enabled.
+#'     }
+#'
+#'   \item If \code{useWAIC = FALSE}, a numeric matrix containing the posterior
+#'         samples (iterations × parameters) with no additional elements.
+#' }
+#'
+#' This function is intended for internal use (e.g., within \code{future}
+#' workers) and is not meant to be called directly by end users.
 ##' @export
 run_MCMC_compiled_model <- function(compiled, seed, new_data, new_inits, niter, nburnin, useWAIC = TRUE, ...) {
   compiled$cmodel$setData(new_data)
@@ -42,104 +76,22 @@ run_MCMC_compiled_model <- function(compiled, seed, new_data, new_inits, niter, 
   return(samples)
 }
 
-## ##' Create a function to be loaded on each worker.
-## ##' This function needs to be exported for `future` to be able to load it.
-## ##' @param seed Inherits from ivd  
-## ##' @param data Inherits from ivd
-## ##' @param constants Inherits from ivd
-## ##' @param code Inherits from ivd
-## ##' @param niter Inherits from ivd
-## ##' @param nburnin Inherits from ivd
-## ##' @param useWAIC Inherits from ivd
-## ##' @param inits Inherits from ivd
-## ##' @param ... additional arguments
-## ##' @import nimble
-## ##' @export
-## run_MCMC_allcode <- function(seed, data, constants, code, niter, nburnin, useWAIC = WAIC, inits, ...) {
-##   ## See Nimble cheat sheet: https://r-nimble.org/cheatsheets/NimbleCheatSheet.pdf
-##   ## Create model object
-##   myModel <- nimble::nimbleModel(code = code,
-##                                  data = data,
-##                                  constants = constants,
-##                                  inits = inits)
-##   ## Compile baseline model
-##   cmpModel <- nimble::compileNimble(myModel)
-
-  
-##   ## Configure MCMC
-##   config <- nimble::configureMCMC(myModel)
-##   ## Enable WAIC if useWAIC is TRUE
-##   if (useWAIC) {
-##     config$enableWAIC <- useWAIC
-##   }
-##   config$monitors <- c("beta", "zeta", "R", "ss", "sigma_rand", "u")
-##   config$addMonitors(c("mu", "tau"))
-  
-##   ## build mcmc object
-##   myMCMC <- nimble::buildMCMC(config)
-
-##   ## Recompile myMCMC linking it to cmpModel
-##   compMCMC <- nimble::compileNimble(myMCMC, project = cmpModel)
-  
-##   ## Run model
-##   results <- nimble::runMCMC(compMCMC, niter = niter, setSeed = seed, nburnin = nburnin, WAIC = useWAIC, ...)
-##   return( results )
-## }
-
-## Create Cholesky L
-## invvec_to_corr <- nimble::nimbleFunction(
-##   run = function(V = double(1), P = integer()) {
-##     returnType(double(2))
-
-##     # Create a lower triangular matrix z with diagonal 0
-##     z <- matrix(0, nrow = P, ncol = P)
-##     index <- 1
-##     for (j in 1:(P-1)) {
-##       for (i in (j+1):P) {
-##         z[i, j] <- V[index]  # Fill the lower triangular part with correlations
-##         index <- index + 1
-##       }
-##     }
-
-##     # Construct the Cholesky factor L
-##     L <- matrix(0, nrow = P, ncol = P)
-
-##     for (i in 1:P) {
-##       for (j in 1:P) {
-##         if (i < j) {
-##           L[i, j] <- 0.0
-##         }
-##         if (i == j) {
-##           if (i == 1) {
-##             L[i, j] <- 1.0
-##           }
-##           if (i > 1) {  # Diagonal beyond [1,1]
-##             L[i, j] <- sqrt(1 - sum(L[i, 1:j]^2))
-##           }
-##         }
-##         if (i > j) {
-##           L[i, j] <- z[i, j] * sqrt(1 - sum(L[i, 1:j]^2))
-##         }
-##       }
-##     }
-
-##     return(L)
-##   }
-## )
-
+## Leave outside of main ivd function for future to find it
 uppertri_mult_diag <- nimbleFunction(
     run = function(mat = double(2), vec = double(1)) {
         returnType(double(2))
         p <- length(vec)
         out <- matrix(nrow = p, ncol = p, init = FALSE)
-        for(i in 1:p)
-            out[ , i] <- mat[ , i] * vec[i]
+        for (i in 1:p) {
+            out[, i] <- mat[, i] * vec[i]
+        }
         return(out)
-    })
+    }
+)
 
 #' Main function to set up and run parallel MCMC using nimble and future.
 #' `ivd` computes a mixed effects location and scale model with Spike and Slab regularization
-#' on the scale random effects. 
+#' on the scale random effects.
 #' @param location_formula A formula for the location model
 #' @param scale_formula A formula for the scale model
 #' @param data Data frame in long format for analysis
@@ -148,8 +100,47 @@ uppertri_mult_diag <- nimbleFunction(
 #' @param WAIC Compute WAIC, defaults to 'TRUE'
 #' @param workers Number of parallel R processes -- doubles as 'chains' argument
 #' @param n_eff Use stan::monitor function or built local: 'stan' vs. 'local'
-#' @param ss_prior_p Prior inclusion probability. Defaults to '.5'.  
+#' @param ss_prior_p Prior inclusion probability. Defaults to '.5'.
 #' @param ... Currently not used
+#' @return
+#' An object of class \code{"ivd"} (and \code{"list"}), which contains the
+#' results from fitting a mixed-effects location-scale model with Spike-and-Slab
+#' regularization using NIMBLE and parallel MCMC sampling.  
+#'
+#' The returned object is a named list with the following components:
+#' \itemize{
+#'   \item \code{samples}: An \code{mcmc.list} object containing posterior
+#'         samples for all monitored parameters across all chains.
+#'
+#'   \item \code{logLik_array}: A 3D array of pointwise log-likelihood
+#'         values with dimensions \code{iterations × chains × N}.
+#'
+#'   \item \code{rhat_values}: Vector of split-\eqn{\hat{R}} convergence
+#'         diagnostics (Vehtari et al., 2021).
+#'
+#'   \item \code{n_eff}: Vector of effective sample sizes, either computed
+#'         internally ("local") or via \code{rstan::monitor()} ("stan").
+#'
+#'   \item \code{nimble_constants}: List of model constants used by the
+#'         underlying NIMBLE model (e.g., number of groups, number of parameters).
+#'
+#'   \item \code{X_location_names}, \code{Z_location_names}:
+#'         Names of fixed and random effects in the location submodel.
+#'
+#'   \item \code{X_scale}, \code{Z_scale}:
+#'         Matrices used for the scale submodel’s fixed and random effects.
+#'
+#'   \item \code{Y}: Data frame with the response vector and group identifiers.
+#'
+#'   \item \code{workers}: Number of parallel chains used.
+#'
+#'   \item \code{...}: Additional elements created internally and used for
+#'         downstream S3 methods (\code{print()}, \code{summary()}, etc.).
+#' }
+#'
+#' The object is designed to support S3 methods for printing, summarizing,
+#' and extracting results from the \code{ivd} model.
+#' 
 #' @import future
 #' @importFrom future.apply future_lapply
 #' @importFrom coda as.mcmc mcmc.list
@@ -157,8 +148,23 @@ uppertri_mult_diag <- nimbleFunction(
 #' @importFrom rstan monitor
 #' @importFrom stats as.formula model.matrix rlnorm rnorm update.formula dnorm
 #' @importFrom utils head str
-#' @export 
-ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WAIC = TRUE, workers = 4, n_eff = 'local', ss_prior_p = 0.5, ...) {
+#' @export
+#' @examples
+##' \donttest{
+##' out <- ivd(location_formula = math_proficiency ~ 1 + (1 | school_id),
+##'    scale_formula =  ~ 1 + (1 | school_id),
+##'    data = saeb,
+##'    niter = 1000, nburnin = 2000, WAIC = TRUE, workers = 6)
+##' ## Posterior inclusion probability plot (PIP)
+##' plot(out, type = "pip")
+##' ## PIP vs. Within-cluster SD
+##' plot(out, type =  "funnel")
+##' ## Diagnostic plots based on coda plots:
+##' library(coda)
+##' codaplot(out, parameters =  "Intc")
+##' codaplot(out, parameters =  "R[scl_Intc, Intc]")
+##' }
+ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WAIC = TRUE, workers = 4, n_eff = "local", ss_prior_p = 0.5, ...) {
   if(is.null(nburnin)) {
     nburnin <- niter
   }
@@ -168,103 +174,101 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   groups <- dat$groups
   group_id <- dat$group_id
 
+  ## Obtain estimates for empirical intercept prior:
+  mean_pred <- mean(data$Y, na.rm = TRUE)
+  sd_pred <- sd(data$Y, na.rm = TRUE)
+  
   ## Nimble part:
   ## Nimble constants
-  constants <- list(N = length(data$Y),
-                    J = groups,
-                    K = ncol(data$X),  ## number of fixed location effects
-                    Kr = ncol(data$Z), ## number of random location effects
-                    S = ncol(data$X_scale),  ## number of fixed scale effects
-                    Sr = ncol(data$Z_scale),  ## number of random scale effects                    
-                    P = ncol(data$Z) + ncol(data$Z_scale),  ## number of random effects
-                    groupid = group_id,
-                    bval = matrix(c(rep(1,  ncol(data$Z)), rep(ss_prior_p, ncol(data$Z_scale)) ), ncol = 1)) ## Prior probability for dbern 
+  constants <- list(
+      N = length(data$Y),
+      J = groups,
+      K = ncol(data$X), ## number of fixed location effects
+      Kr = ncol(data$Z), ## number of random location effects
+      S = ncol(data$X_scale), ## number of fixed scale effects
+      Sr = ncol(data$Z_scale), ## number of random scale effects
+      P = ncol(data$Z) + ncol(data$Z_scale), ## number of random effects
+      groupid = group_id,
+      mean_pred =  mean_pred, ## empirical estimate from sample for location
+      sd_pred = sd_pred, ## empirical estimate from sample for location
+      bval = matrix(c(rep(1, ncol(data$Z)), rep(ss_prior_p, ncol(data$Z_scale))), ncol = 1)## Prior probability for dbern
+  )
   ## Nimble inits
   inits <- list(beta = rnorm(constants$K, 5, 10), ## TODO: Check inits
-                zeta =  rnorm(constants$S, 1, 3),
-                #sigma_rand = diag(rlnorm(constants$P, 0, 1)),
-                L = diag(1,constants$P),
-                zscore = rnorm(constants$P))
+                zeta =  rnorm(constants$S, 1, 3))
   
   modelCode <- nimbleCode({
-    ## Likelihood components:
-    for(i in 1:N) {
-      Y[i] ~ dnorm(mu[i], sd = tau[i]) ## explicitly ask for SD not precision
-      ## Check if K (number of fixed location effects) an S (number of fixed scale effecs)
-      ## are greater than 1, if not, use simplified computation to avoid indexing issues in nimble
-      ## Location
-      ## Check if we have more than just an intercept:
-      if(K>1) {
-        if(Kr>1) {
-          mu[i] <- sum(beta[1:K] * X[i, 1:K]) + sum( u[groupid[i], 1:Kr] * Z[i, 1:Kr] )
-        } else {
-          mu[i] <- sum(beta[1:K] * X[i, 1:K]) + u[groupid[i], 1]
-        }
-      } else {
-        mu[i] <- beta[1] + u[groupid[i], 1] * Z[i, 1]        
+      ## Likelihood components:
+      for(i in 1:N) {
+          Y[i] ~ dnorm(mu[i], sd = tau[i]) ## explicitly ask for SD not precision
+          ## Check if K (number of fixed location effects) an S (number of fixed scale effecs)
+          ## are greater than 1, if not, use simplified computation to avoid indexing issues in nimble
+          ## Location
+          ## Check if we have more than just an intercept:
+          if(K>1) {
+              if(Kr>1) {
+                  mu[i] <- sum(beta[1:K] * X[i, 1:K]) + sum(u[groupid[i], 1:Kr] * Z[i, 1:Kr])
+              } else {
+                  mu[i] <- sum(beta[1:K] * X[i, 1:K]) + u[groupid[i], 1]
+              }
+          } else {
+              mu[i] <- beta[1] + u[groupid[i], 1] * Z[i, 1]
+          }
+          ## Scale
+          ## Check if we have more than just an fixed intercept:
+          if(S>1) {
+              if(Sr>1) {
+                  tau[i] <- exp(sum(zeta[1:S] * X_scale[i, 1:S]) + sum(u[groupid[i], (Kr+1):(Kr+Sr)] * Z_scale[i, 1:Sr]))
+              } else {
+                  tau[i] <- exp(sum(zeta[1:S] * X_scale[i, 1:S]) + u[groupid[i], (Kr+1)])
+              }
+          } else {
+              ## This assumes that if there is only one fixed intercept in scale, there is also exactly one random intercept in scale,
+              ## and no other effects
+              tau[i] <- exp(zeta[1] + u[groupid[i], (Kr+1)])
+          }
       }
-      
-      ## Scale
-      ## Check if we have more than just an fixed intercept:
-      if(S>1) { 
-        if(Sr>1) {
-          tau[i] <- exp( sum(zeta[1:S] * X_scale[i, 1:S]) + sum(u[groupid[i], (Kr+1):(Kr+Sr)] * Z_scale[i, 1:Sr]) )  
-        } else {
-          tau[i] <- exp( sum(zeta[1:S] * X_scale[i, 1:S]) + u[groupid[i], (Kr+1)] ) 
-        }
-      } else {
-        ## This assumes that if there is only one fixed intercept in scale, there is also exactly one random intercept in scale,
-        ## and no other effects
-        tau[i] <- exp( zeta[1] + u[groupid[i], (Kr+1)] )
+      ## Obtain correlated random effects
+      for(j in 1:J) {
+          ## Bernoulli for Spike and Slab
+          for(p in 1:P){
+              ss[p, j] ~ dbern(bval[p, 1]) ## bval is a constant
+          } 
+          ## normal scaling for random effects
+          for(k in 1:P){
+              z[k, j] ~ dnorm(0, sd = 1)
+          }
+          ## Transpose L to get lower cholesky
+          ## then compute the hadamard (element-wise) product with the ss vector
+          ##u[j,1:P] <- t( sigma_rand[1:P, 1:P] %*% L[1:P, 1:P]  %*% z[1:P,j] * ss[1:P,j] )
+          u[j, 1:P] <- t( t(U[1:P, 1:P]) %*% z[1:P, j] ) * ss[1:P, j]
       }
-    }
-    ## Obtain correlated random effects
-    for(j in 1:J) {
-      ## Bernoulli for Spike and Slab
+      ## Priors:
+      ## Fixed effects: Location
+      beta[1] ~ dnorm(mean_pred, sd = 3 * sd_pred)
+      if (K > 1) {
+          for (k in 2:K) {
+              beta[k] ~ dnorm(0, sd = 1000) ## TODO might want to add empirical sd
+          }
+      }
+      ## Fixed effects: Scale
+      for (s in 1:S) {
+          zeta[s] ~ dnorm(0, sd = 3) ## TODO might want to add empirical sd
+      }
+      ## Random effects SD
       for(p in 1:P){
-        ss[p,j] ~ dbern(bval[p,1]) ## bval is a constant
-      }    
-      ## normal scaling for random effects
-      for( k in 1:P ){
-        z[k,j] ~ dnorm(0, sd = 1)
+          ## reconstruct sigma_rand as vector
+          sigma_rand[p] ~ T(dt(0, 1, 3), 0, )
       }
-      ## Transpose L to get lower cholesky
-      ## then compute the hadamard (element-wise) product with the ss vector
-      ##u[j,1:P] <- t( sigma_rand[1:P, 1:P] %*% L[1:P, 1:P]  %*% z[1:P,j] * ss[1:P,j] )
-      u[j, 1:P] <- t( t(U[1:P, 1:P]) %*% z[1:P, j] ) * ss[1:P, j]
-    }
-    ## Priors:
-    ## Fixed effects: Location
-    for (k in 1:K) {
-      beta[k] ~ dnorm(0, sd = 1000)
-    }
-    ## Fixed effects: Scale
-    for (s in 1:S) {
-      zeta[s] ~ dnorm(0, sd = 3)
-    }
-    ## Random effects SD
-    for(p in 1:P){
-      #sigma_rand[p,p] ~ T(dt(0, 1, 1), 0, )  # Half-cauchy with 1,1
-      ## reconstruct sigma_rand as vector
-      sigma_rand[p] ~ T(dt(0, 1, 3), 0, )
-    }
-    
-    ## Correlations between random effects
-    for(p in 1:P){
-      zscore[p] ~ dnorm(0, sd = 1)
-      rho[p] <- tanh(zscore[p])
-    }
-    
-    ## Lower cholesky of random effects correlation 
-    #L[1:P, 1:P] <- invvec_to_corr(V = rho[1:P], P = P)
-
-    Ustar[1:P, 1:P] ~ dlkj_corr_cholesky(eta = 1, p = P)
-    U[1:P, 1:P] <- uppertri_mult_diag(Ustar[1:P, 1:P], sigma_rand[1:P])
-    ##
-    ##R[1:P, 1:P] <- L[1:P, 1:P]  %*% t(L[1:P, 1:P])
-    R[1:P, 1:P] <- t(Ustar[1:P, 1:P] ) %*% Ustar[1:P, 1:P]
+      ## Correlations between random effects
+      ## Lower cholesky of random effects correlation
+      Ustar[1:P, 1:P] ~ dlkj_corr_cholesky(eta = 1, p = P)
+      U[1:P, 1:P] <- uppertri_mult_diag(Ustar[1:P, 1:P], sigma_rand[1:P])
+      ##
+      ##R[1:P, 1:P] <- L[1:P, 1:P]  %*% t(L[1:P, 1:P])
+      R[1:P, 1:P] <- t(Ustar[1:P, 1:P]) %*% Ustar[1:P, 1:P]
   })
-  
+
   ## IMPORTANT: future loads the installed library on its workers - changes in the package that are not in the library(ivd)
   ## are not loaded onto the workers! All changes to run_MCMC_allcode only take effect after reinstalling. 
   future::plan(multisession, workers = workers)
@@ -282,7 +286,6 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
           dummy_inits = inits,
           useWAIC = WAIC
       )
-      
       run_MCMC_compiled_model(
           compiled = compiled_model,
           seed = x,
@@ -306,9 +309,6 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
       #invvec_to_corr = invvec_to_corr
   )
   )
-
-
-  
   
   ## Prepare object to be returned
   out <- list()
@@ -327,9 +327,9 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   ## Check that Y,  mu and tau are of same length, in case grep picks up other variables
   if(length(grep("mu", colnames(combined_chains[[1]]$samples))) != length(grep("tau", colnames(combined_chains[[1]]$samples))) &
      length(grep("mu", colnames(combined_chains[[1]]$samples))) != length(data$Y)) {
-    stop("mu and tau are not of same lenght -- check ivd.R")
+      stop("mu and tau are not of same lenght -- check ivd.R")
   }
-
+  
   ## Collect mu and tau
   ## Get mu's across chains
   mu_combined <- lapply(combined_chains, function(chain) {
@@ -358,7 +358,7 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
       ## Extract mu and tau for this iteration and chain, results in vectors of length N
       mu_values <- mu_combined[[chain_idx]][iter, ]
       tau_values <- tau_combined[[chain_idx]][iter, ]
-      
+
       ## Compute log-likelihood for each observation in Y
       logLik_array[iter, chain_idx, ] <- dnorm(data$Y, mean = mu_values, sd = tau_values, log = TRUE)
     }
@@ -379,10 +379,9 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
     samples_array[, i, ] <- x[[i]]
   }
 
-  ## Use the monitor function from rstan to obtain Rhat (coda's gelman.rhat does not work reliably)
-  print("Compiling results...")   
+  if (isTRUE(getOption("ivd.verbose", FALSE)))
+      message("Compiling results...")
 
-  
   ## Split Rhat and split n_eff:
   ## Vehtari et al doi:10.1214/20-BA1221 available at
   ## http://www.stat.columbia.edu/~gelman/research/published/rhat.pdf
@@ -425,64 +424,60 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
 
   ## Eq. 3.3
   vtp <- (n-1)*W/n + B/n
-  
+
   ## Compute R-hat
   Rhat <- sqrt(vtp / W)
-   
-  if (n_eff == 'local') {
-    ## Compute split-chain n_eff
-    ## ACF is computed using FFT as per Vehtari et al. 
-    ## Compute for multiple chains, following eq 10:
-    
-    mn_s2m_ptm <- apply(split_samples, 3, function(param_samples) {
-      
-      chain_variances <- apply(param_samples, 2, function(chain) {
-        chain_mean <- mean(chain)
-        sum((chain - chain_mean)^2) / (n - 1)  # s2m: Variance for each chain
+
+  if (n_eff == "local") {
+      ## Compute split-chain n_eff
+      ## ACF is computed using FFT as per Vehtari et al. 
+      ## Compute for multiple chains, following eq 10:
+
+      mn_s2m_ptm <- apply(split_samples, 3, function(param_samples) {
+          chain_variances <- apply(param_samples, 2, function(chain) {
+              chain_mean <- mean(chain)
+              sum((chain - chain_mean)^2) / (n - 1)  # s2m: Variance for each chain
+          })
+          
+          chain_rho <- apply(param_samples, 2, function(samp_per_chain) {
+              acf_values <- .autocorrelation_fft(samp_per_chain)
+              ## Truncate according to Geyer (1992)
+              position <-  min(seq(2:length(acf_values))[acf_values[-length(acf_values)] + acf_values[-1] < 0])
+              ## position contains NA for constants, needs to be addressed here:
+              
+              if (!is.na(position)) {
+                  ## Pad with NA's so that all vectors are of same length. Saves me storing the position object
+                  ## pad with NA so that mean() can be calculated over differing rho's per chains
+                  rho <- append(acf_values[1:position + 1], rep(NA, length(acf_values) - position), after = position)
+              } else {
+                  rho <- rep(NA, n)
+              }
+          })
+          
+          s2m_rtm <- lapply(seq_along(chain_variances), function(i) {
+              chain_variances[i] * chain_rho[,i]
+          })
+          ## average across chains
+          ## Convert list to a matrix
+          matrix_form <- do.call(cbind, s2m_rtm)
+          avg_s2m_rtm <- rowMeans(matrix_form, na.rm = TRUE)
       })
       
-      chain_rho <- apply(param_samples, 2, function(samp_per_chain) {
-        acf_values <- .autocorrelation_fft( samp_per_chain )
-        ## Truncate according to Geyer (1992)
-        position <-  min( seq(2:length(acf_values))[acf_values[-length(acf_values)] + acf_values[-1] < 0] )
-        ## position contains NA for constants, needs to be addressed here:
-        
-        if( !is.na(position) ) {
-          ## Pad with NA's so that all vectors are of same length. Saves me storing the position object
-          ## pad with NA so that mean() can be calculated over differing rho's per chains
-          rho <- append(acf_values[1:position+1], rep(NA, length(acf_values)-position), after = position)
-        } else {
-          rho <- rep(NA, n)
-        }
-      })
+      ## Eq 10: W - mn_s2m_ptm
+      numerator <- matrix(W, nrow = nrow(mn_s2m_ptm), ncol = length(W), byrow = TRUE) - mn_s2m_ptm
+      rho_t <- 1 - numerator / matrix(vtp, nrow = nrow(numerator), ncol = length(vtp), byrow = TRUE)
       
-      s2m_rtm <- lapply(seq_along(chain_variances), function(i) {
-        chain_variances[i] * chain_rho[,i]
-      })
-
-      ## average across chains    
-      ## Convert list to a matrix
-      matrix_form <- do.call(cbind, s2m_rtm)
-      avg_s2m_rtm <- rowMeans(matrix_form, na.rm = TRUE)
-    })
-
-    ## Eq 10: W - mn_s2m_ptm
-    numerator <- matrix(W, nrow = nrow(mn_s2m_ptm), ncol = length(W), byrow = TRUE) - mn_s2m_ptm
-    rho_t <- 1 - numerator / matrix(vtp, nrow = nrow(numerator), ncol = length(vtp), byrow = TRUE)
-
-    n_eff <- round( n*m / ( 1+2*colSums(rho_t, na.rm = TRUE) ) )
-  
-  }  else if(n_eff == 'stan') {
-    ## Based on rstan, takes forever...
-    monitor_results <- rstan::monitor(samples_array, print = FALSE)
-    n_eff <- monitor_results$n_eff
+      n_eff <- round(n * m / (1 + 2 * colSums(rho_t, na.rm = TRUE)))
+      
+  } else if (n_eff == "stan") {
+      ## Based on rstan, takes forever...
+      monitor_results <- rstan::monitor(samples_array, print = FALSE)
+      n_eff <- monitor_results$n_eff
   }
-
   
-    
   ## Extract and print R-hat values
   out$rhat_values <- Rhat
-  if( any(out$rhat_values[!is.na(out$rhat_values)] > 1.1) ) warning("Some R-hat values are greater than 1.10 -- increase warmup and/or sampling iterations." )
+  if(any(out$rhat_values[!is.na(out$rhat_values)] > 1.1)) warning("Some R-hat values are greater than 1.10 -- increase warmup and/or sampling iterations.")
 
   ## Effective sample size
   out$n_eff <- n_eff
@@ -499,4 +494,4 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   
   class(out) <- c("ivd", "list")
   return(out)
-  }
+}
