@@ -1,4 +1,4 @@
-## Resubmission
+## Resubmission of initial package:
 
 This resubmission addresses all issues raised by the CRAN team (Konstanze Lauseker).
 

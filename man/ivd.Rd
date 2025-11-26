@@ -89,7 +89,10 @@ on the scale random effects.
 out <- ivd(location_formula = math_proficiency ~ 1 + (1 | school_id),
    scale_formula =  ~ 1 + (1 | school_id),
    data = saeb,
-   niter = 1000, nburnin = 2000, WAIC = TRUE, workers = 6)
+   niter = 1000,
+   nburnin = 2000,
+   WAIC = TRUE,
+   workers = 1) ## Workers = 1 for CRAN server - not ideal for individual use
 ## Posterior inclusion probability plot (PIP)
 plot(out, type = "pip")
 ## PIP vs. Within-cluster SD

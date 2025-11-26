@@ -320,7 +320,7 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
 
         if (label_points) {
             .require_suggest("ggrepel", "`geom_text_repel()`")
-            plt <- plt + geom_text_repel(
+            plt <- plt + ggrepel::geom_text_repel(
                 data = subset(df_pip, pip >= pip_level),
                 aes(label = id),
                 point.padding = 0.5,

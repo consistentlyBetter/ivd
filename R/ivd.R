@@ -146,7 +146,7 @@ uppertri_mult_diag <- nimbleFunction(
 #' @importFrom coda as.mcmc mcmc.list
 #' @importFrom nimble nimbleCode nimbleModel compileNimble buildMCMC runMCMC
 #' @importFrom rstan monitor
-#' @importFrom stats as.formula model.matrix rlnorm rnorm update.formula dnorm
+#' @importFrom stats as.formula model.matrix rlnorm rnorm update.formula dnorm sd
 #' @importFrom utils head str
 #' @export
 #' @examples
@@ -154,7 +154,10 @@ uppertri_mult_diag <- nimbleFunction(
 ##' out <- ivd(location_formula = math_proficiency ~ 1 + (1 | school_id),
 ##'    scale_formula =  ~ 1 + (1 | school_id),
 ##'    data = saeb,
-##'    niter = 1000, nburnin = 2000, WAIC = TRUE, workers = 6)
+##'    niter = 1000,
+##'    nburnin = 2000,
+##'    WAIC = TRUE,
+##'    workers = 1) ## Workers = 1 for CRAN server - not ideal for individual use
 ##' ## Posterior inclusion probability plot (PIP)
 ##' plot(out, type = "pip")
 ##' ## PIP vs. Within-cluster SD

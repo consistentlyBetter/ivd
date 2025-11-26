@@ -15,7 +15,7 @@ Authors@R:
 	email = "mmcarmo@ucdavis.edu")
 	)
 Maintainer: Philippe Rast <rast.ph@gmail.com>
-Description: Fit mixed-effects location scale models with spike-and-slab priors on the location random effects to identify units with unusual residual variances. The method is described in detail in Carmo, Williams and Rast (2025) <doi:https://doi.org/10.31234/osf.io/sh6ne>.
+Description: Fit mixed-effects location scale models with spike-and-slab priors on the location random effects to identify units with unusual residual variances. The method is described in detail in Carmo, Williams and Rast (2025) <https://osf.io/sh6ne>.
 License: GPL (>=3)
 Encoding: UTF-8
 LazyData: true
