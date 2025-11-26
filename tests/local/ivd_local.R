@@ -64,11 +64,12 @@ school_dat$ses_s <- scale(school_dat$ses)
 ## WAIC = TRUE
 ## workers = 4
 ## seed <- 123
-school_dat$mAch
+head(school_dat)
+
 
 system.time({
     out <- ivd(
-        location_formula = mAch_s ~ 1 + (1 | schoolid),
+        location_formula = mAch_s ~ 1 + ses_s + (1 + ses_s | schoolid),
         scale_formula = ~ 1 + (1 | schoolid),
         data = school_dat,
         niter = 300, nburnin = 250, workers = 4, n_eff = "local"
