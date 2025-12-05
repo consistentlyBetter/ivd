@@ -1,0 +1,22 @@
+<urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
+<url><loc>/404.html</loc></url>
+<url><loc>/authors.html</loc></url>
+<url><loc>/getting-started.html</loc></url>
+<url><loc>/index.html</loc></url>
+<url><loc>/news/index.html</loc></url>
+<url><loc>/reference/build_ivd_model.html</loc></url>
+<url><loc>/reference/codaplot.html</loc></url>
+<url><loc>/reference/dot-autocorrelation_fft.html</loc></url>
+<url><loc>/reference/dot-extract_to_mcmc.html</loc></url>
+<url><loc>/reference/dot-newline.html</loc></url>
+<url><loc>/reference/dot-require_suggest.html</loc></url>
+<url><loc>/reference/dot-summary_table.html</loc></url>
+<url><loc>/reference/index.html</loc></url>
+<url><loc>/reference/ivd.html</loc></url>
+<url><loc>/reference/plot.ivd.html</loc></url>
+<url><loc>/reference/prepare_data_for_nimble.html</loc></url>
+<url><loc>/reference/run_MCMC_compiled_model.html</loc></url>
+<url><loc>/reference/saeb.html</loc></url>
+<url><loc>/reference/summary.ivd.html</loc></url>
+</urlset>
+

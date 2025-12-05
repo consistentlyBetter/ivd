@@ -26,6 +26,24 @@
 
 \item{...}{Controls ggrepel aruments.}
 }
+\value{
+Invisibly returns a \code{ggplot} object corresponding to the selected plot
+type. The primary purpose of this method is the side effect of displaying the
+plot.
+
+The exact plot depends on the value of \code{type}:
+\itemize{
+\item \code{"pip"} — Posterior inclusion probability plot for random scale
+effects.
+\item \code{"funnel"} — Funnel plot showing the relation between within-cluster
+standard deviation (\code{tau}) and posterior inclusion probabilities.
+\item \code{"outcome"} — Outcome plot relating cluster means (\code{mu}),
+posterior inclusion probability, and within-cluster SD.
+}
+
+When \code{label_points = TRUE}, labels for clusters exceeding the
+\code{pip_level} threshold are added using \pkg{ggrepel} (if available).
+}
 \description{
 Plot method for ivd objects
 }

@@ -17,7 +17,7 @@ knitr::opts_chunk$set(
   cache = FALSE
 )
 ```
-
+<img src="man/figures/logo.png" align="right" height="120" alt="" />
 # Individual Variance Detection
 
 
@@ -34,7 +34,7 @@ This package can be installed with
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("consistentlybetter/ivd")
+# devtools::install_github("consistentlybetter/ivd")
 ```
 
 ## Example
@@ -45,15 +45,12 @@ library(ivd)
 library(data.table)
 ```
 ## Data
-The illustration uses openly accessible data from The Basic Education Evaluation System (Saeb) conducted by Brazil's National Institute for Educational Studies and Research (Inep), available at <https://www.gov.br/inep/pt-br/areas-de-atuacao/avaliacao-e-exames-educacionais/saeb/resultados>. It is also available as the `saeb` dataset in the `ivd` package.
+The illustration uses openly accessible data from The Basic Education Evaluation System (Saeb) conducted by Brazil's National Institute for Educational Studies and Research (Inep), available at <https://web.archive.org/web/20250202015037/https://www.gov.br/inep/pt-br/areas-de-atuacao/avaliacao-e-exames-educacionais/saeb/resultados>. It is also available as the `saeb` dataset in the `ivd` package.
 
 
 Separate within- from between-school effects. That is, besides `student_ses`, compute `school_ses`. 
 
 ```{r data}
-## Grand mean center student SES
-#saeb$student_ses <- c(scale(saeb$student_ses, scale = FALSE))
-
 ## Calculate school-level SES
 school_ses <- saeb[, .(school_ses = mean(student_ses, na.rm = TRUE)), by = school_id]
 
@@ -83,10 +80,10 @@ We will predict `math_proficiency` which is a standardized variable capturing ma
 Both, location (means) and scale (residual variances) are modeled as a function of student and school SES. Note that the formula objects for both location and scale follow `lme4` notation.
 
 ```{r warning=FALSE}
-out <- ivd(location_formula = math_proficiency ~ student_ses * school_ses + (1|school_id),
-           scale_formula =  ~ student_ses * school_ses + (1|school_id),
+out <- ivd(location_formula = math_proficiency ~ student_ses * school_ses + (1 | school_id),
+           scale_formula =  ~ student_ses * school_ses + (1 | school_id),
            data = saeb,
-           niter = 3000, nburnin = 5000, WAIC = TRUE, workers = 6)
+           niter = 1000, nburnin = 6000)
 ```
 
 The summary shows the fixed and random effects and it returns all posterior inclusion probabilities (PIP) for each one of the 160 schools' residual variance random effects. The PIP returns the probability of a school belonging to the slab, that is, the probability of the model having to include the random scale effect. 

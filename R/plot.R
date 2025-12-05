@@ -21,6 +21,23 @@
 ##' @param variable Name of a specific variable. Defaults to `NULL`
 ##' @param label_points Should points above the pip threshold be labelled? Defaults to `TRUE`.
 ##' @param ... Controls ggrepel aruments.
+#' @return
+#' Invisibly returns a \code{ggplot} object corresponding to the selected plot
+#' type. The primary purpose of this method is the side effect of displaying the
+#' plot.
+#'
+#' The exact plot depends on the value of \code{type}:
+#' \itemize{
+#'   \item \code{"pip"} — Posterior inclusion probability plot for random scale
+#'         effects.
+#'   \item \code{"funnel"} — Funnel plot showing the relation between within-cluster
+#'         standard deviation (\code{tau}) and posterior inclusion probabilities.
+#'   \item \code{"outcome"} — Outcome plot relating cluster means (\code{mu}),
+#'         posterior inclusion probability, and within-cluster SD.
+#' }
+#'
+#' When \code{label_points = TRUE}, labels for clusters exceeding the
+#' \code{pip_level} threshold are added using \pkg{ggrepel} (if available).
 ##' @author Philippe Rast
 ##' @import ggplot2
 ##' @importFrom patchwork plot_layout
@@ -79,26 +96,30 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
         df_pip$ordered <- 1:nrow(df_pip)
     } else if (no_ranef_s > 1) {
         if (is.null(variable)) {
-            ## Introduces a choice menu replacing manual typing the variable name
-            choice <- menu(
-                choices = ranef_scale_names,
-                title = "There are multiple random effects. Please choose one to plot:"
-            )
 
-            # Handle the case where the user cancels (enters 0)
-            if (choice == 0) {
-                stop("No variable selected. Halting plot generation.", call. = FALSE)
+            if (interactive()) {
+                ## Allow menu selection ONLY in interactive sessions
+                choice <- menu(
+                    choices = ranef_scale_names,
+                    title = "Multiple random scale effects detected. Choose one to plot:"
+                )
+                
+                if (choice == 0) {
+                    stop("No variable selected. Halting plot generation.", call. = FALSE)
+                }
+                
+                variable <- ranef_scale_names[choice]
+                
+            } else {
+                ## Non-interactive → fail with clear message (CRAN requirement)
+                stop(
+                    paste0(
+                        "Multiple random scale effects detected. Please specify the 'variable' argument.\n",
+                        "Available options: ", paste(ranef_scale_names, collapse = ", ")
+                    ),
+                    call. = FALSE
+                )
             }
-
-            scale_ranef_position_user <- choice
-            variable <- ranef_scale_names[scale_ranef_position_user]
-
-
-            ## ## Prompt user for action when there are multiple random effects
-            ## variable <- readline(prompt="There are multiple random effects. Please provide the variable name to be plotted or type 'list' \n(or specify as plot(fitted, type = 'funnel', variable = 'variable_name'): ")
-            ## if (tolower(variable) == "list") {
-            ##   variable <- readline(prompt = cat(ranef_scale_names, ": "))
-            ## }
         }
 
         ## Find position of user requested random effect
@@ -112,7 +133,6 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
         df_pip <- df_pip[order(df_pip$pip), ]
         df_pip$ordered <- 1:nrow(df_pip)
     }
-
 
     ## find scale random effects
     ## Extract numbers and find locations
@@ -138,13 +158,6 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
         u <- colMeans(do.call(rbind, lapply(.extract_to_mcmc(obj), FUN = function(x) colMeans(x[, scale_ranef_pos]))))
         tau <- exp(zeta + u)
     } else if (no_ranef_s > 1) {
-        ## if(is.null(variable)) {
-        ##   ## Prompt user for action when there are multiple random effects
-        ##   variable <- readline(prompt="There are multiple random effects. Please provide the variable name to be plotted or type 'list' \n(or specify as plot(fitted, type = 'funnel', variable = 'variable_name'): ")
-        ##   if (tolower(variable) == "list") {
-        ##     variable <- readline(prompt = cat(ranef_scale_names, ": "))
-        ##   }
-        ## }
 
         ## Find position of user requested random effect
         scale_ranef_position_user <-
@@ -166,7 +179,7 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
             colMeans(do.call(rbind, lapply(.extract_to_mcmc(obj), FUN = function(x) colMeans(x[, pos]))))
         tau <- exp(zeta + u)
     } else {
-        print("Invalid action specified. Exiting.")
+        stop("Invalid action specified. Exiting.", call. = FALSE)
     }
 
     ## Get mu's across chains
@@ -175,13 +188,6 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
         mu_samples <- chain$samples[, mu_indices, drop = FALSE]
         return(mu_samples)
     })
-
-    ## Get tau's across chains
-    ## tau_combined <- lapply(obj$samples, function(chain) {
-    ##   tau_indices <- grep("tau", colnames(chain$samples))
-    ##   tau_samples <- chain$samples[, tau_indices, drop = FALSE]
-    ##   return(tau_samples)
-    ## })
 
     # Combine chains into one large matrix
 
@@ -200,16 +206,6 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
 
 
     if (type == "pip") {
-        ##
-        ## plt <- ggplot(df_pip, aes(x = ordered, y = pip)) +
-        ##   geom_point(data = subset(df_pip, pip < pip_level), alpha = .4 , size = 3) +
-        ##   geom_point(data = subset(df_pip, pip >= pip_level),
-        ##              aes(color = as.factor(id)), size = 3) +
-        ##   geom_abline(intercept = pip_level, slope = 0, lty =  3)+
-        ##   geom_abline(intercept = pip_level - .5, slope = 0, lty =  3)+
-        ##   ylim(c(0, 1 ) ) + ggtitle(variable )+
-        ##   scale_color_discrete(name = "Cluster ID")
-        ## print(plt )
         ## 1. Create the base plot *without* the labels
         plt <- ggplot(df_pip, aes(x = ordered, y = pip)) +
             geom_point(
@@ -248,26 +244,8 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
             )
         }
 
-        print(plt)
+        return(plt)
     } else if (type == "funnel") {
-        ## Make nudge scale dependent:
-        ## (not used)
-        # nx <- (max(df_funnel$tau ) - min(df_funnel$tau ))/50
-
-        ## plt <- ggplot(df_funnel, aes(x = tau, y = pip)) +
-        ##   geom_point(data = subset(df_funnel, pip < pip_level), alpha = .4 ) +
-        ##   geom_point(data = subset(df_funnel, pip >= pip_level),
-        ##              aes(color = as.factor(id))) +
-        ##   labs(x = "Within-Cluster SD") +
-        ##   # geom_text(data = subset(df_funnel, pip >= pip_level),
-        ##   #           aes(label = id),
-        ##   #           nudge_x = -nx,
-        ##   #           size = 3)+
-        ##   geom_abline(intercept = pip_level, slope = 0, lty =  3)+
-        ##   geom_abline(intercept = pip_level - .5, slope = 0, lty =  3)+
-        ##   ylim(c(0, 1 ) )+ggtitle(variable) +
-        ##   scale_color_discrete(name = "Cluster ID")
-
         plt <- ggplot(df_pip, aes(x = tau, y = pip)) +
             geom_point(
                 data = subset(df_pip, pip < pip_level),
@@ -300,7 +278,7 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
             )
         }
 
-        print(plt)
+        return(plt)
     } else if (type == "outcome") {
         ## Declare global variable to avoid R CMD check NOTE
 
@@ -352,7 +330,7 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
 
         if (label_points) {
             .require_suggest("ggrepel", "`geom_text_repel()`")
-            plt <- plt + geom_text_repel(
+            plt <- plt + ggrepel::geom_text_repel(
                 data = subset(df_pip, pip >= pip_level),
                 aes(label = id),
                 point.padding = 0.5,
@@ -360,28 +338,11 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
             )
         }
 
-        print(plt)
-        ## Y <- NA
-
-        ## df_y <- merge(df_pip,
-        ##               aggregate(Y ~ group_id, data = obj$Y, FUN = mean),
-        ##               by.x = "id", by.y = "group_id")
-        ## df_y$tau <- tau
-        ## ##
-        ## plt <- ggplot(df_y, aes(x = Y, y = pip)) +
-        ##   geom_point(data = subset(df_y, pip < pip_level), aes(size=tau), alpha = .4) +
-        ##   geom_point(data = subset(df_y, pip >= pip_level),
-        ##              aes(color = as.factor(id), size = tau)) +
-        ##   geom_abline(intercept = pip_level, slope = 0, lty =  3)+
-        ##   geom_abline(intercept = pip_level - .5, slope = 0, lty =  3)+
-        ##   ylim(c(0, 1 ) ) +
-        ##   ggtitle(variable ) +
-        ##   scale_color_discrete(name = "Cluster ID") +
-        ##   guides(size = "none")
+        return(plt)
     } else {
         stop("Invalid plot type. Please choose between 'pip', 'funnel' or 'outcome'.")
     }
-    return(invisible(plt))
+    invisible(plt)
 }
 
 
@@ -485,7 +446,7 @@ codaplot <- function(obj, parameters = NULL, type = 'traceplot', askNewPage = TR
   ## Attempt to get the plotting function based on 'type'
   plot_func <- match.fun(type)
   
-  if(is.null(parameters)) {
+  if (is.null(parameters)) {
 
     ## If no parameters specified, apply the chosen function to all samples
     #params <- dimnames(.summary_table(obj$samples[[1]]$samples ))[[2]]
