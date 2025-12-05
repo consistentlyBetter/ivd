@@ -1,0 +1,16 @@
+url: ~
+template:
+  bootstrap: 5
+  #theme: breeze-light
+  bootswatch: flatly
+navbar:
+  structure:
+    left:
+      - home
+      - getting-started
+      - reference
+  components:
+    getting-started:
+      text: "Getting started"
+      href: getting-started.html
+  

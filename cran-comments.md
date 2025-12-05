@@ -1,5 +1,14 @@
 ## Resubmission of initial package:
 
+This resubmission addresses all issues raised by the CRAN team (Benjamin Altmann).
+
+- Title: Quotation marks have been removed
+- Executable examples added to all exported functions, where possible. Some functions are exported for only for `future` parallelization: These examples are wrapped in dontrun{}
+- Remove all information messages to the console that cannot be easily suppressed.
+
+
+## Resubmission of initial package:
+
 This resubmission addresses all issues raised by the CRAN team (Konstanze Lauseker).
 
 ### DESCRIPTION references

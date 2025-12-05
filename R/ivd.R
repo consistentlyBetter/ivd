@@ -20,6 +20,29 @@
 #'
 #' The function is intended for internal use (e.g., within parallel workers)
 #' and is not meant to be called directly by end users.
+#' @examples
+#' \dontrun{
+#' library(nimble)
+#' # Generic nimble example
+#' code <- nimbleCode({
+#'   mu ~ dnorm(0, 1)
+#'   x  ~ dnorm(mu, 1)
+#' })
+#'
+#' constants   <- list()
+#' dummy_data  <- list(x = 0)
+#' dummy_inits <- list(mu = 0)
+#'
+#' out <- build_ivd_model(
+#'   code        = code,
+#'   constants   = constants,
+#'   dummy_data  = dummy_data,
+#'   dummy_inits = dummy_inits,
+#'   useWAIC     = FALSE
+#' )
+#'
+#' str(out)
+#' }
 build_ivd_model <- function(code, constants, dummy_data, dummy_inits, useWAIC = TRUE) {
     model <- nimbleModel(code = code, data = dummy_data, constants = constants, inits = dummy_inits)
     cmodel <- compileNimble(model)
@@ -68,6 +91,29 @@ build_ivd_model <- function(code, constants, dummy_data, dummy_inits, useWAIC = 
 #' This function is intended for internal use (e.g., within \code{future}
 #' workers) and is not meant to be called directly by end users.
 ##' @export
+##' @examples
+#' \dontrun{
+#' library(nimble)
+#' # Generic nimble example
+#' code <- nimbleCode({
+#'   mu ~ dnorm(0, 1)
+#'   x  ~ dnorm(mu, 1)
+#' })
+#'
+#' constants   <- list()
+#' dummy_data  <- list(x = 0)
+#' dummy_inits <- list(mu = 0)
+#'
+#' out <- build_ivd_model(
+#'   code        = code,
+#'   constants   = constants,
+#'   dummy_data  = dummy_data,
+#'   dummy_inits = dummy_inits,
+#'   useWAIC     = FALSE
+#' )
+#'
+#' str(out)
+#' }
 run_MCMC_compiled_model <- function(compiled, seed, new_data, new_inits, niter, nburnin, useWAIC = TRUE, ...) {
   compiled$cmodel$setData(new_data)
   compiled$cmodel$setInits(new_inits)
@@ -199,7 +245,7 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   ## Nimble inits
   inits <- list(beta = rnorm(constants$K, 5, 10), ## TODO: Check inits
                 zeta =  rnorm(constants$S, 1, 3))
-  
+
   modelCode <- nimbleCode({
       ## Likelihood components:
       for(i in 1:N) {
@@ -441,13 +487,13 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
               chain_mean <- mean(chain)
               sum((chain - chain_mean)^2) / (n - 1)  # s2m: Variance for each chain
           })
-          
+
           chain_rho <- apply(param_samples, 2, function(samp_per_chain) {
               acf_values <- .autocorrelation_fft(samp_per_chain)
               ## Truncate according to Geyer (1992)
               position <-  min(seq(2:length(acf_values))[acf_values[-length(acf_values)] + acf_values[-1] < 0])
               ## position contains NA for constants, needs to be addressed here:
-              
+
               if (!is.na(position)) {
                   ## Pad with NA's so that all vectors are of same length. Saves me storing the position object
                   ## pad with NA so that mean() can be calculated over differing rho's per chains

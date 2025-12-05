@@ -96,20 +96,30 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
         df_pip$ordered <- 1:nrow(df_pip)
     } else if (no_ranef_s > 1) {
         if (is.null(variable)) {
-            ## Introduces a choice menu replacing manual typing the variable name
-            choice <- menu(
-                choices = ranef_scale_names,
-                title = "There are multiple random effects. Please choose one to plot:"
-            )
 
-            # Handle the case where the user cancels (enters 0)
-            if (choice == 0) {
-                stop("No variable selected. Halting plot generation.", call. = FALSE)
+            if (interactive()) {
+                ## Allow menu selection ONLY in interactive sessions
+                choice <- menu(
+                    choices = ranef_scale_names,
+                    title = "Multiple random scale effects detected. Choose one to plot:"
+                )
+                
+                if (choice == 0) {
+                    stop("No variable selected. Halting plot generation.", call. = FALSE)
+                }
+                
+                variable <- ranef_scale_names[choice]
+                
+            } else {
+                ## Non-interactive → fail with clear message (CRAN requirement)
+                stop(
+                    paste0(
+                        "Multiple random scale effects detected. Please specify the 'variable' argument.\n",
+                        "Available options: ", paste(ranef_scale_names, collapse = ", ")
+                    ),
+                    call. = FALSE
+                )
             }
-
-            scale_ranef_position_user <- choice
-            variable <- ranef_scale_names[scale_ranef_position_user]
-
         }
 
         ## Find position of user requested random effect
@@ -169,7 +179,7 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
             colMeans(do.call(rbind, lapply(.extract_to_mcmc(obj), FUN = function(x) colMeans(x[, pos]))))
         tau <- exp(zeta + u)
     } else {
-        print("Invalid action specified. Exiting.")
+        stop("Invalid action specified. Exiting.", call. = FALSE)
     }
 
     ## Get mu's across chains
@@ -234,7 +244,7 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
             )
         }
 
-        print(plt)
+        return(plt)
     } else if (type == "funnel") {
         plt <- ggplot(df_pip, aes(x = tau, y = pip)) +
             geom_point(
@@ -268,7 +278,7 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
             )
         }
 
-        print(plt)
+        return(plt)
     } else if (type == "outcome") {
         ## Declare global variable to avoid R CMD check NOTE
 
@@ -328,11 +338,11 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
             )
         }
 
-        print(plt)
+        return(plt)
     } else {
         stop("Invalid plot type. Please choose between 'pip', 'funnel' or 'outcome'.")
     }
-    return(invisible(plt))
+    invisible(plt)
 }
 
 
@@ -436,7 +446,7 @@ codaplot <- function(obj, parameters = NULL, type = 'traceplot', askNewPage = TR
   ## Attempt to get the plotting function based on 'type'
   plot_func <- match.fun(type)
   
-  if(is.null(parameters)) {
+  if (is.null(parameters)) {
 
     ## If no parameters specified, apply the chosen function to all samples
     #params <- dimnames(.summary_table(obj$samples[[1]]$samples ))[[2]]

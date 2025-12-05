@@ -79,10 +79,10 @@ system.time({
 str(out)
 out$nimble_constants
 
-
+plot(out)
 plot(out, type = "pip")
 
-summary(out )
+summary(out)
 codaplot(out, parameters = "Intc")
 
 

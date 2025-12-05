@@ -15,4 +15,9 @@
 ^CRAN-RELEASE$
 ^doc$
 ^/README_cache/$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
+^paper$
+^getting-started.md$
 ^CRAN-SUBMISSION$
