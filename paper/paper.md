@@ -89,4 +89,4 @@ codaplot(model, parameters = "Intc")
 
 # Acknowledgements
 
-This work was supported by the Tools Competition catalyst award for the project consistentlyBetter to PR.
+This work was supported by the Tools Competition catalyst award for the project consistentlyBetter to PR. 
