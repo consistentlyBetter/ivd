@@ -23,7 +23,7 @@ affiliations:
 
 # Summary
 
-Research in fields such as psychology and education typically focus on average performance of unit (e.g., a student or a school), but the *consistency* or variability of that performance can also carry important information about the units of study [@raudenbush1987jes, @leckie_mixed-effects_2023, rast_modeling_2012]. Standard statistical approaches often treat within-cluster variability as a nuisance parameter or assume it is constant across groups. The `ivd` package implements the Spike-and-Slab Mixed-Effects Location Scale Model (SS-MELSM) as a Bayesian framework for explicitly modeling and detecting heterogeneous residual variances.
+Research in fields such as psychology and education typically focus on the average performance of a unit (e.g., a student or a school), but the *consistency* or variability of that performance can also carry important information about the units of study [@raudenbush1987jes, @leckie_mixed-effects_2023, rast_modeling_2012]. Standard statistical approaches often treat within-cluster variability as a nuisance parameter or assume it is constant across groups. The `ivd` package implements the Spike-and-Slab Mixed-Effects Location Scale Model (SS-MELSM) as a Bayesian framework for explicitly modeling and detecting heterogeneous residual variances.
 
 `ivd` enables users to estimate models for both means (location) and within-cluster variability (scale) simultaneously. It uses a spike-and-slab prior on the scale random effects as a probabilistic selection tool, distinguishing clusters with typical variability (shrunk to the population mean, the spike) from those with atypical variability (the slab) [@mitchell_bayesian_1988]. This approach identifies individual units that differ significantly from the norm, such as schools with unusually consistent or inconsistent test scores, or patients with highly stable or unstable symptoms [@leckie_modeling_2014].
 
@@ -39,7 +39,7 @@ The package provides a user-friendly interface for NIMBLE [@de_valpine_programmi
 
 The `summary()` function returns the fixed effects for both location and scale, along with the PIPs for the random scale effects. Convergence of each estimate is summarised with computation of $\hat{R}$, and estimation efficiency by the effective sample size [@vehtariRankNormalization2021].
 
-To help detect atypical units, the package offers several visualization methods, specified by the `type` argument in the `plot()` function. The default, `pip`, highlights units exceeding a set probability threshold (default 0.75). `funnel` shows the relationship between PIP and estimated within-cluster standard deviation, while `outcome` displays the interaction between average performance and consistency. For MCMC convergence diagnostics, the `codaplot()` function provides trace and density plots for selected parameters.
+To help detect atypical units, the package offers several visualization methods, specified by the `type` argument in the `plot()` function. The default, `"pip"`, highlights units exceeding a set probability threshold (default 0.75). `"funnel"` shows the relationship between PIP and estimated within-cluster standard deviation, while `"outcome"` displays the interaction between average performance and consistency. For MCMC convergence diagnostics, the `codaplot()` function provides trace and density plots for selected parameters.
 
 ## Model Comparison
 
