@@ -123,6 +123,8 @@ run_MCMC_compiled_model <- function(compiled, seed, new_data, new_inits, niter, 
 }
 
 ## Leave outside of main ivd function for future to find it
+## nocov start: a nimbleFunction body is compiled to C++ by NIMBLE, not run as
+## R, so covr cannot instrument it -- and injecting counters breaks compilation.
 uppertri_mult_diag <- nimbleFunction(
     run = function(mat = double(2), vec = double(1)) {
         returnType(double(2))
@@ -134,6 +136,7 @@ uppertri_mult_diag <- nimbleFunction(
         return(out)
     }
 )
+## nocov end
 
 #' Main function to set up and run parallel MCMC using nimble and future.
 #' `ivd` computes a mixed effects location and scale model with Spike and Slab regularization
@@ -246,6 +249,9 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   inits <- list(beta = rnorm(constants$K, 5, 10), ## TODO: Check inits
                 zeta =  rnorm(constants$S, 1, 3))
 
+  ## nocov start: the model is NIMBLE's BUGS-style DSL, parsed by nimbleModel()
+  ## rather than executed as R. covr's line-counting injection corrupts it
+  ## (e.g. the if() branches trip checkReservedVarNames), so exclude it.
   modelCode <- nimbleCode({
       ## Likelihood components:
       for(i in 1:N) {
@@ -317,6 +323,7 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
       ##R[1:P, 1:P] <- L[1:P, 1:P]  %*% t(L[1:P, 1:P])
       R[1:P, 1:P] <- t(Ustar[1:P, 1:P]) %*% Ustar[1:P, 1:P]
   })
+  ## nocov end
 
   ## IMPORTANT: future loads the installed library on its workers - changes in the package that are not in the library(ivd)
   ## are not loaded onto the workers! All changes to run_MCMC_allcode only take effect after reinstalling. 
