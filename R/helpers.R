@@ -5,14 +5,19 @@
 ##' @keywords internal
 prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
   
+  ## Collapse a possibly multi-line deparse() into one string. deparse() wraps
+  ## long formulas across lines; the parsing below assumed a single line, which
+  ## silently dropped predictors / the grouping term on models with many terms.
+  .flatten_formula <- function(f) paste(deparse(f), collapse = " ")
+
   ## Helper function to prepare model parts
   prepare_model_part <- function(data, formula, is_scale_model = FALSE) {
     ## Parse the formula to get response and predictors
     response_var <- if(is_scale_model) NA else all.vars(formula)[1]
     
-    fixed_effects <- strsplit(deparse(formula ), split = "\\+ \\(", perl = TRUE)[[1]][1]
+    fixed_effects <- strsplit(.flatten_formula(formula), split = "\\+ \\(", perl = TRUE)[[1]][1]
     ## slplit out random effects, first split contains grouping variable
-    random_effects_F <- strsplit(deparse(formula ), split = "\\+ \\(", perl = TRUE)[[1]][2]
+    random_effects_F <- strsplit(.flatten_formula(formula), split = "\\+ \\(", perl = TRUE)[[1]][2]
     ## split at | 
     random_effects <- strsplit(random_effects_F, split = "\\|", perl = TRUE)[[1]][1]
 
@@ -36,7 +41,7 @@ prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
   }
   
   ## Extracting the grouping variable from the location formula
-  location_formula_string <- deparse(location_formula)
+  location_formula_string <- .flatten_formula(location_formula)
   grouping_variable_match <- regmatches(location_formula_string, regexec("\\|\\s*(\\w+)", location_formula_string))
   if (length(grouping_variable_match[[1]]) < 2) {
     stop("Grouping variable not found in the location formula.")
@@ -44,7 +49,7 @@ prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
   grouping_variable <- grouping_variable_match[[1]][2]
   ## Extracting the grouping variable from the scale formula
   ## Only support models where grouping variable is the same for location and scale
-  scale_formula_string <- deparse(scale_formula)
+  scale_formula_string <- .flatten_formula(scale_formula)
   scl_grouping_variable_match <- regmatches(scale_formula_string, regexec("\\|\\s*(\\w+)", scale_formula_string))
   if (length(scl_grouping_variable_match[[1]]) < 2) {
     stop("Grouping variable not found in the scale formula.")
@@ -54,6 +59,18 @@ prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
     stop("Location and scale grouping variable needs to be the same.")
   }
     
+  ## Drop rows with missing values in any model variable so that the response,
+  ## design matrices and grouping index stay aligned. Otherwise model.matrix()
+  ## silently drops NA rows from X/Z while Y and group_id keep their full length.
+  model_vars <- intersect(unique(c(all.vars(location_formula),
+                                   all.vars(scale_formula))), names(data))
+  keep <- stats::complete.cases(data[, model_vars, drop = FALSE])
+  if (!all(keep)) {
+    message("ivd: dropping ", sum(!keep),
+            " row(s) with missing values in model variables.")
+    data <- data[keep, , drop = FALSE]
+  }
+
   ## Ensure the grouping variable is numeric
   if(!is.numeric(data[[grouping_variable]])) {
     data[[grouping_variable]] <- as.numeric(as.factor(data[[grouping_variable]]))
@@ -66,7 +83,7 @@ prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
   
   ## Processing location and scale models
   location_data <- prepare_model_part(data, formula = location_formula)
-  scale_formula_cleaned <- gsub("sigma = ", "", deparse(scale_formula))  # Remove "sigma = " if present
+  scale_formula_cleaned <- gsub("sigma = ", "", .flatten_formula(scale_formula))  # Remove "sigma = " if present
   scale_data <- if(!is.null(scale_formula_cleaned) && nzchar(scale_formula_cleaned)) {
                   prepare_model_part(data, formula = as.formula(paste(scale_formula_cleaned)), TRUE)
   } else {

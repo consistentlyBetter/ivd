@@ -92,6 +92,40 @@ test_that("prepare_data_for_nimble keeps multiple fixed location predictors", {
   expect_equal(ncol(result$data$X), 3)
 })
 
+test_that("prepare_data_for_nimble handles formulas that deparse to multiple lines", {
+  ## Many fixed effects make deparse() wrap onto several lines. The parser must
+  ## still locate the grouping variable and retain every predictor.
+  set.seed(1)
+  d <- as.data.frame(matrix(rnorm(40 * 26), 40, 26))
+  names(d) <- letters
+  d$Y <- rnorm(40)
+  d$group <- rep(1:4, each = 10)
+  f <- as.formula(paste("Y ~", paste(letters, collapse = " + "), "+ (1 | group)"))
+
+  result <- prepare_data_for_nimble(d, f, ~ 1 + (1 | group))
+  expect_equal(ncol(result$data$X), 27) # intercept + 26 predictors
+  expect_equal(result$groups, 4)
+})
+
+test_that("prepare_data_for_nimble keeps Y, X and Z aligned when predictors have NAs", {
+  ## model.matrix() drops NA rows; Y / group_id must be dropped consistently so
+  ## NIMBLE never receives mismatched lengths.
+  data <- data.frame(
+    Y = rnorm(20),
+    X1 = c(NA, rnorm(19)),
+    group = rep(1:4, each = 5)
+  )
+  result <- prepare_data_for_nimble(data, Y ~ X1 + (1 | group), ~ X1 + (1 | group))
+
+  n <- length(result$data$Y)
+  expect_equal(n, 19) # the single incomplete row is dropped
+  expect_equal(nrow(result$data$X), n)
+  expect_equal(nrow(result$data$Z), n)
+  expect_equal(nrow(result$data$X_scale), n)
+  expect_equal(nrow(result$data$Z_scale), n)
+  expect_equal(length(result$group_id), n)
+})
+
 
 ### Sample Tests for `._extract_to_mcmc`
 
