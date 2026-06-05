@@ -114,23 +114,21 @@ prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
 }
 ##' Render a single-line, carriage-return progress string for parallel chains
 ##'
-##' Builds the live status line shown by `ivd(progress = TRUE)`: a spinner, an
-##' ASCII bar, the chains-complete count and elapsed time. Leads with "\\r" so
-##' repeated prints overwrite the same terminal line.
-##' @param done Integer number of chains finished.
-##' @param total Integer number of chains (workers).
+##' Builds the live status line shown by `ivd(progress = TRUE)`: a spinner, the
+##' number of chains being fit, and elapsed time. Deliberately has no completion
+##' bar -- chains run in parallel and finish together, so a fraction bar would
+##' sit at 0 then jump to full. Leads with "\\r" so repeated prints overwrite
+##' the same terminal line.
+##' @param total Integer number of chains (workers) being fit.
 ##' @param t0 Start time (`Sys.time()`), used to compute elapsed time.
 ##' @param spinner Optional single-character spinner frame.
 ##' @return A length-1 character string.
 ##' @keywords internal
-.progress_line <- function(done, total, t0, spinner = "") {
+.progress_line <- function(total, t0, spinner = "") {
   el <- as.integer(as.numeric(difftime(Sys.time(), t0, units = "secs")))
   elapsed <- sprintf("%02d:%02d", el %/% 60L, el %% 60L)
-  width <- 24L
-  filled <- if (total > 0) round(width * done / total) else 0
-  bar <- paste0(strrep("=", filled), strrep(" ", width - filled))
-  sprintf("\r%s ivd [%s] %d/%d chains | %s elapsed ",
-          spinner, bar, done, total, elapsed)
+  sprintf("\r%s ivd: fitting %d %s | %s elapsed ",
+          spinner, total, if (total == 1) "chain" else "chains", elapsed)
 }
 
 ##' Extract samples to mcmc object

@@ -175,6 +175,25 @@ test_that("ivd thins stored iterations", {
     expect_equal(nrow(out$samples[[1]]$samples), 20)
 })
 
+test_that("ivd(seed = ...) is reproducible without an external set.seed()", {
+    skip_if(Sys.getenv("R_COVR") == "true", "covr instrumentation breaks nimbleCode model building")
+
+    ## Same data, no set.seed() around the calls: the internal `seed` must make
+    ## the inits and per-chain MCMC seeds reproducible on its own.
+    d <- data.frame(Y = rnorm(80), grouping = rep(1:8, each = 10))
+    fit <- function() suppressWarnings(ivd(
+        location_formula = Y ~ 1 + (1 | grouping),
+        scale_formula = ~ 1 + (1 | grouping),
+        data = d, niter = 60, nburnin = 30, workers = 2,
+        n_eff = "stan", seed = 99, progress = FALSE
+    ))
+    a <- fit()
+    b <- fit()
+    sa <- do.call(rbind, lapply(a$samples, function(ch) ch$samples))
+    sb <- do.call(rbind, lapply(b$samples, function(ch) ch$samples))
+    expect_identical(sa, sb)
+})
+
 test_that("ivd(progress = TRUE) shows a progress line and quiets NIMBLE chatter", {
     skip_if(Sys.getenv("R_COVR") == "true", "covr instrumentation breaks nimbleCode model building")
 

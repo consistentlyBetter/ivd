@@ -18,6 +18,7 @@ ivd(
   ss_prior_p = 0.5,
   thin = 1,
   return_logLik = FALSE,
+  seed = NULL,
   progress = interactive(),
   ...
 )
@@ -48,6 +49,12 @@ ivd(
 (\verb{iterations x chains x N}) for use with e.g. \code{loo}. Defaults to FALSE.
 When TRUE, \code{tau} is also monitored. The array scales with N and is the
 single largest element of the returned object, so it is opt-in.}
+
+\item{seed}{Optional integer for full reproducibility. When supplied, it
+seeds both the random initial values and a distinct per-chain MCMC seed, so
+repeated calls return identical draws without needing an external
+\code{set.seed()}. Defaults to \code{NULL} (inits drawn from the ambient RNG; chains
+seeded \code{1:workers} -- the previous behaviour).}
 
 \item{progress}{Show a live, per-chain progress line while the chains compile
 and sample, and suppress NIMBLE's (buffered) per-worker console output.

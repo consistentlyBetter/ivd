@@ -4,12 +4,10 @@
 \alias{.progress_line}
 \title{Render a single-line, carriage-return progress string for parallel chains}
 \usage{
-.progress_line(done, total, t0, spinner = "")
+.progress_line(total, t0, spinner = "")
 }
 \arguments{
-\item{done}{Integer number of chains finished.}
-
-\item{total}{Integer number of chains (workers).}
+\item{total}{Integer number of chains (workers) being fit.}
 
 \item{t0}{Start time (\code{Sys.time()}), used to compute elapsed time.}
 
@@ -19,8 +17,10 @@
 A length-1 character string.
 }
 \description{
-Builds the live status line shown by \code{ivd(progress = TRUE)}: a spinner, an
-ASCII bar, the chains-complete count and elapsed time. Leads with "\\r" so
-repeated prints overwrite the same terminal line.
+Builds the live status line shown by \code{ivd(progress = TRUE)}: a spinner, the
+number of chains being fit, and elapsed time. Deliberately has no completion
+bar -- chains run in parallel and finish together, so a fraction bar would
+sit at 0 then jump to full. Leads with "\\r" so repeated prints overwrite
+the same terminal line.
 }
 \keyword{internal}

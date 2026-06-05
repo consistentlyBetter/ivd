@@ -172,14 +172,13 @@ test_that(".reconstruct_mu_means equals the linear predictor from beta and u", {
   expect_equal(unname(got), expected)
 })
 
-test_that(".progress_line renders a single overwriting status line", {
+test_that(".progress_line renders a single overwriting spinner/elapsed line", {
   t0 <- Sys.time()
-  line <- .progress_line(2, 4, t0, spinner = "@")
-  expect_true(startsWith(line, "\r@ ivd "))           # CR + spinner: overwrites line
-  expect_match(line, "2/4 chains")
+  line <- .progress_line(4, t0, spinner = "@")
+  expect_true(startsWith(line, "\r@ ivd: fitting 4 chains")) # CR + spinner, no bar
   expect_match(line, "elapsed")
-  expect_match(.progress_line(4, 4, t0), "\\[={24}\\]") # full bar at completion
-  expect_match(.progress_line(0, 4, t0), "\\[ {24}\\]") # empty bar at start
+  expect_false(grepl("\\[", line))                    # no completion bar
+  expect_match(.progress_line(1, t0), "fitting 1 chain\\b") # singular form
 })
 
 test_that(".reconstruct_mu_means errors when design matrices are absent", {

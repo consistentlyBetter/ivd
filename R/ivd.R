@@ -166,6 +166,11 @@ uppertri_mult_diag <- nimbleFunction(
 #'   (`iterations x chains x N`) for use with e.g. `loo`. Defaults to FALSE.
 #'   When TRUE, `tau` is also monitored. The array scales with N and is the
 #'   single largest element of the returned object, so it is opt-in.
+#' @param seed Optional integer for full reproducibility. When supplied, it
+#'   seeds both the random initial values and a distinct per-chain MCMC seed, so
+#'   repeated calls return identical draws without needing an external
+#'   `set.seed()`. Defaults to `NULL` (inits drawn from the ambient RNG; chains
+#'   seeded `1:workers` -- the previous behaviour).
 #' @param progress Show a live, per-chain progress line while the chains compile
 #'   and sample, and suppress NIMBLE's (buffered) per-worker console output.
 #'   Defaults to `interactive()`. Set to FALSE to restore NIMBLE's verbose
@@ -242,7 +247,7 @@ uppertri_mult_diag <- nimbleFunction(
 ##' codaplot(out, parameters =  "Intc")
 ##' codaplot(out, parameters =  "R[scl_Intc, Intc]")
 ##' }
-ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WAIC = TRUE, workers = 4, n_eff = "local", ss_prior_p = 0.5, thin = 1, return_logLik = FALSE, progress = interactive(), ...) {
+ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WAIC = TRUE, workers = 4, n_eff = "local", ss_prior_p = 0.5, thin = 1, return_logLik = FALSE, seed = NULL, progress = interactive(), ...) {
   if(is.null(nburnin)) {
     nburnin <- niter
   }
@@ -271,9 +276,14 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
       sd_pred = sd_pred, ## empirical estimate from sample for location
       bval = matrix(c(rep(1, ncol(data$Z)), rep(ss_prior_p, ncol(data$Z_scale))), ncol = 1)## Prior probability for dbern
   )
+  ## Optional reproducibility: seed the random inits and derive a distinct,
+  ## reproducible RNG seed per chain. With seed = NULL the behaviour is
+  ## unchanged -- inits drawn from the ambient RNG, chains seeded 1:workers.
+  if (!is.null(seed)) set.seed(seed)
   ## Nimble inits
   inits <- list(beta = rnorm(constants$K, 5, 10), ## TODO: Check inits
                 zeta =  rnorm(constants$S, 1, 3))
+  chain_seeds <- if (is.null(seed)) seq_len(workers) else sample.int(.Machine$integer.max, workers)
 
   ## nocov start: the model is NIMBLE's BUGS-style DSL, parsed by nimbleModel()
   ## rather than executed as R. covr's line-counting injection corrupts it
@@ -360,9 +370,10 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   ## progress line while the workers compile and sample. With `multisession`
   ## the workers are separate processes whose NIMBLE output is buffered and only
   ## relayed on collection; when `progress = TRUE` it is suppressed in-worker so
-  ## the live line is the only console output. Results stay deterministic: the
-  ## MCMC seed is `setSeed = x` and the inits are fixed, so `seed = TRUE` here
-  ## only gives each future a valid RNG stream (it does not affect the draws).
+  ## the live line is the only console output. Results stay deterministic: each
+  ## chain's draws are fixed by `runMCMC(setSeed = chain_seeds[x])` plus the
+  ## inits, so the future's own `seed = TRUE` (a valid RNG stream) never affects
+  ## the draws -- it only silences future's RNG warning.
   quiet <- isTRUE(progress)
   dots <- list(...)
   chain_globals <- list(
@@ -382,7 +393,7 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
                       dummy_data = data, dummy_inits = inits,
                       useWAIC = WAIC, monitor_pointwise = return_logLik)
                   do.call(run_MCMC_compiled_model,
-                          c(list(compiled = compiled_model, seed = x,
+                          c(list(compiled = compiled_model, seed = chain_seed,
                                  new_data = data, new_inits = inits,
                                  niter = niter, nburnin = nburnin,
                                  useWAIC = WAIC, thin = thin), dots))
@@ -397,11 +408,14 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
               }
           },
           seed = TRUE, packages = "nimble",
-          globals = c(chain_globals, list(x = x))
+          globals = c(chain_globals, list(chain_seed = chain_seeds[x]))
       )
   })
 
-  ## Poll the workers in the main process and render a live, per-chain line.
+  ## Poll the workers in the main process and render a live spinner + elapsed
+  ## timer. There is deliberately no "k/workers" bar: chains run in parallel and
+  ## finish together, so a fraction bar would sit at 0 then jump to full -- the
+  ## spinner/timer honestly signal "working" without implying smooth progress.
   if (isTRUE(progress)) {
       t0 <- Sys.time()
       message("ivd: compiling and sampling ", workers,
@@ -411,7 +425,7 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
       repeat {
           done <- sum(vapply(fits, future::resolved, logical(1)))
           tick <- tick + 1L
-          cat(.progress_line(done, workers, t0, spin[(tick - 1L) %% 4L + 1L]))
+          cat(.progress_line(workers, t0, spin[(tick - 1L) %% 4L + 1L]))
           utils::flush.console()
           if (done == workers) break
           Sys.sleep(0.4)
