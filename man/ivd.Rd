@@ -16,6 +16,8 @@ ivd(
   workers = 4,
   n_eff = "local",
   ss_prior_p = 0.5,
+  thin = 1,
+  return_logLik = FALSE,
   ...
 )
 }
@@ -38,6 +40,14 @@ ivd(
 
 \item{ss_prior_p}{Prior inclusion probability. Defaults to '.5'.}
 
+\item{thin}{Thinning interval for stored posterior draws. Defaults to 1
+(keep every iteration). Larger values cut stored-sample RAM linearly.}
+
+\item{return_logLik}{Store the pointwise log-likelihood array
+(\verb{iterations x chains x N}) for use with e.g. \code{loo}. Defaults to FALSE.
+When TRUE, \code{tau} is also monitored. The array scales with N and is the
+single largest element of the returned object, so it is opt-in.}
+
 \item{...}{Currently not used}
 }
 \value{
@@ -50,8 +60,9 @@ The returned object is a named list with the following components:
 \item \code{samples}: An \code{mcmc.list} object containing posterior
 samples for all monitored parameters across all chains.
 
-\item \code{logLik_array}: A 3D array of pointwise log-likelihood
-values with dimensions \code{iterations × chains × N}.
+\item \code{logLik_array}: Only present when \code{return_logLik = TRUE}.
+A 3D array of pointwise log-likelihood values with dimensions
+\code{iterations × chains × N}.
 
 \item \code{rhat_values}: Vector of split-\eqn{\hat{R}} convergence
 diagnostics (Vehtari et al., 2021).

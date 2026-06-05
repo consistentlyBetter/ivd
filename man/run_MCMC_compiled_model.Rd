@@ -13,6 +13,7 @@ run_MCMC_compiled_model(
   niter,
   nburnin,
   useWAIC = TRUE,
+  thin = 1,
   ...
 )
 }
@@ -30,6 +31,8 @@ run_MCMC_compiled_model(
 \item{nburnin}{Number of burnin iterations}
 
 \item{useWAIC}{Defaults to TRUE}
+
+\item{thin}{Thinning interval passed to \code{runMCMC()}. Defaults to 1.}
 
 \item{...}{Placeholder for nimble arguments}
 }

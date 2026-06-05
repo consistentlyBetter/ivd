@@ -116,6 +116,62 @@ test_that("ivd sets up and runs with correct defaults and inputs", {
     expect_equal(testoutput$workers, 2)
 })
 
+test_that("ivd does not monitor tau or return logLik by default (memory)", {
+    ## A+B: tau is no longer monitored and logLik_array is opt-in, so the
+    ## per-observation O(N x iterations) storage is dropped by default.
+    skip_if(Sys.getenv("R_COVR") == "true", "covr instrumentation breaks nimbleCode model building")
+
+    out <- suppressWarnings(ivd(
+        location_formula = Y ~ 1 + (1 | grouping),
+        scale_formula = ~ 1 + (1 | grouping),
+        data = data.frame(Y = rnorm(100), grouping = rep(1:10, each = 10)),
+        niter = 100, nburnin = 50, WAIC = TRUE, workers = 2, n_eff = "stan"
+    ))
+    cn <- colnames(out$samples[[1]]$samples)
+    expect_false(any(grepl("^tau\\[", cn)))   # tau no longer stored
+    expect_true(any(grepl("^mu\\[", cn)))     # mu kept for the outcome plot
+    expect_null(out$logLik_array)             # opt-in, off by default
+
+    ## Diagnostics stay full-length (mu positions present but NA) so that
+    ## summary.ivd()'s index-based mu/tau dropping still aligns.
+    expect_equal(length(out$rhat_values), length(cn))
+    expect_equal(length(out$n_eff), length(cn))
+    expect_true(all(is.na(out$rhat_values[grep("^mu\\[", cn)])))
+
+    ## summary() must still run against an object without monitored tau
+    expect_no_error(suppressWarnings(summary(out)))
+})
+
+test_that("ivd returns logLik and monitors tau when return_logLik = TRUE", {
+    skip_if(Sys.getenv("R_COVR") == "true", "covr instrumentation breaks nimbleCode model building")
+
+    out <- suppressWarnings(ivd(
+        location_formula = Y ~ 1 + (1 | grouping),
+        scale_formula = ~ 1 + (1 | grouping),
+        data = data.frame(Y = rnorm(100), grouping = rep(1:10, each = 10)),
+        niter = 100, nburnin = 50, WAIC = TRUE, workers = 2, n_eff = "stan",
+        return_logLik = TRUE
+    ))
+    cn <- colnames(out$samples[[1]]$samples)
+    expect_true(any(grepl("^tau\\[", cn)))
+    expect_false(is.null(out$logLik_array))
+    expect_equal(dim(out$logLik_array)[3], 100) # N observations
+})
+
+test_that("ivd thins stored iterations", {
+    skip_if(Sys.getenv("R_COVR") == "true", "covr instrumentation breaks nimbleCode model building")
+
+    out <- suppressWarnings(ivd(
+        location_formula = Y ~ 1 + (1 | grouping),
+        scale_formula = ~ 1 + (1 | grouping),
+        data = data.frame(Y = rnorm(100), grouping = rep(1:10, each = 10)),
+        niter = 100, nburnin = 50, WAIC = TRUE, workers = 2, n_eff = "stan",
+        thin = 5
+    ))
+    ## 100 post-burnin iterations / thin 5 = 20 stored draws
+    expect_equal(nrow(out$samples[[1]]$samples), 20)
+})
+
 test_that("ivd handles missing formulas", {
     expect_error(ivd(
         data = data.frame(Y = rnorm(100), X = 1:100),

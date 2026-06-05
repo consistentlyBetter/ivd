@@ -7,6 +7,9 @@
 ##' @param dummy_data Data
 ##' @param dummy_inits inits
 ##' @param useWAIC Defaults to TRUE. Nimble argument
+##' @param monitor_tau Also monitor the per-observation scale `tau`. Defaults to
+##'   FALSE; only needed to reconstruct the pointwise log-likelihood. Monitoring
+##'   it costs O(N x iterations) RAM per chain, so it is off unless requested.
 ##' @return
 #' A named \code{list} with two elements:
 #' \itemize{
@@ -43,14 +46,18 @@
 #'
 #' str(out)
 #' }
-build_ivd_model <- function(code, constants, dummy_data, dummy_inits, useWAIC = TRUE) {
+build_ivd_model <- function(code, constants, dummy_data, dummy_inits, useWAIC = TRUE, monitor_tau = FALSE) {
     model <- nimbleModel(code = code, data = dummy_data, constants = constants, inits = dummy_inits)
     cmodel <- compileNimble(model)
 
     config <- configureMCMC(model)
     if (useWAIC) config$enableWAIC <- useWAIC
     config$monitors <- c("beta", "zeta", "R", "ss", "sigma_rand", "u")
-    config$addMonitors(c("mu", "tau"))
+    ## `mu` is kept for the posterior-mean cluster outcome plot. `tau` is only
+    ## needed to reconstruct the pointwise log-likelihood, so monitor it solely
+    ## when the caller asks for it: monitoring per-observation nodes stores
+    ## O(N x iterations) values per chain, the dominant memory term in ivd().
+    config$addMonitors(if (monitor_tau) c("mu", "tau") else "mu")
 
     mcmc <- buildMCMC(config)
     cmcmc <- compileNimble(mcmc, project = cmodel)
@@ -68,6 +75,7 @@ build_ivd_model <- function(code, constants, dummy_data, dummy_inits, useWAIC = 
 ##' @param niter Sampling iteratons
 ##' @param nburnin Number of burnin iterations
 ##' @param useWAIC Defaults to TRUE
+##' @param thin Thinning interval passed to `runMCMC()`. Defaults to 1.
 ##' @param ... Placeholder for nimble arguments
 #' @return
 #' The output produced by \code{nimble::runMCMC()} when applied to a compiled
@@ -114,11 +122,11 @@ build_ivd_model <- function(code, constants, dummy_data, dummy_inits, useWAIC = 
 #'
 #' str(out)
 #' }
-run_MCMC_compiled_model <- function(compiled, seed, new_data, new_inits, niter, nburnin, useWAIC = TRUE, ...) {
+run_MCMC_compiled_model <- function(compiled, seed, new_data, new_inits, niter, nburnin, useWAIC = TRUE, thin = 1, ...) {
   compiled$cmodel$setData(new_data)
   compiled$cmodel$setInits(new_inits)
-  
-  samples <- runMCMC(compiled$cmcmc, niter = niter, nburnin = nburnin, setSeed = seed, WAIC = useWAIC, ...)
+
+  samples <- runMCMC(compiled$cmcmc, niter = niter, nburnin = nburnin, thin = thin, setSeed = seed, WAIC = useWAIC, ...)
   return(samples)
 }
 
@@ -150,6 +158,12 @@ uppertri_mult_diag <- nimbleFunction(
 #' @param workers Number of parallel R processes -- doubles as 'chains' argument
 #' @param n_eff Use stan::monitor function or built local: 'stan' vs. 'local'
 #' @param ss_prior_p Prior inclusion probability. Defaults to '.5'.
+#' @param thin Thinning interval for stored posterior draws. Defaults to 1
+#'   (keep every iteration). Larger values cut stored-sample RAM linearly.
+#' @param return_logLik Store the pointwise log-likelihood array
+#'   (`iterations x chains x N`) for use with e.g. `loo`. Defaults to FALSE.
+#'   When TRUE, `tau` is also monitored. The array scales with N and is the
+#'   single largest element of the returned object, so it is opt-in.
 #' @param ... Currently not used
 #' @return
 #' An object of class \code{"ivd"} (and \code{"list"}), which contains the
@@ -161,8 +175,9 @@ uppertri_mult_diag <- nimbleFunction(
 #'   \item \code{samples}: An \code{mcmc.list} object containing posterior
 #'         samples for all monitored parameters across all chains.
 #'
-#'   \item \code{logLik_array}: A 3D array of pointwise log-likelihood
-#'         values with dimensions \code{iterations × chains × N}.
+#'   \item \code{logLik_array}: Only present when \code{return_logLik = TRUE}.
+#'         A 3D array of pointwise log-likelihood values with dimensions
+#'         \code{iterations × chains × N}.
 #'
 #'   \item \code{rhat_values}: Vector of split-\eqn{\hat{R}} convergence
 #'         diagnostics (Vehtari et al., 2021).
@@ -216,7 +231,7 @@ uppertri_mult_diag <- nimbleFunction(
 ##' codaplot(out, parameters =  "Intc")
 ##' codaplot(out, parameters =  "R[scl_Intc, Intc]")
 ##' }
-ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WAIC = TRUE, workers = 4, n_eff = "local", ss_prior_p = 0.5, ...) {
+ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WAIC = TRUE, workers = 4, n_eff = "local", ss_prior_p = 0.5, thin = 1, return_logLik = FALSE, ...) {
   if(is.null(nburnin)) {
     nburnin <- niter
   }
@@ -340,7 +355,8 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
           constants = constants,
           dummy_data = data,
           dummy_inits = inits,
-          useWAIC = WAIC
+          useWAIC = WAIC,
+          monitor_tau = return_logLik
       )
       run_MCMC_compiled_model(
           compiled = compiled_model,
@@ -349,7 +365,8 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
           new_inits = inits,
           niter = niter,
           nburnin = nburnin,
-          useWAIC = WAIC, ...
+          useWAIC = WAIC,
+          thin = thin, ...
       )
   },
   future.seed = TRUE,
@@ -359,6 +376,8 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
       constants = constants,
       data = data,
       inits = inits,
+      thin = thin,
+      return_logLik = return_logLik,
       build_ivd_model = build_ivd_model,
     run_MCMC_compiled_model = run_MCMC_compiled_model,
     uppertri_mult_diag = uppertri_mult_diag
@@ -379,52 +398,52 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   mcmc_chains <- lapply(results, as.mcmc)
   combined_chains <- mcmc.list(mcmc_chains)
 
-  ## Compute logLik:
-  ## Check that Y,  mu and tau are of same length, in case grep picks up other variables
-  if(length(grep("mu", colnames(combined_chains[[1]]$samples))) != length(grep("tau", colnames(combined_chains[[1]]$samples))) &
-     length(grep("mu", colnames(combined_chains[[1]]$samples))) != length(data$Y)) {
-      stop("mu and tau are not of same lenght -- check ivd.R")
-  }
-  
-  ## Collect mu and tau
-  ## Get mu's across chains
-  mu_combined <- lapply(combined_chains, function(chain) {
-    mu_indices <- grep("mu", colnames(chain$samples))
-    mu_samples <- chain$samples[, mu_indices, drop = FALSE]
-    return(mu_samples)
-  })
+  ## Number of observations / chains / stored iterations
+  N <- length(data$Y)
+  chains <- length(combined_chains)
+  iterations <- nrow(combined_chains[[1]]$samples)
 
-  ## Get tau's across chains
-  tau_combined <- lapply(combined_chains, function(chain) {
-    tau_indices <- grep("tau", colnames(chain$samples))
-    tau_samples <- chain$samples[, tau_indices, drop = FALSE]
-    return(tau_samples)
-  })
-
-  N <- length( data$Y )
-  chains <- length(mu_combined)  # Number of chains
-  iterations <- nrow(mu_combined[[1]])  # Number of iterations (assuming all chains have same iterations)
-
-  ## Initialize the array for log-likelihoods: iterations x chains x N
-  logLik_array <- array(NA, dim = c(iterations, chains, N))
-
-  ## Loop over chains and iterations to compute log-likelihood
-  for (chain_idx in 1:chains) {
-    for (iter in 1:iterations) {
-      ## Extract mu and tau for this iteration and chain, results in vectors of length N
-      mu_values <- mu_combined[[chain_idx]][iter, ]
-      tau_values <- tau_combined[[chain_idx]][iter, ]
-
-      ## Compute log-likelihood for each observation in Y
-      logLik_array[iter, chain_idx, ] <- dnorm(data$Y, mean = mu_values, sd = tau_values, log = TRUE)
+  ## Pointwise log-likelihood (opt-in): iterations x chains x N. It is the single
+  ## largest element of the returned object and is used only for downstream
+  ## loo()/by-hand WAIC workflows, so it is built only on request. It needs
+  ## `tau`, which is monitored solely under return_logLik = TRUE (build_ivd_model()).
+  if (return_logLik) {
+    ## Check that mu and tau are of same length, in case grep picks up other variables
+    n_mu  <- length(grep("^mu\\[",  colnames(combined_chains[[1]]$samples)))
+    n_tau <- length(grep("^tau\\[", colnames(combined_chains[[1]]$samples)))
+    if (n_mu != n_tau & n_mu != N) {
+        stop("mu and tau are not of same lenght -- check ivd.R")
     }
+    ## Collect mu and tau across chains
+    mu_combined <- lapply(combined_chains, function(chain) {
+      chain$samples[, grep("^mu\\[", colnames(chain$samples)), drop = FALSE]
+    })
+    tau_combined <- lapply(combined_chains, function(chain) {
+      chain$samples[, grep("^tau\\[", colnames(chain$samples)), drop = FALSE]
+    })
+    ## Initialize the array for log-likelihoods: iterations x chains x N
+    logLik_array <- array(NA, dim = c(iterations, chains, N))
+    for (chain_idx in 1:chains) {
+      for (iter in 1:iterations) {
+        ## mu and tau for this iteration/chain, vectors of length N
+        mu_values <- mu_combined[[chain_idx]][iter, ]
+        tau_values <- tau_combined[[chain_idx]][iter, ]
+        logLik_array[iter, chain_idx, ] <- dnorm(data$Y, mean = mu_values, sd = tau_values, log = TRUE)
+      }
+    }
+    out$logLik_array <- logLik_array
   }
-  out$logLik_array <- logLik_array
-
-
 
   ## Compute Rhats and n_eff:
-  x <- mcmc.list( lapply(combined_chains, FUN = function(x) mcmc(x$samples)) )
+  ## Exclude the per-observation mu/tau columns from the diagnostics arrays.
+  ## summary.ivd() drops them anyway, and copying 2N columns into
+  ## samples_array/split_samples (twice) is the bulk of post-processing RAM --
+  ## and running the FFT autocorrelation over near-constant mu/tau feeds the
+  ## n_eff = "local" crash. Diagnostics are scattered back to full length (with
+  ## NA at mu/tau positions) below, so summary.ivd()'s indexing still aligns.
+  all_param_names <- colnames(combined_chains[[1]]$samples)
+  keep_cols <- grep("^(mu|tau)\\[", all_param_names, invert = TRUE)
+  x <- mcmc.list(lapply(combined_chains, FUN = function(x) mcmc(x$samples[, keep_cols, drop = FALSE])))
   ## Extract dimensions
   parameters <- ncol(x[[1]])
   ## Initialize a 3D array
@@ -531,12 +550,19 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
       n_eff <- monitor_results$n_eff
   }
   
+  ## Scatter diagnostics back to full parameter length (NA at the excluded
+  ## mu/tau positions) so downstream index-based subsetting stays aligned.
+  rhat_full <- stats::setNames(rep(NA_real_, length(all_param_names)), all_param_names)
+  neff_full <- stats::setNames(rep(NA_real_, length(all_param_names)), all_param_names)
+  rhat_full[keep_cols] <- Rhat
+  neff_full[keep_cols] <- n_eff
+
   ## Extract and print R-hat values
-  out$rhat_values <- Rhat
+  out$rhat_values <- rhat_full
   if(any(out$rhat_values[!is.na(out$rhat_values)] > 1.1)) warning("Some R-hat values are greater than 1.10 -- increase warmup and/or sampling iterations.")
 
   ## Effective sample size
-  out$n_eff <- n_eff
+  out$n_eff <- neff_full
   
   ## Save the rest to the out object
   out$samples <- combined_chains
