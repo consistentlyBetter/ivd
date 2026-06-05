@@ -166,6 +166,12 @@ uppertri_mult_diag <- nimbleFunction(
 #'   (`iterations x chains x N`) for use with e.g. `loo`. Defaults to FALSE.
 #'   When TRUE, `tau` is also monitored. The array scales with N and is the
 #'   single largest element of the returned object, so it is opt-in.
+#' @param progress Show a live, per-chain progress line while the chains compile
+#'   and sample, and suppress NIMBLE's (buffered) per-worker console output.
+#'   Defaults to `interactive()`. Set to FALSE to restore NIMBLE's verbose
+#'   model-building output and disable the progress line. Progress granularity
+#'   is per chain: each tick marks a chain finishing (compile + sample), since
+#'   `multisession` workers cannot stream sub-chain progress.
 #' @param ... Currently not used
 #' @return
 #' An object of class \code{"ivd"} (and \code{"list"}), which contains the
@@ -212,7 +218,6 @@ uppertri_mult_diag <- nimbleFunction(
 #' and extracting results from the \code{ivd} model.
 #' 
 #' @import future
-#' @importFrom future.apply future_lapply
 #' @importFrom coda as.mcmc mcmc.list
 #' @importFrom nimble nimbleCode nimbleModel compileNimble buildMCMC runMCMC
 #' @importFrom rstan monitor
@@ -237,7 +242,7 @@ uppertri_mult_diag <- nimbleFunction(
 ##' codaplot(out, parameters =  "Intc")
 ##' codaplot(out, parameters =  "R[scl_Intc, Intc]")
 ##' }
-ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WAIC = TRUE, workers = 4, n_eff = "local", ss_prior_p = 0.5, thin = 1, return_logLik = FALSE, ...) {
+ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WAIC = TRUE, workers = 4, n_eff = "local", ss_prior_p = 0.5, thin = 1, return_logLik = FALSE, progress = interactive(), ...) {
   if(is.null(nburnin)) {
     nburnin <- niter
   }
@@ -347,49 +352,76 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   ## nocov end
 
   ## IMPORTANT: future loads the installed library on its workers - changes in the package that are not in the library(ivd)
-  ## are not loaded onto the workers! All changes to run_MCMC_allcode only take effect after reinstalling. 
+  ## are not loaded onto the workers! Edits to build_ivd_model / run_MCMC_compiled_model only take effect after reinstalling.
   future::plan(multisession, workers = workers)
 
-  ## results <- future_lapply(1:workers, function(x) run_MCMC_allcode(seed = x, data = data, constants = constants,
-  ##                                                                  code = modelCode, niter = niter, nburnin = nburnin,
-  ##                                                                  useWAIC = WAIC, inits = inits, ...),
-  ##                          future.seed = TRUE, future.packages = c("nimble"),
-  ##                          future.globals = list(invvec_to_corr = invvec_to_corr))
-  results <- future_lapply(1:workers, function(x) {
-      compiled_model <- build_ivd_model(
-          code = modelCode,
-          constants = constants,
-          dummy_data = data,
-          dummy_inits = inits,
-          useWAIC = WAIC,
-          monitor_pointwise = return_logLik
-      )
-      run_MCMC_compiled_model(
-          compiled = compiled_model,
-          seed = x,
-          new_data = data,
-          new_inits = inits,
-          niter = niter,
-          nburnin = nburnin,
-          useWAIC = WAIC,
-          thin = thin, ...
-      )
-  },
-  future.seed = TRUE,
-  future.packages = c("nimble"),
-  future.globals = list(
-      modelCode = modelCode,
-      constants = constants,
-      data = data,
-      inits = inits,
-      thin = thin,
-      return_logLik = return_logLik,
+  ## One future per chain (workers == chains). Manual futures (rather than
+  ## future_lapply) let the main process poll resolved() and render a live
+  ## progress line while the workers compile and sample. With `multisession`
+  ## the workers are separate processes whose NIMBLE output is buffered and only
+  ## relayed on collection; when `progress = TRUE` it is suppressed in-worker so
+  ## the live line is the only console output. Results stay deterministic: the
+  ## MCMC seed is `setSeed = x` and the inits are fixed, so `seed = TRUE` here
+  ## only gives each future a valid RNG stream (it does not affect the draws).
+  quiet <- isTRUE(progress)
+  dots <- list(...)
+  chain_globals <- list(
+      modelCode = modelCode, constants = constants, data = data, inits = inits,
+      niter = niter, nburnin = nburnin, WAIC = WAIC, thin = thin,
+      return_logLik = return_logLik, quiet = quiet, dots = dots,
       build_ivd_model = build_ivd_model,
-    run_MCMC_compiled_model = run_MCMC_compiled_model,
-    uppertri_mult_diag = uppertri_mult_diag
-      #invvec_to_corr = invvec_to_corr
+      run_MCMC_compiled_model = run_MCMC_compiled_model,
+      uppertri_mult_diag = uppertri_mult_diag
   )
-  )
+  fits <- lapply(seq_len(workers), function(x) {
+      future::future(
+          {
+              run_one <- function() {
+                  compiled_model <- build_ivd_model(
+                      code = modelCode, constants = constants,
+                      dummy_data = data, dummy_inits = inits,
+                      useWAIC = WAIC, monitor_pointwise = return_logLik)
+                  do.call(run_MCMC_compiled_model,
+                          c(list(compiled = compiled_model, seed = x,
+                                 new_data = data, new_inits = inits,
+                                 niter = niter, nburnin = nburnin,
+                                 useWAIC = WAIC, thin = thin), dots))
+              }
+              if (quiet) {
+                  res <- NULL
+                  utils::capture.output(
+                      suppressMessages(suppressWarnings(res <- run_one())))
+                  res
+              } else {
+                  run_one()
+              }
+          },
+          seed = TRUE, packages = "nimble",
+          globals = c(chain_globals, list(x = x))
+      )
+  })
+
+  ## Poll the workers in the main process and render a live, per-chain line.
+  if (isTRUE(progress)) {
+      t0 <- Sys.time()
+      message("ivd: compiling and sampling ", workers,
+              if (workers == 1) " chain" else " chains", " in parallel ...")
+      spin <- c("|", "/", "-", "\\")
+      tick <- 0L
+      repeat {
+          done <- sum(vapply(fits, future::resolved, logical(1)))
+          tick <- tick + 1L
+          cat(.progress_line(done, workers, t0, spin[(tick - 1L) %% 4L + 1L]))
+          utils::flush.console()
+          if (done == workers) break
+          Sys.sleep(0.4)
+      }
+      cat("\n")
+  }
+
+  ## Collect results: re-throws any worker error, and relays the buffered
+  ## NIMBLE output when it was not suppressed (progress = FALSE).
+  results <- lapply(fits, future::value)
   
   ## Prepare object to be returned
   out <- list()

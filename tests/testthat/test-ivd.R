@@ -175,6 +175,29 @@ test_that("ivd thins stored iterations", {
     expect_equal(nrow(out$samples[[1]]$samples), 20)
 })
 
+test_that("ivd(progress = TRUE) shows a progress line and quiets NIMBLE chatter", {
+    skip_if(Sys.getenv("R_COVR") == "true", "covr instrumentation breaks nimbleCode model building")
+
+    out <- NULL
+    stdout_lines <- capture.output(
+        out <- suppressWarnings(ivd(
+            location_formula = Y ~ 1 + (1 | grouping),
+            scale_formula = ~ 1 + (1 | grouping),
+            data = data.frame(Y = rnorm(80), grouping = rep(1:8, each = 10)),
+            niter = 60, nburnin = 30, WAIC = TRUE, workers = 2,
+            n_eff = "stan", progress = TRUE
+        )),
+        type = "output"
+    )
+    expect_s3_class(out, "ivd")
+
+    joined <- paste(stdout_lines, collapse = "\n")
+    expect_true(grepl("chains", joined))               # live progress line rendered
+    ## NIMBLE's buffered per-worker output is suppressed under progress = TRUE
+    expect_false(grepl("Defining model", joined))
+    expect_false(grepl("Compiling", joined))
+})
+
 test_that("ivd handles missing formulas", {
     expect_error(ivd(
         data = data.frame(Y = rnorm(100), X = 1:100),

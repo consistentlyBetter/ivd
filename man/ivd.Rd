@@ -18,6 +18,7 @@ ivd(
   ss_prior_p = 0.5,
   thin = 1,
   return_logLik = FALSE,
+  progress = interactive(),
   ...
 )
 }
@@ -47,6 +48,13 @@ ivd(
 (\verb{iterations x chains x N}) for use with e.g. \code{loo}. Defaults to FALSE.
 When TRUE, \code{tau} is also monitored. The array scales with N and is the
 single largest element of the returned object, so it is opt-in.}
+
+\item{progress}{Show a live, per-chain progress line while the chains compile
+and sample, and suppress NIMBLE's (buffered) per-worker console output.
+Defaults to \code{interactive()}. Set to FALSE to restore NIMBLE's verbose
+model-building output and disable the progress line. Progress granularity
+is per chain: each tick marks a chain finishing (compile + sample), since
+\code{multisession} workers cannot stream sub-chain progress.}
 
 \item{...}{Currently not used}
 }

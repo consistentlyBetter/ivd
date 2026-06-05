@@ -27,7 +27,6 @@ Imports:
     ggplot2,
     patchwork,
     future,
-    future.apply,
     utils,
     rstan,
     ggrepel
