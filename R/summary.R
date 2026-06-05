@@ -64,17 +64,20 @@ summary.ivd <- function(object, digits = 3, pip = 'all', ...) {
   combined_samples <- do.call(rbind,  extract_samples)
   cn <- colnames(combined_samples )
 
-  ## exclude mu and tau
-  mu_index <- grep('mu',  cn )
-  tau_index <- grep('tau',  cn )
-  
+  ## exclude mu and tau (absent unless return_logLik = TRUE / legacy objects).
+  ## Guard the empty case: `x[, -integer(0)]` selects ZERO columns, not all.
+  drop_idx <- c(grep('^mu\\[', cn), grep('^tau\\[', cn))
+  keep <- function(z) if (length(drop_idx)) {
+    if (is.null(dim(z))) z[-drop_idx] else z[, -drop_idx, drop = FALSE]
+  } else z
+
   ## mcmc from coda
-  summary_stats <- summary(mcmc(combined_samples[, -c(mu_index, tau_index)]))
-  
+  summary_stats <- summary(mcmc(keep(combined_samples)))
+
   ## Add n_eff and R-hats
   summary_stats$statistics <- cbind(summary_stats$statistics,
-                                    n_eff = object$n_eff[-c(mu_index, tau_index)],
-                                    'R-hat' = object$rhat_values[-c(mu_index, tau_index)])
+                                    n_eff = keep(object$n_eff),
+                                    'R-hat' = keep(object$rhat_values))
   
   ## summary_stats is a coda object with 2 summaries
   ## Means:

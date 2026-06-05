@@ -79,6 +79,10 @@ Names of fixed and random effects in the location submodel.
 \item \code{X_scale}, \code{Z_scale}:
 Matrices used for the scale submodel’s fixed and random effects.
 
+\item \code{X}, \code{Z}:
+Location-submodel fixed/random design matrices, retained so the
+outcome plot can reconstruct the posterior mean of \code{mu}.
+
 \item \code{Y}: Data frame with the response vector and group identifiers.
 
 \item \code{workers}: Number of parallel chains used.

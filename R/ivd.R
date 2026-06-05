@@ -7,9 +7,10 @@
 ##' @param dummy_data Data
 ##' @param dummy_inits inits
 ##' @param useWAIC Defaults to TRUE. Nimble argument
-##' @param monitor_tau Also monitor the per-observation scale `tau`. Defaults to
-##'   FALSE; only needed to reconstruct the pointwise log-likelihood. Monitoring
-##'   it costs O(N x iterations) RAM per chain, so it is off unless requested.
+##' @param monitor_pointwise Also monitor the per-observation `mu` and `tau`.
+##'   Defaults to FALSE; only needed to reconstruct the pointwise
+##'   log-likelihood. Monitoring them costs O(N x iterations) RAM per chain, so
+##'   they are off unless requested.
 ##' @return
 #' A named \code{list} with two elements:
 #' \itemize{
@@ -46,18 +47,19 @@
 #'
 #' str(out)
 #' }
-build_ivd_model <- function(code, constants, dummy_data, dummy_inits, useWAIC = TRUE, monitor_tau = FALSE) {
+build_ivd_model <- function(code, constants, dummy_data, dummy_inits, useWAIC = TRUE, monitor_pointwise = FALSE) {
     model <- nimbleModel(code = code, data = dummy_data, constants = constants, inits = dummy_inits)
     cmodel <- compileNimble(model)
 
     config <- configureMCMC(model)
     if (useWAIC) config$enableWAIC <- useWAIC
     config$monitors <- c("beta", "zeta", "R", "ss", "sigma_rand", "u")
-    ## `mu` is kept for the posterior-mean cluster outcome plot. `tau` is only
-    ## needed to reconstruct the pointwise log-likelihood, so monitor it solely
-    ## when the caller asks for it: monitoring per-observation nodes stores
-    ## O(N x iterations) values per chain, the dominant memory term in ivd().
-    config$addMonitors(if (monitor_tau) c("mu", "tau") else "mu")
+    ## The per-observation nodes `mu` and `tau` are NOT monitored: each stores
+    ## O(N x iterations) values per chain (the dominant memory term). The cluster
+    ## outcome plot reconstructs the posterior-mean `mu` from `beta` + `u`, and
+    ## the pointwise log-likelihood (which also needs `tau`) is opt-in. Monitor
+    ## both only when the caller requests the pointwise quantities.
+    if (monitor_pointwise) config$addMonitors(c("mu", "tau"))
 
     mcmc <- buildMCMC(config)
     cmcmc <- compileNimble(mcmc, project = cmodel)
@@ -193,6 +195,10 @@ uppertri_mult_diag <- nimbleFunction(
 #'
 #'   \item \code{X_scale}, \code{Z_scale}:
 #'         Matrices used for the scale submodel’s fixed and random effects.
+#'
+#'   \item \code{X}, \code{Z}:
+#'         Location-submodel fixed/random design matrices, retained so the
+#'         outcome plot can reconstruct the posterior mean of \code{mu}.
 #'
 #'   \item \code{Y}: Data frame with the response vector and group identifiers.
 #'
@@ -356,7 +362,7 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
           dummy_data = data,
           dummy_inits = inits,
           useWAIC = WAIC,
-          monitor_tau = return_logLik
+          monitor_pointwise = return_logLik
       )
       run_MCMC_compiled_model(
           compiled = compiled_model,
@@ -571,6 +577,11 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   out$X_scale <- data$X_scale
   out$Z_location_names <- colnames(data$Z) # save random effects names for summary table renaming
   out$Z_scale <- data$Z_scale
+  ## Location design matrices kept so plot.ivd() can reconstruct the posterior
+  ## mean of `mu` from beta + u (mu is no longer monitored). These are O(N x K)
+  ## / O(N x Kr) and do not grow with iterations, unlike the dropped mu samples.
+  out$X <- data$X
+  out$Z <- data$Z
   out$Y <- data.frame("group_id" = group_id, "Y" = data$Y)
   out$workers <- workers
   

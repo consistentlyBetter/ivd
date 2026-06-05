@@ -116,9 +116,9 @@ test_that("ivd sets up and runs with correct defaults and inputs", {
     expect_equal(testoutput$workers, 2)
 })
 
-test_that("ivd does not monitor tau or return logLik by default (memory)", {
-    ## A+B: tau is no longer monitored and logLik_array is opt-in, so the
-    ## per-observation O(N x iterations) storage is dropped by default.
+test_that("ivd monitors neither mu nor tau, and omits logLik, by default (memory)", {
+    ## A+B+D: the per-observation O(N x iterations) nodes mu and tau are not
+    ## monitored and logLik_array is opt-in, so none of that storage is kept.
     skip_if(Sys.getenv("R_COVR") == "true", "covr instrumentation breaks nimbleCode model building")
 
     out <- suppressWarnings(ivd(
@@ -129,17 +129,20 @@ test_that("ivd does not monitor tau or return logLik by default (memory)", {
     ))
     cn <- colnames(out$samples[[1]]$samples)
     expect_false(any(grepl("^tau\\[", cn)))   # tau no longer stored
-    expect_true(any(grepl("^mu\\[", cn)))     # mu kept for the outcome plot
+    expect_false(any(grepl("^mu\\[", cn)))    # mu no longer stored (reconstructed)
     expect_null(out$logLik_array)             # opt-in, off by default
 
-    ## Diagnostics stay full-length (mu positions present but NA) so that
-    ## summary.ivd()'s index-based mu/tau dropping still aligns.
+    ## Location design matrices are retained for mu reconstruction.
+    expect_false(is.null(out$X))
+    expect_false(is.null(out$Z))
+
+    ## Diagnostics are full-length and aligned with the stored columns.
     expect_equal(length(out$rhat_values), length(cn))
     expect_equal(length(out$n_eff), length(cn))
-    expect_true(all(is.na(out$rhat_values[grep("^mu\\[", cn)])))
 
-    ## summary() must still run against an object without monitored tau
+    ## summary() and the outcome plot must work without monitored mu/tau.
     expect_no_error(suppressWarnings(summary(out)))
+    expect_s3_class(suppressWarnings(plot(out, type = "outcome", label_points = FALSE)), "ggplot")
 })
 
 test_that("ivd returns logLik and monitors tau when return_logLik = TRUE", {

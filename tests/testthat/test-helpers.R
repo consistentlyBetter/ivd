@@ -139,6 +139,46 @@ test_that("._extract_to_mcmc extracts MCMC samples correctly", {
 })
 
 
+test_that(".reconstruct_mu_means equals the linear predictor from beta and u", {
+  ## mu is linear in beta and u, so the posterior-mean reconstruction must equal
+  ## X %*% mean(beta) + rowSums(Z * mean(u_group)). Use constant draws so the
+  ## posterior means equal the set values, and check against a hand computation.
+  N <- 6; J <- 2; Kr <- 2
+  group_id <- c(1, 1, 1, 2, 2, 2)
+  X <- cbind(`(Intercept)` = 1, x = c(0.5, -0.5, 1, 0, 2, -1)) # K = 2
+  Z <- X                                                        # Kr = 2
+  beta <- c(1, 0.3)                                             # beta[1], beta[2]
+  u <- matrix(c(0.2, -0.1,    # group 1: u[1,1], u[1,2]
+                -0.4, 0.5),   # group 2: u[2,1], u[2,2]
+              nrow = 2, byrow = TRUE)
+
+  ## One chain, 3 identical iterations; note scale ranef columns (p > Kr) and an
+  ## out-of-order group to exercise index parsing rather than column position.
+  draw <- c(`beta[1]` = beta[1], `beta[2]` = beta[2],
+            `u[2, 1]` = u[2, 1], `u[1, 1]` = u[1, 1],
+            `u[1, 2]` = u[1, 2], `u[2, 2]` = u[2, 2],
+            `u[1, 3]` = 99, `u[2, 3]` = -99) # scale ranef -> must be ignored
+  mat <- matrix(rep(draw, each = 3), nrow = 3,
+                dimnames = list(NULL, names(draw)))
+  obj <- list(
+    samples = list(list(samples = mat)),
+    X = X, Z = Z,
+    Y = data.frame(group_id = group_id),
+    nimble_constants = list(Kr = Kr, J = J)
+  )
+
+  got <- .reconstruct_mu_means(obj)
+  expected <- as.numeric(X %*% beta) + rowSums(Z * u[group_id, ])
+  expect_equal(unname(got), expected)
+})
+
+test_that(".reconstruct_mu_means errors when design matrices are absent", {
+  obj <- list(samples = list(list(samples = matrix(0, 1, 1))),
+              nimble_constants = list(Kr = 1, J = 1))
+  expect_error(.reconstruct_mu_means(obj), "design matrices")
+})
+
+
 test_that(".autocorrelation_fft returns a normalised autocorrelation sequence", {
   set.seed(1)
   x <- as.numeric(stats::arima.sim(list(ar = 0.6), n = 200))

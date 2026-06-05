@@ -113,13 +113,56 @@ prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
   )
 }
 ##' Extract samples to mcmc object
-##' @param obj 
+##' @param obj
 ##' @return mcmc object
 ##' @author Philippe Rast
-##' @keywords internal 
+##' @keywords internal
 .extract_to_mcmc <- function(obj) {
   e_to_mcmc <- lapply(obj$samples, FUN = function(x) mcmc(x$samples))
   return(e_to_mcmc)
+}
+
+##' Reconstruct the posterior mean of the location predictor `mu`
+##'
+##' `mu` is no longer monitored (it stores O(N x iterations) values per chain).
+##' Because `mu[i] = X[i, ] %*% beta + Z[i, ] %*% u[group_i, 1:Kr]` is *linear*
+##' in the monitored `beta` and `u`, the posterior mean of `mu` equals the
+##' linear predictor evaluated at the posterior means of `beta` and `u` -- no
+##' per-iteration `mu` storage required. Used by `plot.ivd()` for the cluster
+##' outcome plot.
+##' @param obj An `ivd` object (must carry the location design matrices `X`/`Z`).
+##' @return Numeric vector of length N: the posterior mean of `mu` per observation.
+##' @keywords internal
+.reconstruct_mu_means <- function(obj) {
+  if (is.null(obj$X) || is.null(obj$Z)) {
+    stop("Cannot reconstruct cluster means: location design matrices (X, Z) ",
+         "are missing from the ivd object. Refit with the current version of ivd().",
+         call. = FALSE)
+  }
+  Kr <- obj$nimble_constants$Kr
+  J  <- obj$nimble_constants$J
+
+  ## Pool draws across chains; only beta and u columns are needed.
+  all_draws <- do.call(rbind, .extract_to_mcmc(obj))
+  cn <- colnames(all_draws)
+
+  ## Fixed location effects beta[1..K], ordered by their numeric index so they
+  ## line up with the columns of X.
+  beta_means <- colMeans(all_draws[, grep("^beta\\[", cn), drop = FALSE])
+  beta_means <- beta_means[order(as.integer(gsub("\\D", "", names(beta_means))))]
+
+  ## Random location effects u[j, p], p <= Kr, as a J x Kr matrix of means.
+  u_means <- colMeans(all_draws[, grep("^u\\[", cn), drop = FALSE])
+  idx <- regmatches(names(u_means), gregexpr("[0-9]+", names(u_means)))
+  jj <- as.integer(vapply(idx, `[`, character(1), 1)) # group index
+  pp <- as.integer(vapply(idx, `[`, character(1), 2)) # random-effect index
+  u_loc <- matrix(0, nrow = J, ncol = Kr)
+  loc <- pp <= Kr
+  u_loc[cbind(jj[loc], pp[loc])] <- u_means[loc]
+
+  group_id <- obj$Y$group_id
+  as.numeric(obj$X %*% beta_means) +
+    rowSums(obj$Z * u_loc[group_id, , drop = FALSE])
 }
 
 

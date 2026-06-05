@@ -11,7 +11,7 @@ build_ivd_model(
   dummy_data,
   dummy_inits,
   useWAIC = TRUE,
-  monitor_tau = FALSE
+  monitor_pointwise = FALSE
 )
 }
 \arguments{
@@ -25,9 +25,10 @@ build_ivd_model(
 
 \item{useWAIC}{Defaults to TRUE. Nimble argument}
 
-\item{monitor_tau}{Also monitor the per-observation scale \code{tau}. Defaults to
-FALSE; only needed to reconstruct the pointwise log-likelihood. Monitoring
-it costs O(N x iterations) RAM per chain, so it is off unless requested.}
+\item{monitor_pointwise}{Also monitor the per-observation \code{mu} and \code{tau}.
+Defaults to FALSE; only needed to reconstruct the pointwise
+log-likelihood. Monitoring them costs O(N x iterations) RAM per chain, so
+they are off unless requested.}
 }
 \value{
 A named \code{list} with two elements:

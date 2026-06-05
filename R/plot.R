@@ -182,20 +182,18 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
         stop("Invalid action specified. Exiting.", call. = FALSE)
     }
 
-    ## Get mu's across chains
-    mu_combined <- lapply(obj$samples, function(chain) {
-        mu_indices <- grep("mu", colnames(chain$samples))
-        mu_samples <- chain$samples[, mu_indices, drop = FALSE]
-        return(mu_samples)
-    })
+    ## Posterior mean of mu per observation. `mu` is no longer monitored, so
+    ## reconstruct it from beta + u; fall back to the monitored columns for
+    ## legacy objects / return_logLik = TRUE fits that still carry them.
+    if (any(grepl("^mu\\[", colnames(obj$samples[[1]]$samples)))) {
+        mu_combined <- lapply(obj$samples, function(chain) {
+            chain$samples[, grep("^mu\\[", colnames(chain$samples)), drop = FALSE]
+        })
+        posterior_mu_means <- colMeans(do.call(rbind, mu_combined))
+    } else {
+        posterior_mu_means <- .reconstruct_mu_means(obj)
+    }
 
-    # Combine chains into one large matrix
-
-    # Compute the posterior means
-    # posterior_tau_means <- colMeans(do.call(rbind, tau_combined))
-    posterior_mu_means <- colMeans(do.call(rbind, mu_combined))
-
-    # tau <- tapply(posterior_tau_means, obj$Y$group_id, mean)
     mu <- tapply(posterior_mu_means, obj$Y$group_id, mean)
 
     ## Add tau and mu to data frame -- ensure correct order
@@ -369,11 +367,13 @@ codaplot <- function(obj, parameters = NULL, type = 'traceplot', askNewPage = TR
   ## Extract relevant names with summary_table function
   mat_transposed <- .summary_table(t(extract_samples[[1]]), Kr)
 
-  ## Exclude mu and tau indexes
-  mu_index <- grep('mu',  rownames(mat_transposed) )
-  tau_index <- grep('tau',  rownames(mat_transposed))
+  ## Exclude mu and tau indexes (absent unless return_logLik = TRUE / legacy).
+  ## Guard the empty case: `x[-integer(0), ]` selects ZERO rows, not all.
+  drop_idx <- c(grep('^mu\\[', rownames(mat_transposed)),
+                grep('^tau\\[', rownames(mat_transposed)))
+  mat_kept <- if (length(drop_idx)) mat_transposed[-drop_idx, , drop = FALSE] else mat_transposed
 
-  raw_internal_names <- rownames(mat_transposed[-c(mu_index, tau_index), ])
+  raw_internal_names <- rownames(mat_kept)
   internal_names <- raw_internal_names
 
   ## Location fixed effects
