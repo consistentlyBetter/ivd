@@ -85,7 +85,7 @@ out <- ivd(location_formula = math_proficiency ~ student_ses * school_ses + (1 |
            data = saeb,
            niter = 5000, nburnin = 6000,
            progress = TRUE,
-           seed = 2026)
+           seed = 800056)
 ```
 
 The summary shows the fixed and random effects and it returns all posterior inclusion probabilities (PIP) for each one of the 160 schools' residual variance random effects. The PIP returns the probability of a school belonging to the slab, that is, the probability of the model having to include the random scale effect. 
