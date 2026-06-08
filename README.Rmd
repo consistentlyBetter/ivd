@@ -79,11 +79,13 @@ We will predict `math_proficiency` which is a standardized variable capturing ma
 
 Both, location (means) and scale (residual variances) are modeled as a function of student and school SES. Note that the formula objects for both location and scale follow `lme4` notation.
 
-```{r warning=FALSE}
+```{r warning=FALSE, results = 'hide'}
 out <- ivd(location_formula = math_proficiency ~ student_ses * school_ses + (1 | school_id),
            scale_formula =  ~ student_ses * school_ses + (1 | school_id),
            data = saeb,
-           niter = 1000, nburnin = 6000)
+           niter = 5000, nburnin = 6000,
+           progress = TRUE,
+           seed = 2026)
 ```
 
 The summary shows the fixed and random effects and it returns all posterior inclusion probabilities (PIP) for each one of the 160 schools' residual variance random effects. The PIP returns the probability of a school belonging to the slab, that is, the probability of the model having to include the random scale effect. 
