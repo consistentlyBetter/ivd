@@ -49,13 +49,109 @@ test_that("prepare_data_for_nimble handles non-numeric grouping variable", {
 })
 
 
+test_that("prepare_data_for_nimble errors when grouping variables differ", {
+  data <- data.frame(
+    Y = rnorm(40), X1 = rnorm(40),
+    group = rep(1:4, each = 10),
+    other = rep(1:4, each = 10)
+  )
+  expect_error(
+    prepare_data_for_nimble(data, Y ~ X1 + (1 | group), ~ X1 + (1 | other)),
+    "Location and scale grouping variable needs to be the same."
+  )
+})
+
+test_that("prepare_data_for_nimble errors on a non-continuous grouping index", {
+  ## Numeric grouping with a gap (1, 3) is left untouched and must be rejected.
+  data <- data.frame(
+    Y = rnorm(20), X1 = rnorm(20),
+    group = rep(c(1, 3), each = 10)
+  )
+  expect_error(
+    prepare_data_for_nimble(data, Y ~ X1 + (1 | group), ~ X1 + (1 | group)),
+    "not a sorted and continuous index"
+  )
+})
+
+test_that("prepare_data_for_nimble strips attributes from a scaled response", {
+  data <- data.frame(X1 = rnorm(50), group = rep(1:5, each = 10))
+  data$Y <- scale(rnorm(50)) # adds 'scaled:center'/'scaled:scale' attributes
+
+  result <- prepare_data_for_nimble(data, Y ~ X1 + (1 | group), ~ X1 + (1 | group))
+  expect_null(attributes(result$data$Y))
+  expect_length(result$data$Y, 50)
+})
+
+test_that("prepare_data_for_nimble keeps multiple fixed location predictors", {
+  data <- data.frame(
+    Y = rnorm(60), X1 = rnorm(60), X2 = rnorm(60),
+    group = rep(1:6, each = 10)
+  )
+  result <- prepare_data_for_nimble(data, Y ~ X1 + X2 + (1 | group), ~ 1 + (1 | group))
+  ## Intercept + X1 + X2
+  expect_equal(ncol(result$data$X), 3)
+})
+
+test_that("prepare_data_for_nimble handles formulas that deparse to multiple lines", {
+  ## Many fixed effects make deparse() wrap onto several lines. The parser must
+  ## still locate the grouping variable and retain every predictor.
+  set.seed(1)
+  d <- as.data.frame(matrix(rnorm(40 * 26), 40, 26))
+  names(d) <- letters
+  d$Y <- rnorm(40)
+  d$group <- rep(1:4, each = 10)
+  f <- as.formula(paste("Y ~", paste(letters, collapse = " + "), "+ (1 | group)"))
+
+  result <- prepare_data_for_nimble(d, f, ~ 1 + (1 | group))
+  expect_equal(ncol(result$data$X), 27) # intercept + 26 predictors
+  expect_equal(result$groups, 4)
+})
+
+test_that("prepare_data_for_nimble keeps Y, X and Z aligned when predictors have NAs", {
+  ## model.matrix() drops NA rows; Y / group_id must be dropped consistently so
+  ## NIMBLE never receives mismatched lengths.
+  data <- data.frame(
+    Y = rnorm(20),
+    X1 = c(NA, rnorm(19)),
+    group = rep(1:4, each = 5)
+  )
+  result <- prepare_data_for_nimble(data, Y ~ X1 + (1 | group), ~ X1 + (1 | group))
+
+  n <- length(result$data$Y)
+  expect_equal(n, 19) # the single incomplete row is dropped
+  expect_equal(nrow(result$data$X), n)
+  expect_equal(nrow(result$data$Z), n)
+  expect_equal(nrow(result$data$X_scale), n)
+  expect_equal(nrow(result$data$Z_scale), n)
+  expect_equal(length(result$group_id), n)
+})
+
+
 ### Sample Tests for `._extract_to_mcmc`
 
 test_that("._extract_to_mcmc extracts MCMC samples correctly", {
   mock_samples <- list(samples = list(matrix(rnorm(200), ncol = 2)))
   obj <- list(samples = list(mock_samples))
-  
+
   result <- .extract_to_mcmc(obj)
   expect_type(result, "list")
   expect_s3_class(result[[1]], "mcmc")
+})
+
+
+test_that(".autocorrelation_fft returns a normalised autocorrelation sequence", {
+  set.seed(1)
+  x <- as.numeric(stats::arima.sim(list(ar = 0.6), n = 200))
+
+  fft_acf <- .autocorrelation_fft(x)
+
+  expect_length(fft_acf, length(x))
+  expect_equal(fft_acf[1], 1)                  # lag 0 is always 1
+  expect_true(all(abs(fft_acf) <= 1 + 1e-8))   # normalised, so bounded by 1
+
+  ## Tracks stats::acf only approximately: the implementation transforms the
+  ## series without the zero-padding its comments intend (fft()'s 2nd argument
+  ## is `inverse`, not a length), so it computes a circular autocorrelation.
+  ref <- as.numeric(stats::acf(x, lag.max = 3, plot = FALSE)$acf)
+  expect_equal(fft_acf[1:4], ref, tolerance = 0.05)
 })

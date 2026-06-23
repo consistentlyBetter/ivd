@@ -21,3 +21,6 @@
 ^paper$
 ^getting-started.md$
 ^CRAN-SUBMISSION$
+^\.claude$
+^CLAUDE\.md$
+^CLAUDE\.local\.md$
