@@ -93,27 +93,49 @@ pip_sensitivity <- function(fit, prior_p = seq(0.05, 0.95, by = 0.05)) {
 ##' Plot PIP trajectories across prior inclusion probabilities
 ##'
 ##' One line per cluster (faceted by scale random effect when there is more
-##' than one). Clusters whose classification at `pip_level` changes across
-##' the evaluated priors are drawn in color and labelled; robust clusters are
-##' grey. The dashed vertical line marks the prior used in the fit.
+##' than one). By default all clusters are shown: those whose classification
+##' at `pip_level` changes across the evaluated priors are drawn in color and
+##' labelled, robust clusters are grey. With `clusters`, only the requested
+##' clusters are drawn, each colored and labelled -- useful for inspecting
+##' individual clusters or small groups. The dashed vertical line marks the
+##' prior used in the fit.
 ##' @title Plot method for pip_sensitivity objects
 ##' @param x A `pip_sensitivity` object from [pip_sensitivity()].
 ##' @param pip_level PIP threshold used to judge whether a cluster's
 ##'   classification is prior-sensitive. Defaults to 0.75.
+##' @param clusters Optional vector selecting which clusters to draw, matched
+##'   against `cluster_id` (the original grouping IDs) or `cluster_index`.
+##'   Defaults to `NULL` (all clusters).
 ##' @param ... Not used.
 ##' @return A `ggplot` object.
 ##' @author Philippe Rast
 ##' @export
-plot.pip_sensitivity <- function(x, pip_level = 0.75, ...) {
+plot.pip_sensitivity <- function(x, pip_level = 0.75, clusters = NULL, ...) {
   df <- as.data.frame(x)
+
+  selected <- !is.null(clusters)
+  if (selected) {
+    keep <- df$cluster_id %in% clusters | df$cluster_index %in% clusters
+    if (!any(keep)) {
+      stop("None of 'clusters' match a cluster_id or cluster_index. ",
+           "Available IDs: ",
+           paste(utils::head(unique(df$cluster_id), 10), collapse = ", "),
+           if (length(unique(df$cluster_id)) > 10) ", ..." else "")
+    }
+    df <- df[keep, , drop = FALSE]
+  }
+
   df$group <- interaction(df$scale_var, df$cluster_index, drop = TRUE)
 
   ## A cluster is prior-sensitive when it is above the threshold for some
-  ## priors and below it for others.
-  crosses <- tapply(df$pip >= pip_level, df$group, function(z) any(z) && !all(z))
-  df$sensitive <- crosses[as.character(df$group)]
-
-  p0 <- attr(x, "p0")
+  ## priors and below it for others. Explicitly requested clusters are always
+  ## colored and labelled.
+  if (selected) {
+    df$sensitive <- TRUE
+  } else {
+    crosses <- tapply(df$pip >= pip_level, df$group, function(z) any(z) && !all(z))
+    df$sensitive <- crosses[as.character(df$group)]
+  }
 
   plt <- ggplot(df, aes(x = prior_p, y = pip, group = group)) +
     geom_line(data = df[!df$sensitive, ], color = "grey70", linewidth = 0.3) +
@@ -121,11 +143,17 @@ plot.pip_sensitivity <- function(x, pip_level = 0.75, ...) {
               aes(color = factor(cluster_id)), linewidth = 0.5,
               show.legend = FALSE) +
     geom_hline(yintercept = pip_level, linetype = "dotted") +
-    geom_vline(xintercept = p0, linetype = "dashed", color = "grey40") +
     labs(x = "Prior inclusion probability",
          y = "Posterior inclusion probability (PIP)") +
     ylim(0, 1) +
     theme_minimal()
+
+  ## Mark the fitted prior (absent if the object was subset manually and
+  ## lost its attributes).
+  p0 <- attr(x, "p0")
+  if (!is.null(p0)) {
+    plt <- plt + geom_vline(xintercept = p0, linetype = "dashed", color = "grey40")
+  }
 
   ## Label the sensitive clusters at the right edge of their trajectory.
   sens_right <- df[df$sensitive & df$prior_p == max(df$prior_p), ]

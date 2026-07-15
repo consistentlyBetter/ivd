@@ -90,6 +90,29 @@ test_that("pip_sensitivity validates its inputs", {
                "strictly between 0 and 1")
 })
 
+test_that("plot.pip_sensitivity(clusters =) draws only the requested clusters", {
+  skip_if(is.null(ivd_fixture), "fixture missing; run tests/testthat/fixtures/make-ivd-fixture.R")
+
+  sens <- pip_sensitivity(ivd_fixture)
+
+  ## by cluster index/ID (numeric on the legacy fixture)
+  p <- plot(sens, clusters = c(3, 7))
+  expect_s3_class(p, "ggplot")
+  expect_setequal(unique(p$data$cluster_index), c(3, 7))
+  ## explicitly requested clusters are all marked for coloring + labels
+  expect_true(all(p$data$sensitive))
+
+  ## by original ID when labels are stored
+  fit <- ivd_fixture
+  fit$group_labels <- paste0("school_", seq_len(fit$nimble_constants$J))
+  sens_lab <- pip_sensitivity(fit)
+  p_lab <- plot(sens_lab, clusters = c("school_3", "school_7"))
+  expect_setequal(unique(p_lab$data$cluster_id), c("school_3", "school_7"))
+
+  ## unknown clusters error informatively
+  expect_error(plot(sens, clusters = c("nope")), "None of 'clusters' match")
+})
+
 test_that("plot.pip_sensitivity returns a ggplot with facets per scale effect", {
   skip_if(is.null(ivd_fixture), "fixture missing; run tests/testthat/fixtures/make-ivd-fixture.R")
 

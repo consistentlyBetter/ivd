@@ -16,7 +16,28 @@ test_that("pip returns one row per cluster x scale random effect", {
   expect_true(all(res$pip >= 0 & res$pip <= 1))
   expect_true(all(res$u_sd > 0))
   ## legacy fixture has no group_labels: cluster_id falls back to the index
-  expect_equal(res$cluster_id, as.character(res$cluster_index))
+  ## (numeric, since the labels parse back losslessly)
+  expect_equal(res$cluster_id, res$cluster_index)
+})
+
+test_that("pip parses cluster_id back to numeric only when lossless", {
+  skip_if(is.null(ivd_fixture), "fixture missing; run tests/testthat/fixtures/make-ivd-fixture.R")
+
+  fit <- ivd_fixture
+  J <- fit$nimble_constants$J
+
+  ## numeric-born labels (e.g. gapped school codes) come back numeric
+  fit$group_labels <- as.character(seq_len(J) * 1000 + 23)
+  expect_type(pip(fit)$cluster_id, "double")
+  expect_equal(unique(pip(fit)$cluster_id), seq_len(J) * 1000 + 23)
+
+  ## zero-padded IDs would not round-trip -> stay character
+  fit$group_labels <- sprintf("%03d", seq_len(J))
+  expect_type(pip(fit)$cluster_id, "character")
+
+  ## true character IDs stay character
+  fit$group_labels <- paste0("school_", seq_len(J))
+  expect_type(pip(fit)$cluster_id, "character")
 })
 
 test_that("pip uses original grouping IDs when available", {

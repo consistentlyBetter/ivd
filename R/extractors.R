@@ -18,6 +18,18 @@
   means[order(as.integer(gsub("\\D", "", names(means))))]
 }
 
+##' Parse cluster labels back to numeric when (and only when) they came from
+##' a numeric grouping variable: a label is numeric-born iff converting and
+##' re-formatting reproduces it exactly, so IDs like "007" or "A12" stay
+##' character.
+##' @param labels character vector of cluster labels
+##' @return Numeric vector when all labels round-trip, otherwise `labels`.
+##' @keywords internal
+.maybe_numeric <- function(labels) {
+  num <- suppressWarnings(as.numeric(labels))
+  if (!anyNA(num) && all(as.character(num) == labels)) num else labels
+}
+
 ##' Extract posterior inclusion probabilities
 ##'
 ##' Returns the package's headline output -- the posterior inclusion
@@ -31,7 +43,8 @@
 ##'   \item \code{scale_var}: Name of the scale random effect.
 ##'   \item \code{cluster_index}: Internal cluster index \code{1..J} (matches
 ##'         the default labels in [summary.ivd()] and [plot.ivd()]).
-##'   \item \code{cluster_id}: The user's original grouping ID (equals
+##'   \item \code{cluster_id}: The user's original grouping ID, parsed back to
+##'         numeric when the original IDs were numeric (equals
 ##'         \code{cluster_index} for objects fitted before labels were stored).
 ##'   \item \code{pip}: Posterior inclusion probability of the cluster's
 ##'         scale random effect.
@@ -55,6 +68,7 @@ pip.ivd <- function(object, ...) {
   } else {
     as.character(seq_len(J))
   }
+  labels <- .maybe_numeric(labels)
 
   draws <- .pooled_draws(object)
   cn <- colnames(draws)

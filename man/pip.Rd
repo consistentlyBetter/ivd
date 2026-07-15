@@ -20,7 +20,8 @@ A \code{data.frame} with one row per cluster x scale random effect:
 \item \code{scale_var}: Name of the scale random effect.
 \item \code{cluster_index}: Internal cluster index \code{1..J} (matches
 the default labels in \code{\link[=summary.ivd]{summary.ivd()}} and \code{\link[=plot.ivd]{plot.ivd()}}).
-\item \code{cluster_id}: The user's original grouping ID (equals
+\item \code{cluster_id}: The user's original grouping ID, parsed back to
+numeric when the original IDs were numeric (equals
 \code{cluster_index} for objects fitted before labels were stored).
 \item \code{pip}: Posterior inclusion probability of the cluster's
 scale random effect.

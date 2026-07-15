@@ -4,13 +4,17 @@
 \alias{plot.pip_sensitivity}
 \title{Plot method for pip_sensitivity objects}
 \usage{
-\method{plot}{pip_sensitivity}(x, pip_level = 0.75, ...)
+\method{plot}{pip_sensitivity}(x, pip_level = 0.75, clusters = NULL, ...)
 }
 \arguments{
 \item{x}{A \code{pip_sensitivity} object from \code{\link[=pip_sensitivity]{pip_sensitivity()}}.}
 
 \item{pip_level}{PIP threshold used to judge whether a cluster's
 classification is prior-sensitive. Defaults to 0.75.}
+
+\item{clusters}{Optional vector selecting which clusters to draw, matched
+against \code{cluster_id} (the original grouping IDs) or \code{cluster_index}.
+Defaults to \code{NULL} (all clusters).}
 
 \item{...}{Not used.}
 }
@@ -22,9 +26,12 @@ Plot PIP trajectories across prior inclusion probabilities
 }
 \details{
 One line per cluster (faceted by scale random effect when there is more
-than one). Clusters whose classification at \code{pip_level} changes across
-the evaluated priors are drawn in color and labelled; robust clusters are
-grey. The dashed vertical line marks the prior used in the fit.
+than one). By default all clusters are shown: those whose classification
+at \code{pip_level} changes across the evaluated priors are drawn in color and
+labelled, robust clusters are grey. With \code{clusters}, only the requested
+clusters are drawn, each colored and labelled -- useful for inspecting
+individual clusters or small groups. The dashed vertical line marks the
+prior used in the fit.
 }
 \author{
 Philippe Rast
