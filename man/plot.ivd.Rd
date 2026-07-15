@@ -10,6 +10,7 @@
   pip_level = 0.75,
   variable = NULL,
   label_points = TRUE,
+  labels = c("index", "original"),
   ...
 )
 }
@@ -23,6 +24,11 @@
 \item{variable}{Name of a specific variable. Defaults to \code{NULL}}
 
 \item{label_points}{Should points above the pip threshold be labelled? Defaults to \code{TRUE}.}
+
+\item{labels}{Point labels: \code{"index"} (default) uses the compact internal
+1..J cluster index; \code{"original"} uses the user's own grouping IDs
+(see \code{fit$group_labels}). Matches the same argument in
+\code{\link[=summary.ivd]{summary.ivd()}}.}
 
 \item{...}{Controls ggrepel aruments.}
 }

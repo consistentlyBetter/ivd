@@ -212,6 +212,8 @@ uppertri_mult_diag <- nimbleFunction(
 #'         outcome plot can reconstruct the posterior mean of \code{mu}.
 #'
 #'   \item \code{Y}: Data frame with the response vector and group identifiers.
+#'   \item \code{group_labels}: Character vector mapping the internal cluster
+#'         index \code{j} back to the user's original grouping IDs.
 #'
 #'   \item \code{workers}: Number of parallel chains used.
 #'
@@ -256,6 +258,7 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   data <- dat[[1]]
   groups <- dat$groups
   group_id <- dat$group_id
+  group_labels <- dat$group_labels
 
   ## Obtain estimates for empirical intercept prior:
   mean_pred <- mean(data$Y, na.rm = TRUE)
@@ -622,6 +625,8 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   out$X <- data$X
   out$Z <- data$Z
   out$Y <- data.frame("group_id" = group_id, "Y" = data$Y)
+  ## Original cluster labels (index j -> user's ID) for summary/plot output.
+  out$group_labels <- group_labels
   out$workers <- workers
   
   class(out) <- c("ivd", "list")

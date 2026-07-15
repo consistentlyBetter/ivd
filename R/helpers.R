@@ -71,15 +71,15 @@ prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
     data <- data[keep, , drop = FALSE]
   }
 
-  ## Ensure the grouping variable is numeric
-  if(!is.numeric(data[[grouping_variable]])) {
-    data[[grouping_variable]] <- as.numeric(as.factor(data[[grouping_variable]]))
-  }
-  ## Ensure that grouping variable is a continuous sequence without any missing values
-  if( !identical(  seq_len( max(unique(data[[grouping_variable]])) ),
-                 as.integer( sort(unique(data[[grouping_variable]])))) ) {
-    stop("Grouping variable is not a sorted and continuous index.")
-  }
+  ## Recode the grouping variable to the gap-free 1..J integer index NIMBLE
+  ## needs, keeping the original labels so user-facing output (summary rows,
+  ## plot labels) can report the user's own cluster IDs. factor() orders
+  ## numeric IDs numerically and everything else alphabetically. Row order of
+  ## `data` is never changed -- the model indexes u[group_id[i], ] per row, so
+  ## rows need not be sorted by group.
+  group_factor <- factor(data[[grouping_variable]])
+  group_labels <- levels(group_factor)
+  data[[grouping_variable]] <- as.integer(group_factor)
   
   ## Processing location and scale models
   location_data <- prepare_model_part(data, formula = location_formula)
@@ -107,8 +107,9 @@ prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
          X_scale = scale_data$X, 
          Z_scale = scale_data$Z
        ), 
-       groups = length(unique(data[[grouping_variable]])), 
+       groups = length(unique(data[[grouping_variable]])),
        group_id = data[[grouping_variable]],
+       group_labels = group_labels,
        response_var = all.vars(location_formula)[1]
   )
 }

@@ -50,13 +50,17 @@
 ##' @param object ivd object
 ##' @param digits Integer (Default: 2, optional). Number of digits to round to when printing.
 ##' @param pip Print pip and model parameters ('all'); Only pip ('pip'), or only model parameeters 9('model'). Defaults to 'all'
+##' @param labels Cluster labels in the PIP rows: `"index"` (default) uses the
+##'   internal 1..J index; `"original"` uses the user's own grouping IDs
+##'   (see `fit$group_labels`). Matches the same argument in [plot.ivd()].
 ##' @param ... Not used
 ##' @return summary.ivd object
 ##' @author Philippe Rast
 ##' @importFrom coda gelman.diag mcmc mcmc.list
 ##' @export
 
-summary.ivd <- function(object, digits = 3, pip = 'all', ...) {
+summary.ivd <- function(object, digits = 3, pip = 'all', labels = c("index", "original"), ...) {
+  labels <- match.arg(labels)
   ## Extract samples from list: This does not include warmup
   extract_samples <- .extract_to_mcmc(object)
 
@@ -121,9 +125,12 @@ summary.ivd <- function(object, digits = 3, pip = 'all', ...) {
   rownames(table)[R_index] <- paste0("R[",paste(corrvar[, 1], corrvar[, 2], sep = ", "), "]")
   
   ## Link PIP to actual clustering units
-  ## find the positions of the scale random effects in the model
+  ## find the positions of the scale random effects in the model.
+  ## Scale random effects occupy rows (Kr+1):(Kr+Sr) of u/ss -- offset by the
+  ## number of *location* random effects Kr (using Sr here only worked when
+  ## Kr == Sr).
   scale_ranef <- colnames(object$Z_scale)
-  scale_indexes <- seq_len(length(scale_ranef)) + length(colnames(object$Z_scale))
+  scale_indexes <- seq_len(length(scale_ranef)) + object$nimble_constants$Kr
   ## build patterns and replacements
   patterns <- paste0("\\[", scale_indexes, ",")
   replacements <- paste0("[", scale_ranef, ",")
@@ -138,6 +145,20 @@ summary.ivd <- function(object, digits = 3, pip = 'all', ...) {
   
   pip_pos <- grep("ss", rownames(table))
   rownames(table)[pip_pos] <- sub("^ss", "pip", rownames(table)[pip_pos])
+
+  ## With labels = "original", report clusters by the user's own grouping IDs
+  ## instead of the internal 1..J index (see fit$group_labels for the map).
+  if (identical(labels, "original")) {
+    if (is.null(object$group_labels)) {
+      warning("This ivd object predates 'group_labels'; ",
+              "clusters keep the internal index.")
+    } else {
+      j <- as.integer(sub(".*,\\s*(\\d+)\\]$", "\\1", rownames(table)[pip_pos]))
+      rownames(table)[pip_pos] <- paste0(
+        sub(",\\s*\\d+\\]$", "", rownames(table)[pip_pos]),
+        ", ", object$group_labels[j], "]")
+    }
+  }
 
   ## (Intercept) is annoying long. Change to Int.
   Int_index <- grep("\\(Intercept\\)", rownames(table))

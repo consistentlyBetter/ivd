@@ -147,6 +147,28 @@ test_that("ivd monitors neither mu nor tau, and omits logLik, by default (memory
     expect_s3_class(suppressWarnings(plot(out, type = "outcome", label_points = FALSE)), "ggplot")
 })
 
+test_that("ivd fits with character grouping IDs and stores group_labels", {
+    skip_if(Sys.getenv("R_COVR") == "true", "covr instrumentation breaks nimbleCode model building")
+
+    schools <- sprintf("school_%02d", 1:10)
+    out <- suppressWarnings(ivd(
+        location_formula = Y ~ 1 + (1 | grouping),
+        scale_formula = ~ 1 + (1 | grouping),
+        data = data.frame(Y = rnorm(100), grouping = rep(schools, each = 10)),
+        niter = 100, nburnin = 50, WAIC = TRUE, workers = 2, n_eff = "stan"
+    ))
+    expect_s3_class(out, "ivd")
+    expect_equal(out$group_labels, schools)
+    expect_equal(sort(unique(out$Y$group_id)), 1:10)
+
+    ## labels flow through to the user-facing output
+    res <- suppressWarnings(summary(out, pip = "pip", labels = "original"))
+    expect_true(all(grepl("school_\\d{2}\\]$", rownames(res))))
+    p <- suppressWarnings(plot(out, type = "pip", labels = "original",
+                               label_points = FALSE))
+    expect_equal(p$data$label, schools[p$data$id])
+})
+
 test_that("ivd returns logLik and monitors tau when return_logLik = TRUE", {
     skip_if(Sys.getenv("R_COVR") == "true", "covr instrumentation breaks nimbleCode model building")
 

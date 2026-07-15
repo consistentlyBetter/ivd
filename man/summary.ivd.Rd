@@ -4,7 +4,7 @@
 \alias{summary.ivd}
 \title{Summary of posterior samples}
 \usage{
-\method{summary}{ivd}(object, digits = 3, pip = "all", ...)
+\method{summary}{ivd}(object, digits = 3, pip = "all", labels = c("index", "original"), ...)
 }
 \arguments{
 \item{object}{ivd object}
@@ -12,6 +12,10 @@
 \item{digits}{Integer (Default: 2, optional). Number of digits to round to when printing.}
 
 \item{pip}{Print pip and model parameters ('all'); Only pip ('pip'), or only model parameeters 9('model'). Defaults to 'all'}
+
+\item{labels}{Cluster labels in the PIP rows: \code{"index"} (default) uses the
+internal 1..J index; \code{"original"} uses the user's own grouping IDs
+(see \code{fit$group_labels}). Matches the same argument in \code{\link[=plot.ivd]{plot.ivd()}}.}
 
 \item{...}{Not used}
 }

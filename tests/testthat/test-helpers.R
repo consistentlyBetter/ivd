@@ -61,16 +61,20 @@ test_that("prepare_data_for_nimble errors when grouping variables differ", {
   )
 })
 
-test_that("prepare_data_for_nimble errors on a non-continuous grouping index", {
-  ## Numeric grouping with a gap (1, 3) is left untouched and must be rejected.
+test_that("prepare_data_for_nimble recodes a gapped numeric grouping index", {
+  ## Numeric grouping with a gap (1, 3) used to be rejected; it is now
+  ## recoded to the internal 1..J index with the original IDs kept as labels.
   data <- data.frame(
     Y = rnorm(20), X1 = rnorm(20),
     group = rep(c(1, 3), each = 10)
   )
-  expect_error(
-    prepare_data_for_nimble(data, Y ~ X1 + (1 | group), ~ X1 + (1 | group)),
-    "not a sorted and continuous index"
-  )
+  result <- prepare_data_for_nimble(data, Y ~ X1 + (1 | group), ~ X1 + (1 | group))
+
+  expect_equal(sort(unique(result$group_id)), 1:2)
+  expect_equal(result$groups, 2)
+  expect_equal(result$group_labels, c("1", "3"))
+  expect_equal(result$group_labels[result$group_id],
+               as.character(data$group))
 })
 
 test_that("prepare_data_for_nimble strips attributes from a scaled response", {

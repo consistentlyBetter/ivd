@@ -20,6 +20,10 @@
 ##' @param pip_level Defines a value for the posterior inclusion probability. Defaults to 0.75.
 ##' @param variable Name of a specific variable. Defaults to `NULL`
 ##' @param label_points Should points above the pip threshold be labelled? Defaults to `TRUE`.
+##' @param labels Point labels: `"index"` (default) uses the compact internal
+##'   1..J cluster index; `"original"` uses the user's own grouping IDs
+##'   (see `fit$group_labels`). Matches the same argument in
+##'   [summary.ivd()].
 ##' @param ... Controls ggrepel aruments.
 #' @return
 #' Invisibly returns a \code{ggplot} object corresponding to the selected plot
@@ -44,8 +48,14 @@
 ##' @importFrom stats aggregate median
 ##' @importFrom utils menu
 ##' @export
-plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_points = TRUE, ...) {
+plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_points = TRUE, labels = c("index", "original"), ...) {
     obj <- x
+    labels <- match.arg(labels)
+    if (identical(labels, "original") && is.null(obj$group_labels)) {
+        warning("This ivd object predates 'group_labels'; ",
+                "points keep the internal index.")
+        labels <- "index"
+    }
     ## Get scale variable names
     ranef_scale_names <- colnames(obj$Z_scale)
     fixef_scale_names <- colnames(obj$X_scale)
@@ -202,6 +212,15 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
     df_pip <-
         cbind(df_pip[order(df_pip$id), ], mu)
 
+    ## Point labels: the compact internal index by default; the user's
+    ## original grouping IDs with labels = "original" (matches the summary
+    ## table's labels argument).
+    df_pip$label <- if (identical(labels, "original")) {
+        obj$group_labels[df_pip$id]
+    } else {
+        df_pip$id
+    }
+
 
     if (type == "pip") {
         ## 1. Create the base plot *without* the labels
@@ -232,7 +251,7 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
             .require_suggest("ggrepel", "`geom_label_repel()`")
             plt <- plt + ggrepel::geom_label_repel(
                 data = subset(df_pip, pip >= pip_level),
-                aes(label = id),
+                aes(label = label),
                 force = 100,
                 box.padding = 0.35,
                 point.padding = 0.5,
@@ -270,7 +289,7 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
             .require_suggest("ggrepel", "`geom_text_repel()`")
             plt <- plt + ggrepel::geom_text_repel(
                 data = subset(df_pip, pip >= pip_level),
-                aes(label = id),
+                aes(label = label),
                 point.padding = 0.5,
                 ...
             )
@@ -330,7 +349,7 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
             .require_suggest("ggrepel", "`geom_text_repel()`")
             plt <- plt + ggrepel::geom_text_repel(
                 data = subset(df_pip, pip >= pip_level),
-                aes(label = id),
+                aes(label = label),
                 point.padding = 0.5,
                 ...
             )
@@ -408,9 +427,12 @@ codaplot <- function(obj, parameters = NULL, type = 'traceplot', askNewPage = TR
 
 
   ## Link PIP to actual clustering units
-  ## find the positions of the scale random effects in the model
+  ## find the positions of the scale random effects in the model.
+  ## Scale random effects occupy rows (Kr+1):(Kr+Sr) of u/ss -- offset by the
+  ## number of *location* random effects Kr (using Sr here only worked when
+  ## Kr == Sr).
   scale_ranef <- colnames(obj$Z_scale)
-  scale_indexes <- seq_len(length(scale_ranef)) + length(colnames(obj$Z_scale))
+  scale_indexes <- seq_len(length(scale_ranef)) + obj$nimble_constants$Kr
   ## build patterns and replacements
   patterns <- paste0("\\[", scale_indexes, ",")
   replacements <- paste0("[", scale_ranef, ",")
