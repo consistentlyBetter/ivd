@@ -102,6 +102,7 @@ outcome plot can reconstruct the posterior mean of \code{mu}.
 \item \code{group_labels}: Character vector mapping the internal cluster
 index \code{j} back to the user's original grouping IDs.
 \item \code{location_formula}, \code{scale_formula}: The model formulas.
+\item \code{ss_prior_p}: The prior inclusion probability used in the fit.
 
 \item \code{workers}: Number of parallel chains used.
 

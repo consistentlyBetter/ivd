@@ -215,6 +215,7 @@ uppertri_mult_diag <- nimbleFunction(
 #'   \item \code{group_labels}: Character vector mapping the internal cluster
 #'         index \code{j} back to the user's original grouping IDs.
 #'   \item \code{location_formula}, \code{scale_formula}: The model formulas.
+#'   \item \code{ss_prior_p}: The prior inclusion probability used in the fit.
 #'
 #'   \item \code{workers}: Number of parallel chains used.
 #'
@@ -631,6 +632,8 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   ## Model formulas, kept for print.ivd().
   out$location_formula <- location_formula
   out$scale_formula <- scale_formula
+  ## Prior inclusion probability, kept for pip_sensitivity().
+  out$ss_prior_p <- ss_prior_p
   out$workers <- workers
   
   class(out) <- c("ivd", "list")

@@ -2,3 +2,5 @@
 utils::globalVariables(c('N', 'K', 'Kr', 'X', 'groupid', 'Z', 'S', 'Sr', 'zeta', 'X_scale', 'Z_scale', 'J', 'P', 'sigma_rand', 'L', 'z', 'ss'))
 ## globabls for plot.ivd function
 utils::globalVariables(c('pip', 'id', 'label', 'WAIC', 'zscore', 'geom_text_repel'))
+## globals for plot.pip_sensitivity
+utils::globalVariables(c('prior_p', 'cluster_id'))

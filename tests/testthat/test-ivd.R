@@ -160,6 +160,9 @@ test_that("ivd fits with character grouping IDs and stores group_labels", {
     expect_s3_class(out, "ivd")
     expect_equal(out$group_labels, schools)
     expect_equal(sort(unique(out$Y$group_id)), 1:10)
+    ## schema fields added for print()/pip_sensitivity()
+    expect_equal(out$ss_prior_p, 0.5)
+    expect_equal(out$location_formula, Y ~ 1 + (1 | grouping))
 
     ## labels flow through to the user-facing output
     res <- suppressWarnings(summary(out, pip = "pip", labels = "original"))
