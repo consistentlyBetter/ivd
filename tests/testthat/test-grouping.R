@@ -57,8 +57,8 @@ test_that("summary(labels = 'original') maps PIP rows to original IDs", {
   J <- fit$nimble_constants$J
   fit$group_labels <- sprintf("school_%03d", seq_len(J))
 
-  res_orig <- suppressWarnings(summary(fit, pip = "pip", labels = "original"))
-  res_idx <- suppressWarnings(summary(fit, pip = "pip")) # default: index
+  res_orig <- suppressWarnings(summary(fit, pip = "pip", labels = "original"))$table
+  res_idx <- suppressWarnings(summary(fit, pip = "pip"))$table # default: index
 
   expect_equal(nrow(res_orig), nrow(res_idx))
   expect_true(all(grepl("school_\\d{3}\\]$", rownames(res_orig))))
@@ -74,7 +74,7 @@ test_that("summary(labels = 'original') warns and keeps the index on legacy obje
 
   expect_warning(res <- summary(fit, pip = "pip", labels = "original"),
                  "predates 'group_labels'")
-  expect_true(all(grepl(",\\s*\\d+\\]$", rownames(res))))
+  expect_true(all(grepl(",\\s*\\d+\\]$", rownames(res$table))))
 })
 
 test_that("plot(labels = 'original') labels points with original IDs", {

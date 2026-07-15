@@ -20,7 +20,11 @@ internal 1..J index; \code{"original"} uses the user's own grouping IDs
 \item{...}{Not used}
 }
 \value{
-summary.ivd object
+A \code{summary.ivd} object: a list with the posterior summary matrix
+(\verb{$table}), the \code{pip} filter used (\verb{$pip}), the number of chains
+(\verb{$chains}), and the chain-averaged WAIC metrics (\verb{$waic}, \verb{$lppd},
+\verb{$pwaic}, with \verb{$has_waic} indicating availability). Printed by
+\code{\link[=print.summary.ivd]{print.summary.ivd()}}.
 }
 \description{
 Summarize ivd object

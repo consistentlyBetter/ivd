@@ -101,6 +101,7 @@ outcome plot can reconstruct the posterior mean of \code{mu}.
 \item \code{Y}: Data frame with the response vector and group identifiers.
 \item \code{group_labels}: Character vector mapping the internal cluster
 index \code{j} back to the user's original grouping IDs.
+\item \code{location_formula}, \code{scale_formula}: The model formulas.
 
 \item \code{workers}: Number of parallel chains used.
 

@@ -163,7 +163,7 @@ test_that("ivd fits with character grouping IDs and stores group_labels", {
 
     ## labels flow through to the user-facing output
     res <- suppressWarnings(summary(out, pip = "pip", labels = "original"))
-    expect_true(all(grepl("school_\\d{2}\\]$", rownames(res))))
+    expect_true(all(grepl("school_\\d{2}\\]$", rownames(res$table))))
     p <- suppressWarnings(plot(out, type = "pip", labels = "original",
                                label_points = FALSE))
     expect_equal(p$data$label, schools[p$data$id])

@@ -54,7 +54,11 @@
 ##'   internal 1..J index; `"original"` uses the user's own grouping IDs
 ##'   (see `fit$group_labels`). Matches the same argument in [plot.ivd()].
 ##' @param ... Not used
-##' @return summary.ivd object
+##' @return A `summary.ivd` object: a list with the posterior summary matrix
+##'   (`$table`), the `pip` filter used (`$pip`), the number of chains
+##'   (`$chains`), and the chain-averaged WAIC metrics (`$waic`, `$lppd`,
+##'   `$pwaic`, with `$has_waic` indicating availability). Printed by
+##'   [print.summary.ivd()].
 ##' @author Philippe Rast
 ##' @importFrom coda gelman.diag mcmc mcmc.list
 ##' @export
@@ -173,44 +177,50 @@ summary.ivd <- function(object, digits = 3, pip = 'all', labels = c("index", "or
   } else if(pip == 'pip') {
     table <- table[pip_pos,]
   } else {stop("'pip =' needs one of 'all', 'pip', or 'model'.")}
-  cat("Summary statistics for ivd model:\n")
-  .newline
-
-  ##
-  chains <- object$workers
-  cat("Chains (workers):",  chains, "\n\n")
 
   ## Supress warnings when WAIC metrics return NA
   suppressWarnings({
-
-    ## extract WAIC per chain
-    waic_values <- sapply(object$samples, FUN = function(chain) chain$WAIC$WAIC)
-    ## extract lppd per chain
-    lppd_values <- sapply(object$samples, FUN = function(chain) chain$WAIC$lppd)
-    ## extract pWAIC per chain
-    pwaic_values <- sapply(object$samples, FUN = function(chain) chain$WAIC$pWAIC)
-
-    ## Average across chains
-    average_waic <- mean(waic_values)
-    average_lppd <- mean(lppd_values)
-    average_pwaic <- mean(pwaic_values)
-
+    ## Average the per-chain WAIC metrics
+    average_waic <- mean(sapply(object$samples, FUN = function(chain) chain$WAIC$WAIC))
+    average_lppd <- mean(sapply(object$samples, FUN = function(chain) chain$WAIC$lppd))
+    average_pwaic <- mean(sapply(object$samples, FUN = function(chain) chain$WAIC$pWAIC))
   })
 
-  print(table)
+  out <- list(
+    table = table,
+    pip = pip,
+    chains = object$workers,
+    has_waic = !is.null(object$samples[[1]]$WAIC),
+    waic = average_waic,
+    lppd = average_lppd,
+    pwaic = average_pwaic
+  )
+  class(out) <- "summary.ivd"
+  out
+}
+
+##' Print the posterior summary assembled by [summary.ivd()]
+##' @title Print method for summary.ivd objects
+##' @param x A `summary.ivd` object.
+##' @param ... Not used.
+##' @return `x`, invisibly.
+##' @author Philippe Rast
+##' @export
+print.summary.ivd <- function(x, ...) {
+  cat("Summary statistics for ivd model:\n")
+  .newline
+  cat("Chains (workers):", x$chains, "\n\n")
+
+  print(x$table)
 
   ## Only print WAIC metrics if WAIC = TRUE
-  if (!is.null(object$samples[[1]]$WAIC)) {
+  if (isTRUE(x$has_waic)) {
     .newline
-
-    ## Print the results
-    cat("\nWAIC:", average_waic, "\n")
-    cat("elppd:", average_lppd, "\n")
-    cat("pWAIC:", average_pwaic, "\n")
+    cat("\nWAIC:", x$waic, "\n")
+    cat("elppd:", x$lppd, "\n")
+    cat("pWAIC:", x$pwaic, "\n")
   }
-
-  class(table) <- "summary.ivd"
-  invisible(table)
+  invisible(x)
 }
 
 
