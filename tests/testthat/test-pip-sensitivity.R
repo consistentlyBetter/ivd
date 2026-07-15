@@ -118,6 +118,32 @@ test_that("plot.pip_sensitivity(clusters =) draws only the requested clusters", 
   expect_error(plot(sens, clusters = c("nope")), "None of 'clusters' match")
 })
 
+test_that("plot.pip_sensitivity judges sensitivity within the odds window", {
+  skip_if(is.null(ivd_fixture), "fixture missing; run tests/testthat/fixtures/make-ivd-fixture.R")
+
+  sens <- pip_sensitivity(ivd_fixture)
+
+  ## odds_factor = 1 collapses the window to the fitted prior: nothing flips
+  p1 <- plot(sens, odds_factor = 1)
+  expect_false(any(p1$data$sensitive))
+
+  ## widening the window can only add sensitive clusters
+  p2 <- plot(sens, odds_factor = 2)
+  p10 <- plot(sens, odds_factor = 10)
+  expect_lte(sum(p2$data$sensitive), sum(p10$data$sensitive))
+
+  ## the default flag reproduces the analytic rule: classification at the
+  ## window ends (odds halved/doubled around p0 = 0.5 -> priors 1/3 and 2/3)
+  anchor <- sens[sens$prior_p == min(sens$prior_p), ]
+  low <- .pip_reweight(anchor$pip, p0 = min(sens$prior_p), p1 = 1 / 3)
+  high <- .pip_reweight(anchor$pip, p0 = min(sens$prior_p), p1 = 2 / 3)
+  expected <- (low >= 0.75) != (high >= 0.75)
+  got <- p2$data[!duplicated(paste(p2$data$scale_var, p2$data$cluster_index)), ]
+  key_g <- paste(got$scale_var, got$cluster_index)
+  key_e <- paste(anchor$scale_var, anchor$cluster_index)
+  expect_equal(got$sensitive, expected[match(key_g, key_e)])
+})
+
 test_that("plot.pip_sensitivity returns a ggplot with facets per scale effect", {
   skip_if(is.null(ivd_fixture), "fixture missing; run tests/testthat/fixtures/make-ivd-fixture.R")
 

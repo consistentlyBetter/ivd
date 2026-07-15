@@ -94,11 +94,22 @@ pip_sensitivity <- function(fit, prior_p = seq(0.05, 0.95, by = 0.05)) {
 ##'
 ##' One line per cluster (faceted by scale random effect when there is more
 ##' than one). By default all clusters are shown: those whose classification
-##' at `pip_level` changes across the evaluated priors are drawn in color and
-##' labelled, robust clusters are grey. With `clusters`, only the requested
-##' clusters are drawn, each colored and labelled -- useful for inspecting
-##' individual clusters or small groups. The dashed vertical line marks the
-##' prior used in the fit.
+##' at `pip_level` is prior-sensitive are drawn in color and labelled, robust
+##' clusters are grey. With `clusters`, only the requested clusters are
+##' drawn, each colored and labelled -- useful for inspecting individual
+##' clusters or small groups. The dashed vertical line marks the prior used
+##' in the fit.
+##'
+##' As the prior inclusion probability approaches 0 or 1 every PIP follows
+##' it, so crossing the threshold at extreme priors is expected and carries
+##' no information. A cluster is therefore flagged as prior-sensitive only
+##' when its classification changes within a *plausible* perturbation of the
+##' fitted prior: priors whose odds lie within a factor `odds_factor` of the
+##' fitted prior's odds (the default, 2, spans halving to doubling them --
+##' for `ss_prior_p = 0.5` that is priors between 1/3 and 2/3). Because the
+##' re-weighted PIP is monotone in the prior, this is evaluated analytically
+##' at the two ends of that window, independently of the plotted `prior_p`
+##' grid.
 ##' @title Plot method for pip_sensitivity objects
 ##' @param x A `pip_sensitivity` object from [pip_sensitivity()].
 ##' @param pip_level PIP threshold used to judge whether a cluster's
@@ -106,11 +117,13 @@ pip_sensitivity <- function(fit, prior_p = seq(0.05, 0.95, by = 0.05)) {
 ##' @param clusters Optional vector selecting which clusters to draw, matched
 ##'   against `cluster_id` (the original grouping IDs) or `cluster_index`.
 ##'   Defaults to `NULL` (all clusters).
+##' @param odds_factor Width of the prior window used to judge sensitivity,
+##'   as a multiplicative factor on the fitted prior's odds. Defaults to 2.
 ##' @param ... Not used.
 ##' @return A `ggplot` object.
 ##' @author Philippe Rast
 ##' @export
-plot.pip_sensitivity <- function(x, pip_level = 0.75, clusters = NULL, ...) {
+plot.pip_sensitivity <- function(x, pip_level = 0.75, clusters = NULL, odds_factor = 2, ...) {
   df <- as.data.frame(x)
 
   selected <- !is.null(clusters)
@@ -127,12 +140,25 @@ plot.pip_sensitivity <- function(x, pip_level = 0.75, clusters = NULL, ...) {
 
   df$group <- interaction(df$scale_var, df$cluster_index, drop = TRUE)
 
-  ## A cluster is prior-sensitive when it is above the threshold for some
-  ## priors and below it for others. Explicitly requested clusters are always
-  ## colored and labelled.
+  p0 <- attr(x, "p0")
+
+  ## Explicitly requested clusters are always colored and labelled.
   if (selected) {
     df$sensitive <- TRUE
+  } else if (!is.null(p0) && is.finite(odds_factor) && odds_factor >= 1) {
+    ## Classification flip within [odds0/odds_factor, odds0*odds_factor]
+    ## (see Details); monotonicity means only the window ends matter. Any
+    ## grid row of a cluster re-weights analytically to those ends.
+    odds0 <- p0 / (1 - p0)
+    p_low <- (odds0 / odds_factor) / (1 + odds0 / odds_factor)
+    p_high <- (odds0 * odds_factor) / (1 + odds0 * odds_factor)
+    first <- df[!duplicated(df$group), ]
+    low <- .pip_reweight(first$pip, p0 = first$prior_p, p1 = p_low)
+    high <- .pip_reweight(first$pip, p0 = first$prior_p, p1 = p_high)
+    sens <- (low >= pip_level) != (high >= pip_level)
+    df$sensitive <- sens[match(df$group, first$group)]
   } else {
+    ## No p0 (manually subset object): fall back to any crossing on the grid.
     crosses <- tapply(df$pip >= pip_level, df$group, function(z) any(z) && !all(z))
     df$sensitive <- crosses[as.character(df$group)]
   }
