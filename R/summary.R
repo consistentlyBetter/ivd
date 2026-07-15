@@ -95,8 +95,8 @@ summary.ivd <- function(object, digits = 3, pip = 'all', ...) {
   ## Add original variable names to output
   ## location fixed effects:
   beta_index <- grep('beta', rownames(table))
-  if(length(beta_index) != length(object$X_location_name)) stop("Check beta_index in summary.R" )
-  rownames(table)[beta_index] <- object$X_location_name
+  if(length(beta_index) != length(object$X_location_names)) stop("Check beta_index in summary.R" )
+  rownames(table)[beta_index] <- object$X_location_names
   ## scale fixed effects:
   zeta_index <- grep('zeta', rownames(table))
   if(length(zeta_index) != length(colnames(object$X_scale)) ) stop("Check zeta_index in summary.R")
