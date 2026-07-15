@@ -6,9 +6,6 @@
 \usage{
 .autocorrelation_fft(chain)
 }
-\arguments{
-\item{chain}{}
-}
 \value{
 acf
 }

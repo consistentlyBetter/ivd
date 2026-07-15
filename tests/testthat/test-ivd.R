@@ -101,19 +101,21 @@ test_that("ivd sets up and runs with correct defaults and inputs", {
     ## `# nocov` does not help -- it only filters the tally, not the injection.
     skip_if(Sys.getenv("R_COVR") == "true", "covr instrumentation breaks nimbleCode model building")
 
-    ## n_eff = "stan" avoids the crash in the "local" path on short chains
-    ## (min() over an empty set -> Inf -> `1:Inf`); see ivd.R n_eff block.
+    ## n_eff = "local" (the default) on short chains is a regression test for
+    ## the Geyer-truncation crash (min() over an empty set -> Inf -> `1:Inf`);
+    ## .geyer_truncate() now falls back to the last available lag instead.
     testoutput <- suppressWarnings({
         ivd(
             location_formula = Y ~ 1 + (1 | grouping),
             scale_formula = ~ 1 + (1 | grouping),
             data = data.frame(Y = rnorm(100), grouping = rep(1:10, each = 10)),
-            niter = 100, nburnin = 50, WAIC = TRUE, workers = 2, n_eff = "stan"
+            niter = 100, nburnin = 50, WAIC = TRUE, workers = 2, n_eff = "local"
         )
     })
     expect_s3_class(testoutput, "ivd")
     expect_equal(length(testoutput$samples), 2) # Assuming workers = 2
     expect_equal(testoutput$workers, 2)
+    expect_true(any(is.finite(testoutput$n_eff)))
 })
 
 test_that("ivd monitors neither mu nor tau, and omits logLik, by default (memory)", {

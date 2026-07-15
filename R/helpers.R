@@ -192,31 +192,62 @@ prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
 ##' @return acf
 ##' @author Philippe Rast
 ##' @keywords internal
-##' @importFrom stats fft
+##' @importFrom stats fft nextn
 .autocorrelation_fft <- function(chain) {
   ## Ensure the input is a numeric vector
   ts <- as.numeric(chain)
-  
+
   ## Center the time series (subtract the mean)
   ts_centered <- ts - mean(ts)
-  
+
   ## Length of the chain
   n <- length(ts_centered)
-  
-  ## Zero-padding the series to avoid circular convolution
-  padded_length <- 2 * n
-  
-  ## Compute the FFT of the centered series with zero-padding
-  fft_ts <- fft(ts_centered, padded_length)
-  
+
+  ## Zero-padding the series to avoid circular convolution. fft() has no
+  ## length argument (its 2nd argument is `inverse`), so pad explicitly;
+  ## nextn() rounds up to a highly composite length for FFT speed.
+  padded_length <- nextn(2 * n)
+  ts_padded <- c(ts_centered, rep(0, padded_length - n))
+
+  ## Compute the FFT of the centered, zero-padded series
+  fft_ts <- fft(ts_padded)
+
   ## Compute the inverse FFT of the product of FFT and its conjugate
   acf_raw <- Re(fft(fft_ts * Conj(fft_ts), inverse = TRUE))
-  
+
   ## Extract the relevant part and normalize
-  acf_raw <- acf_raw[1:n] / padded_length
-  
+  acf_raw <- acf_raw[1:n]
+
   ## Normalize the result to match the acf() function output
   acf <- acf_raw / acf_raw[1]
-  
+
   return(acf)
+}
+
+##' Truncate an autocorrelation sequence following Geyer (1992)
+##'
+##' Keeps the autocorrelations up to (and including) the first lag pair whose
+##' sum is negative and pads the remainder with `NA` so that rho vectors from
+##' chains with different truncation points can be averaged with
+##' `rowMeans(..., na.rm = TRUE)`.
+##' @title Geyer (1992) truncation of an ACF sequence
+##' @param acf_values Autocorrelation sequence starting at lag 0, as returned
+##'   by [.autocorrelation_fft()].
+##' @return Numeric vector of `length(acf_values)`: the autocorrelations at
+##'   lags 1, 2, ... up to the truncation point, padded with `NA`. All-`NA`
+##'   when the ACF itself is undefined (constant chain).
+##' @author Philippe Rast
+##' @keywords internal
+.geyer_truncate <- function(acf_values) {
+  n <- length(acf_values)
+  if (n < 2) return(rep(NA_real_, n))
+  pair_sums <- acf_values[-n] + acf_values[-1]
+  ## A constant chain has an undefined (NaN) ACF; treat as no usable lags.
+  if (anyNA(pair_sums)) return(rep(NA_real_, n))
+  crossings <- which(pair_sums < 0)
+  ## When no pair sum ever goes negative (short or strongly autocorrelated
+  ## chains) keep every available lag instead of erroring: min(integer(0))
+  ## would return Inf and 1:Inf downstream crashed n_eff = "local".
+  position <- if (length(crossings)) crossings[1] else n - 1
+  c(acf_values[2:(position + 1)], rep(NA_real_, n - position))
 }

@@ -198,9 +198,59 @@ test_that(".autocorrelation_fft returns a normalised autocorrelation sequence", 
   expect_equal(fft_acf[1], 1)                  # lag 0 is always 1
   expect_true(all(abs(fft_acf) <= 1 + 1e-8))   # normalised, so bounded by 1
 
-  ## Tracks stats::acf only approximately: the implementation transforms the
-  ## series without the zero-padding its comments intend (fft()'s 2nd argument
-  ## is `inverse`, not a length), so it computes a circular autocorrelation.
-  ref <- as.numeric(stats::acf(x, lag.max = 3, plot = FALSE)$acf)
-  expect_equal(fft_acf[1:4], ref, tolerance = 0.05)
+  ## With proper zero-padding the FFT autocorrelation is linear (not
+  ## circular) and matches stats::acf() exactly.
+  ref <- as.numeric(stats::acf(x, lag.max = 50, plot = FALSE)$acf)
+  expect_equal(fft_acf[1:51], ref, tolerance = 1e-8)
+})
+
+test_that(".geyer_truncate keeps lags up to the first negative pair sum", {
+  ## First pair sum < 0 at pair index 3 (0.1 + -0.2): keep lags 1..3, pad NA.
+  acf_values <- c(1, 0.5, 0.1, -0.2, 0.3, 0.2)
+  rho <- .geyer_truncate(acf_values)
+
+  expect_length(rho, length(acf_values))
+  expect_equal(rho[1:3], c(0.5, 0.1, -0.2))
+  expect_true(all(is.na(rho[4:6])))
+})
+
+test_that(".geyer_truncate falls back to all lags when no pair sum is negative", {
+  ## Regression test: min() over an empty set returned Inf and 1:Inf crashed
+  ## n_eff = "local" for slowly decaying ACFs that never cross zero.
+  acf_values <- c(1, 0.9, 0.8, 0.7, 0.6)
+  rho <- .geyer_truncate(acf_values)
+
+  expect_length(rho, length(acf_values))
+  expect_equal(rho[1:4], c(0.9, 0.8, 0.7, 0.6))
+  expect_true(is.na(rho[5]))
+})
+
+test_that(".geyer_truncate returns all NA for constant chains and degenerate input", {
+  ## A constant chain has an undefined ACF (0/0 = NaN throughout).
+  rho_const <- .geyer_truncate(.autocorrelation_fft(rep(1, 50)))
+  expect_length(rho_const, 50)
+  expect_true(all(is.na(rho_const)))
+
+  expect_identical(.geyer_truncate(numeric(1)), NA_real_)
+  expect_identical(.geyer_truncate(numeric(0)), numeric(0))
+})
+
+test_that(".geyer_truncate matches the pre-fix truncation on well-behaved ACFs", {
+  ## Same result as the original min(seq(...)) implementation whenever that
+  ## implementation did not crash.
+  set.seed(42)
+  x <- as.numeric(stats::arima.sim(list(ar = 0.6), n = 200))
+  acf_values <- .autocorrelation_fft(x)
+
+  old_impl <- function(acf_values, n) {
+    position <- min(seq(2:length(acf_values))[acf_values[-length(acf_values)] + acf_values[-1] < 0])
+    if (!is.na(position)) {
+      append(acf_values[1:position + 1], rep(NA, length(acf_values) - position), after = position)
+    } else {
+      rep(NA, n)
+    }
+  }
+
+  expect_equal(.geyer_truncate(acf_values),
+               suppressWarnings(old_impl(acf_values, length(acf_values))))
 })

@@ -568,17 +568,10 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
 
           chain_rho <- apply(param_samples, 2, function(samp_per_chain) {
               acf_values <- .autocorrelation_fft(samp_per_chain)
-              ## Truncate according to Geyer (1992)
-              position <-  min(seq(2:length(acf_values))[acf_values[-length(acf_values)] + acf_values[-1] < 0])
-              ## position contains NA for constants, needs to be addressed here:
-
-              if (!is.na(position)) {
-                  ## Pad with NA's so that all vectors are of same length. Saves me storing the position object
-                  ## pad with NA so that mean() can be calculated over differing rho's per chains
-                  rho <- append(acf_values[1:position + 1], rep(NA, length(acf_values) - position), after = position)
-              } else {
-                  rho <- rep(NA, n)
-              }
+              ## Truncate according to Geyer (1992), NA-padded to a common
+              ## length so mean() can be calculated over differing rho's per
+              ## chain; all-NA for constant chains.
+              .geyer_truncate(acf_values)
           })
           
           s2m_rtm <- lapply(seq_along(chain_variances), function(i) {
