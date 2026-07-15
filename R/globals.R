@@ -3,4 +3,6 @@ utils::globalVariables(c('N', 'K', 'Kr', 'X', 'groupid', 'Z', 'S', 'Sr', 'zeta',
 ## globabls for plot.ivd function
 utils::globalVariables(c('pip', 'id', 'label', 'WAIC', 'zscore', 'geom_text_repel'))
 ## globals for plot.pip_sensitivity
-utils::globalVariables(c('prior_p', 'cluster_id'))
+utils::globalVariables(c('prior_p', 'cluster_id', 'group'))
+## chain_seed is supplied to each worker via future(..., globals =) in ivd()
+utils::globalVariables('chain_seed')

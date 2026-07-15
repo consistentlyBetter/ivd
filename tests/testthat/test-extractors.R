@@ -15,8 +15,8 @@ test_that("pip returns one row per cluster x scale random effect", {
   expect_setequal(unique(res$scale_var), colnames(ivd_fixture$Z_scale))
   expect_true(all(res$pip >= 0 & res$pip <= 1))
   expect_true(all(res$u_sd > 0))
-  ## legacy fixture has no group_labels: cluster_id falls back to the index
-  ## (numeric, since the labels parse back losslessly)
+  ## the fixture's IDs are 1..J, so cluster_id parses back to the numeric
+  ## index; same fallback applies to legacy objects without group_labels
   expect_equal(res$cluster_id, res$cluster_index)
 })
 

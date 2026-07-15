@@ -47,8 +47,13 @@ test_that("pip_sensitivity returns a tidy grid anchored at the fitted prior", {
                        "prior_p", "pip", "at_boundary"))
   expect_true(all(sens$pip >= 0 & sens$pip <= 1))
 
-  ## legacy fixture: p0 recovered from nimble_constants$bval (fit at 0.5)
+  ## p0 comes from the stored ss_prior_p (fit at the 0.5 default)
   expect_equal(attr(sens, "p0"), 0.5)
+
+  ## legacy objects without ss_prior_p recover p0 from nimble_constants$bval
+  legacy <- ivd_fixture
+  legacy$ss_prior_p <- NULL
+  expect_equal(attr(pip_sensitivity(legacy, prior_p = 0.5), "p0"), 0.5)
 
   ## at prior_p = p0 the (clamped) estimated PIPs are recovered
   est <- pip(ivd_fixture)
