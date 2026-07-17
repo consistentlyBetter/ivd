@@ -67,6 +67,21 @@ test_that("codaplot handles multiple parameters with askNewPage = FALSE", {
   )
 })
 
+test_that("codaplot resolves coda plot functions without coda attached", {
+  ## Regression: match.fun() searches the caller's environment, so
+  ## codaplot(type = "traceplot") failed from any script without
+  ## library(coda). Tests inherit the ivd namespace (which imports coda),
+  ## masking the bug — so call from an environment rooted at baseenv().
+  skip_if(is.null(ivd_fixture), "fixture missing; run tests/testthat/fixtures/make-ivd-fixture.R")
+  tmp <- tempfile(fileext = ".pdf"); pdf(tmp); on.exit({ dev.off(); unlink(tmp) }, add = TRUE)
+  e <- new.env(parent = baseenv())
+  e$fit <- ivd_fixture
+  expect_error(
+    eval(quote(ivd::codaplot(fit, parameters = "Intc")), envir = e),
+    NA
+  )
+})
+
 test_that("codaplot errors for a parameter that does not exist", {
   skip_if(is.null(ivd_fixture), "fixture missing; run tests/testthat/fixtures/make-ivd-fixture.R")
   tmp <- tempfile(fileext = ".pdf"); pdf(tmp); on.exit({ dev.off(); unlink(tmp) }, add = TRUE)

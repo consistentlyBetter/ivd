@@ -465,8 +465,16 @@ codaplot <- function(obj, parameters = NULL, type = 'traceplot', askNewPage = TR
   ## Typically, these would be 'plot', 'acfplot', etc.
   ## The user needs to ensure the correct function name is provided.
 
-  ## Attempt to get the plotting function based on 'type'
-  plot_func <- match.fun(type)
+  ## Attempt to get the plotting function based on 'type'. Look it up in the
+  ## coda namespace first: match.fun() alone searches the *caller's*
+  ## environment, so "traceplot" etc. would only resolve if the user has coda
+  ## attached. Fall back to match.fun() for user-supplied functions.
+  plot_func <- if (is.character(type) &&
+                   exists(type, envir = asNamespace("coda"), mode = "function")) {
+    get(type, envir = asNamespace("coda"), mode = "function")
+  } else {
+    match.fun(type)
+  }
   
   if (is.null(parameters)) {
 

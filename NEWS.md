@@ -28,6 +28,10 @@
 
 ## Bug fixes
 
+* `codaplot()` no longer requires the user to attach coda: plot types such as
+  `"traceplot"` are now resolved in the coda namespace, so
+  `ivd::codaplot(fit)` works from a plain script (previously it failed with
+  `object 'traceplot' not found` unless `library(coda)` had been called).
 * Fixed a crash in the default `n_eff = "local"` diagnostics on short or
   strongly autocorrelated chains (Geyer truncation over an empty set
   produced `1:Inf`).
