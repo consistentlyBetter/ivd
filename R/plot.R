@@ -97,6 +97,9 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
 
     ## With multiple random effects, ask user which one to be plotted:
     if (no_ranef_s == 1) {
+        ## Single random scale effect: it is the one plotted; keep its name
+        ## for the plot title.
+        variable <- ranef_scale_names[1]
         ## Define ordered dataset
         df_pip <- data.frame(
             id = seq_len(length(ss_means[[1]])),
@@ -134,6 +137,15 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
 
         ## Find position of user requested random effect
         scale_ranef_position_user <- which(ranef_scale_names == variable)
+        if (length(scale_ranef_position_user) == 0) {
+            stop(
+                paste0(
+                    "'variable' must be one of the random scale effects: ",
+                    paste(ranef_scale_names, collapse = ", ")
+                ),
+                call. = FALSE
+            )
+        }
 
         ## Define ordered dataset
         df_pip <- data.frame(
@@ -239,7 +251,7 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
             labs(
                 x = "Ordered index",
                 y = "Posterior Inclusion Probability",
-                title = "Intercept"
+                title = variable
             ) +
             theme(
                 axis.title.x = element_text(hjust = 0.5),

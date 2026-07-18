@@ -30,6 +30,29 @@ test_that("plot.ivd labels points when ggrepel is available", {
   expect_s3_class(p, "ggplot")
 })
 
+test_that("plot.ivd pip plot reflects the chosen variable in title and data", {
+  ## Regression: the pip plot title was hard-coded to "Intercept", so with
+  ## several random scale effects every choice of `variable` *looked* like
+  ## the intercept plot (the underlying data were correct).
+  skip_if(is.null(ivd_fixture), "fixture missing; run tests/testthat/fixtures/make-ivd-fixture.R")
+  ref <- pip(ivd_fixture)
+
+  for (v in colnames(ivd_fixture$Z_scale)) {
+    p <- plot(ivd_fixture, type = "pip", variable = v, label_points = FALSE)
+    expect_identical(p$labels$title, v)
+    expect_equal(p$data$pip[order(p$data$id)],
+                 ref$pip[ref$scale_var == v])
+  }
+})
+
+test_that("plot.ivd rejects a variable that is not a random scale effect", {
+  skip_if(is.null(ivd_fixture), "fixture missing; run tests/testthat/fixtures/make-ivd-fixture.R")
+  expect_error(
+    plot(ivd_fixture, type = "pip", variable = "not_a_variable"),
+    "must be one of the random scale effects"
+  )
+})
+
 test_that("plot.ivd requires `variable` when there are several random scale effects", {
   skip_if(is.null(ivd_fixture), "fixture missing; run tests/testthat/fixtures/make-ivd-fixture.R")
   expect_error(plot(ivd_fixture, type = "pip"), "specify the 'variable'")
