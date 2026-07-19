@@ -174,6 +174,7 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
 
     ## Create tau locally
     if (no_ranef_s == 1) {
+        zeta_fixef_missing <- FALSE
         ## Extract the posterior mean of the fixed effect:
         zeta <- mean(unlist(lapply(.extract_to_mcmc(obj), FUN = function(x) mean(x[, "zeta[1]"]))))
         ## Extract the posterior mean of each random effect:
@@ -191,8 +192,15 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
         scale_fixef_position_user <-
             which(fixef_scale_names == variable)
 
-        ## Use ranef_position_user to select corresponding fixed effect
-        zeta <- mean(unlist(lapply(.extract_to_mcmc(obj), FUN = function(x) mean(x[, paste0("zeta[", scale_fixef_position_user, "]")]))))
+        ## Use ranef_position_user to select corresponding fixed effect. A
+        ## random scale effect without a corresponding fixed effect is a valid
+        ## model (e.g. ~ 1 + (1 + x | id)): its fixed part is 0.
+        zeta_fixef_missing <- length(scale_fixef_position_user) == 0
+        zeta <- if (zeta_fixef_missing) {
+            0
+        } else {
+            mean(unlist(lapply(.extract_to_mcmc(obj), FUN = function(x) mean(x[, paste0("zeta[", scale_fixef_position_user, "]")]))))
+        }
 
         ## Extract the posterior mean of each random effect:
         pos <- scale_ranef_pos[grepl(paste0(Kr + scale_ranef_position_user, "\\]"), names(scale_ranef_pos))]
@@ -275,6 +283,12 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
 
         return(plt)
     } else if (type == "funnel") {
+        if (zeta_fixef_missing) {
+            warning("The scale formula has no fixed effect '", variable,
+                    "': the within-cluster SD axis is computed from the ",
+                    "random effect alone (fixed part taken as 0).",
+                    call. = FALSE)
+        }
         plt <- ggplot(df_pip, aes(x = tau, y = pip)) +
             geom_point(
                 data = subset(df_pip, pip < pip_level),
@@ -309,6 +323,12 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
 
         return(plt)
     } else if (type == "outcome") {
+        if (zeta_fixef_missing) {
+            warning("The scale formula has no fixed effect '", variable,
+                    "': the within-cluster SD coloring is computed from the ",
+                    "random effect alone (fixed part taken as 0).",
+                    call. = FALSE)
+        }
         ## Declare global variable to avoid R CMD check NOTE
 
         plt <- ggplot(df_pip, aes(x = mu, y = pip, fill = tau)) +

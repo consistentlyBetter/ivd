@@ -53,6 +53,31 @@ test_that("plot.ivd rejects a variable that is not a random scale effect", {
   )
 })
 
+test_that("plot.ivd handles a random scale effect with no matching fixed effect", {
+  ## e.g. scale_formula = ~ 1 + (1 + x | id): valid model, fixed part of x
+  ## is 0. Used to fail with "subscript out of bounds" on zeta[integer(0)].
+  ## Mimic it by dropping x from the fixed scale design.
+  skip_if(is.null(ivd_fixture), "fixture missing; run tests/testthat/fixtures/make-ivd-fixture.R")
+  fit <- ivd_fixture
+  fit$X_scale <- fit$X_scale[, "(Intercept)", drop = FALSE]
+
+  ## pip plot never displays tau -> no error, no warning
+  expect_silent(p <- plot(fit, type = "pip", variable = "x", label_points = FALSE))
+  expect_s3_class(p, "ggplot")
+
+  ## funnel/outcome display tau -> drawn with zeta = 0 plus a warning
+  expect_warning(
+    pf <- plot(fit, type = "funnel", variable = "x", label_points = FALSE),
+    "no fixed effect 'x'"
+  )
+  expect_s3_class(pf, "ggplot")
+  ref <- suppressWarnings(plot(ivd_fixture, type = "funnel", variable = "x",
+                               label_points = FALSE))
+  ## tau = exp(0 + u) here vs exp(zeta + u) on the intact fixture
+  zeta_x <- fixef(ivd_fixture)[["scl_x"]]
+  expect_equal(pf$data$tau, ref$data$tau / exp(zeta_x), tolerance = 1e-8)
+})
+
 test_that("plot.ivd requires `variable` when there are several random scale effects", {
   skip_if(is.null(ivd_fixture), "fixture missing; run tests/testthat/fixtures/make-ivd-fixture.R")
   expect_error(plot(ivd_fixture, type = "pip"), "specify the 'variable'")
