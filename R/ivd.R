@@ -7,6 +7,10 @@
 ##' @param dummy_data Data
 ##' @param dummy_inits inits
 ##' @param useWAIC Defaults to TRUE. Nimble argument
+##' @param monitor_pointwise Also monitor the per-observation `mu` and `tau`.
+##'   Defaults to FALSE; only needed to reconstruct the pointwise
+##'   log-likelihood. Monitoring them costs O(N x iterations) RAM per chain, so
+##'   they are off unless requested.
 ##' @return
 #' A named \code{list} with two elements:
 #' \itemize{
@@ -43,14 +47,19 @@
 #'
 #' str(out)
 #' }
-build_ivd_model <- function(code, constants, dummy_data, dummy_inits, useWAIC = TRUE) {
+build_ivd_model <- function(code, constants, dummy_data, dummy_inits, useWAIC = TRUE, monitor_pointwise = FALSE) {
     model <- nimbleModel(code = code, data = dummy_data, constants = constants, inits = dummy_inits)
     cmodel <- compileNimble(model)
 
     config <- configureMCMC(model)
     if (useWAIC) config$enableWAIC <- useWAIC
     config$monitors <- c("beta", "zeta", "R", "ss", "sigma_rand", "u")
-    config$addMonitors(c("mu", "tau"))
+    ## The per-observation nodes `mu` and `tau` are NOT monitored: each stores
+    ## O(N x iterations) values per chain (the dominant memory term). The cluster
+    ## outcome plot reconstructs the posterior-mean `mu` from `beta` + `u`, and
+    ## the pointwise log-likelihood (which also needs `tau`) is opt-in. Monitor
+    ## both only when the caller requests the pointwise quantities.
+    if (monitor_pointwise) config$addMonitors(c("mu", "tau"))
 
     mcmc <- buildMCMC(config)
     cmcmc <- compileNimble(mcmc, project = cmodel)
@@ -68,6 +77,7 @@ build_ivd_model <- function(code, constants, dummy_data, dummy_inits, useWAIC = 
 ##' @param niter Sampling iteratons
 ##' @param nburnin Number of burnin iterations
 ##' @param useWAIC Defaults to TRUE
+##' @param thin Thinning interval passed to `runMCMC()`. Defaults to 1.
 ##' @param ... Placeholder for nimble arguments
 #' @return
 #' The output produced by \code{nimble::runMCMC()} when applied to a compiled
@@ -114,11 +124,11 @@ build_ivd_model <- function(code, constants, dummy_data, dummy_inits, useWAIC = 
 #'
 #' str(out)
 #' }
-run_MCMC_compiled_model <- function(compiled, seed, new_data, new_inits, niter, nburnin, useWAIC = TRUE, ...) {
+run_MCMC_compiled_model <- function(compiled, seed, new_data, new_inits, niter, nburnin, useWAIC = TRUE, thin = 1, ...) {
   compiled$cmodel$setData(new_data)
   compiled$cmodel$setInits(new_inits)
-  
-  samples <- runMCMC(compiled$cmcmc, niter = niter, nburnin = nburnin, setSeed = seed, WAIC = useWAIC, ...)
+
+  samples <- runMCMC(compiled$cmcmc, niter = niter, nburnin = nburnin, thin = thin, setSeed = seed, WAIC = useWAIC, ...)
   return(samples)
 }
 
@@ -150,6 +160,23 @@ uppertri_mult_diag <- nimbleFunction(
 #' @param workers Number of parallel R processes -- doubles as 'chains' argument
 #' @param n_eff Use stan::monitor function or built local: 'stan' vs. 'local'
 #' @param ss_prior_p Prior inclusion probability. Defaults to '.5'.
+#' @param thin Thinning interval for stored posterior draws. Defaults to 1
+#'   (keep every iteration). Larger values cut stored-sample RAM linearly.
+#' @param return_logLik Store the pointwise log-likelihood array
+#'   (`iterations x chains x N`) for use with e.g. `loo`. Defaults to FALSE.
+#'   When TRUE, `tau` is also monitored. The array scales with N and is the
+#'   single largest element of the returned object, so it is opt-in.
+#' @param seed Optional integer for full reproducibility. When supplied, it
+#'   seeds both the random initial values and a distinct per-chain MCMC seed, so
+#'   repeated calls return identical draws without needing an external
+#'   `set.seed()`. Defaults to `NULL` (inits drawn from the ambient RNG; chains
+#'   seeded `1:workers` -- the previous behaviour).
+#' @param progress Show a live, per-chain progress line while the chains compile
+#'   and sample, and suppress NIMBLE's (buffered) per-worker console output.
+#'   Defaults to `interactive()`. Set to FALSE to restore NIMBLE's verbose
+#'   model-building output and disable the progress line. Progress granularity
+#'   is per chain: each tick marks a chain finishing (compile + sample), since
+#'   `multisession` workers cannot stream sub-chain progress.
 #' @param ... Currently not used
 #' @return
 #' An object of class \code{"ivd"} (and \code{"list"}), which contains the
@@ -161,8 +188,9 @@ uppertri_mult_diag <- nimbleFunction(
 #'   \item \code{samples}: An \code{mcmc.list} object containing posterior
 #'         samples for all monitored parameters across all chains.
 #'
-#'   \item \code{logLik_array}: A 3D array of pointwise log-likelihood
-#'         values with dimensions \code{iterations × chains × N}.
+#'   \item \code{logLik_array}: Only present when \code{return_logLik = TRUE}.
+#'         A 3D array of pointwise log-likelihood values with dimensions
+#'         \code{iterations × chains × N}.
 #'
 #'   \item \code{rhat_values}: Vector of split-\eqn{\hat{R}} convergence
 #'         diagnostics (Vehtari et al., 2021).
@@ -179,7 +207,15 @@ uppertri_mult_diag <- nimbleFunction(
 #'   \item \code{X_scale}, \code{Z_scale}:
 #'         Matrices used for the scale submodel’s fixed and random effects.
 #'
+#'   \item \code{X}, \code{Z}:
+#'         Location-submodel fixed/random design matrices, retained so the
+#'         outcome plot can reconstruct the posterior mean of \code{mu}.
+#'
 #'   \item \code{Y}: Data frame with the response vector and group identifiers.
+#'   \item \code{group_labels}: Character vector mapping the internal cluster
+#'         index \code{j} back to the user's original grouping IDs.
+#'   \item \code{location_formula}, \code{scale_formula}: The model formulas.
+#'   \item \code{ss_prior_p}: The prior inclusion probability used in the fit.
 #'
 #'   \item \code{workers}: Number of parallel chains used.
 #'
@@ -191,7 +227,6 @@ uppertri_mult_diag <- nimbleFunction(
 #' and extracting results from the \code{ivd} model.
 #' 
 #' @import future
-#' @importFrom future.apply future_lapply
 #' @importFrom coda as.mcmc mcmc.list
 #' @importFrom nimble nimbleCode nimbleModel compileNimble buildMCMC runMCMC
 #' @importFrom rstan monitor
@@ -216,7 +251,7 @@ uppertri_mult_diag <- nimbleFunction(
 ##' codaplot(out, parameters =  "Intc")
 ##' codaplot(out, parameters =  "R[scl_Intc, Intc]")
 ##' }
-ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WAIC = TRUE, workers = 4, n_eff = "local", ss_prior_p = 0.5, ...) {
+ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WAIC = TRUE, workers = 4, n_eff = "local", ss_prior_p = 0.5, thin = 1, return_logLik = FALSE, seed = NULL, progress = interactive(), ...) {
   if(is.null(nburnin)) {
     nburnin <- niter
   }
@@ -225,6 +260,7 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   data <- dat[[1]]
   groups <- dat$groups
   group_id <- dat$group_id
+  group_labels <- dat$group_labels
 
   ## Obtain estimates for empirical intercept prior:
   mean_pred <- mean(data$Y, na.rm = TRUE)
@@ -245,9 +281,14 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
       sd_pred = sd_pred, ## empirical estimate from sample for location
       bval = matrix(c(rep(1, ncol(data$Z)), rep(ss_prior_p, ncol(data$Z_scale))), ncol = 1)## Prior probability for dbern
   )
+  ## Optional reproducibility: seed the random inits and derive a distinct,
+  ## reproducible RNG seed per chain. With seed = NULL the behaviour is
+  ## unchanged -- inits drawn from the ambient RNG, chains seeded 1:workers.
+  if (!is.null(seed)) set.seed(seed)
   ## Nimble inits
   inits <- list(beta = rnorm(constants$K, 5, 10), ## TODO: Check inits
                 zeta =  rnorm(constants$S, 1, 3))
+  chain_seeds <- if (is.null(seed)) seq_len(workers) else sample.int(.Machine$integer.max, workers)
 
   ## nocov start: the model is NIMBLE's BUGS-style DSL, parsed by nimbleModel()
   ## rather than executed as R. covr's line-counting injection corrupts it
@@ -326,45 +367,80 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   ## nocov end
 
   ## IMPORTANT: future loads the installed library on its workers - changes in the package that are not in the library(ivd)
-  ## are not loaded onto the workers! All changes to run_MCMC_allcode only take effect after reinstalling. 
+  ## are not loaded onto the workers! Edits to build_ivd_model / run_MCMC_compiled_model only take effect after reinstalling.
   future::plan(multisession, workers = workers)
 
-  ## results <- future_lapply(1:workers, function(x) run_MCMC_allcode(seed = x, data = data, constants = constants,
-  ##                                                                  code = modelCode, niter = niter, nburnin = nburnin,
-  ##                                                                  useWAIC = WAIC, inits = inits, ...),
-  ##                          future.seed = TRUE, future.packages = c("nimble"),
-  ##                          future.globals = list(invvec_to_corr = invvec_to_corr))
-  results <- future_lapply(1:workers, function(x) {
-      compiled_model <- build_ivd_model(
-          code = modelCode,
-          constants = constants,
-          dummy_data = data,
-          dummy_inits = inits,
-          useWAIC = WAIC
-      )
-      run_MCMC_compiled_model(
-          compiled = compiled_model,
-          seed = x,
-          new_data = data,
-          new_inits = inits,
-          niter = niter,
-          nburnin = nburnin,
-          useWAIC = WAIC, ...
-      )
-  },
-  future.seed = TRUE,
-  future.packages = c("nimble"),
-  future.globals = list(
-      modelCode = modelCode,
-      constants = constants,
-      data = data,
-      inits = inits,
+  ## One future per chain (workers == chains). Manual futures (rather than
+  ## future_lapply) let the main process poll resolved() and render a live
+  ## progress line while the workers compile and sample. With `multisession`
+  ## the workers are separate processes whose NIMBLE output is buffered and only
+  ## relayed on collection; when `progress = TRUE` it is suppressed in-worker so
+  ## the live line is the only console output. Results stay deterministic: each
+  ## chain's draws are fixed by `runMCMC(setSeed = chain_seeds[x])` plus the
+  ## inits, so the future's own `seed = TRUE` (a valid RNG stream) never affects
+  ## the draws -- it only silences future's RNG warning.
+  quiet <- isTRUE(progress)
+  dots <- list(...)
+  chain_globals <- list(
+      modelCode = modelCode, constants = constants, data = data, inits = inits,
+      niter = niter, nburnin = nburnin, WAIC = WAIC, thin = thin,
+      return_logLik = return_logLik, quiet = quiet, dots = dots,
       build_ivd_model = build_ivd_model,
-    run_MCMC_compiled_model = run_MCMC_compiled_model,
-    uppertri_mult_diag = uppertri_mult_diag
-      #invvec_to_corr = invvec_to_corr
+      run_MCMC_compiled_model = run_MCMC_compiled_model,
+      uppertri_mult_diag = uppertri_mult_diag
   )
-  )
+  fits <- lapply(seq_len(workers), function(x) {
+      future::future(
+          {
+              run_one <- function() {
+                  compiled_model <- build_ivd_model(
+                      code = modelCode, constants = constants,
+                      dummy_data = data, dummy_inits = inits,
+                      useWAIC = WAIC, monitor_pointwise = return_logLik)
+                  do.call(run_MCMC_compiled_model,
+                          c(list(compiled = compiled_model, seed = chain_seed,
+                                 new_data = data, new_inits = inits,
+                                 niter = niter, nburnin = nburnin,
+                                 useWAIC = WAIC, thin = thin), dots))
+              }
+              if (quiet) {
+                  res <- NULL
+                  utils::capture.output(
+                      suppressMessages(suppressWarnings(res <- run_one())))
+                  res
+              } else {
+                  run_one()
+              }
+          },
+          seed = TRUE, packages = "nimble",
+          globals = c(chain_globals, list(chain_seed = chain_seeds[x]))
+      )
+  })
+
+  ## Poll the workers in the main process and render a live spinner + elapsed
+  ## timer. There is deliberately no "k/workers" bar: chains run in parallel and
+  ## finish together, so a fraction bar would sit at 0 then jump to full -- the
+  ## spinner/timer honestly signal "working" without implying smooth progress.
+  if (isTRUE(progress)) {
+      t0 <- Sys.time()
+      message("ivd: compiling and sampling ", workers,
+              if (workers == 1) " chain" else " chains", " in parallel ...")
+      spin <- c("|", "/", "-", "\\")
+      tick <- 0L
+      repeat {
+          done <- sum(vapply(fits, future::resolved, logical(1)))
+          tick <- tick + 1L
+          cat(.progress_line(workers, t0, spin[(tick - 1L) %% 4L + 1L]))
+          utils::flush.console()
+          if (done == workers) break
+          Sys.sleep(0.4)
+      }
+      cat("\n")
+  }
+
+  ## Collect results: re-throws any worker error, and relays the buffered
+  ## NIMBLE output when it was not suppressed (progress = FALSE).
+  results <- lapply(fits, future::value)
   
   ## Prepare object to be returned
   out <- list()
@@ -379,52 +455,52 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   mcmc_chains <- lapply(results, as.mcmc)
   combined_chains <- mcmc.list(mcmc_chains)
 
-  ## Compute logLik:
-  ## Check that Y,  mu and tau are of same length, in case grep picks up other variables
-  if(length(grep("mu", colnames(combined_chains[[1]]$samples))) != length(grep("tau", colnames(combined_chains[[1]]$samples))) &
-     length(grep("mu", colnames(combined_chains[[1]]$samples))) != length(data$Y)) {
-      stop("mu and tau are not of same lenght -- check ivd.R")
-  }
-  
-  ## Collect mu and tau
-  ## Get mu's across chains
-  mu_combined <- lapply(combined_chains, function(chain) {
-    mu_indices <- grep("mu", colnames(chain$samples))
-    mu_samples <- chain$samples[, mu_indices, drop = FALSE]
-    return(mu_samples)
-  })
+  ## Number of observations / chains / stored iterations
+  N <- length(data$Y)
+  chains <- length(combined_chains)
+  iterations <- nrow(combined_chains[[1]]$samples)
 
-  ## Get tau's across chains
-  tau_combined <- lapply(combined_chains, function(chain) {
-    tau_indices <- grep("tau", colnames(chain$samples))
-    tau_samples <- chain$samples[, tau_indices, drop = FALSE]
-    return(tau_samples)
-  })
-
-  N <- length( data$Y )
-  chains <- length(mu_combined)  # Number of chains
-  iterations <- nrow(mu_combined[[1]])  # Number of iterations (assuming all chains have same iterations)
-
-  ## Initialize the array for log-likelihoods: iterations x chains x N
-  logLik_array <- array(NA, dim = c(iterations, chains, N))
-
-  ## Loop over chains and iterations to compute log-likelihood
-  for (chain_idx in 1:chains) {
-    for (iter in 1:iterations) {
-      ## Extract mu and tau for this iteration and chain, results in vectors of length N
-      mu_values <- mu_combined[[chain_idx]][iter, ]
-      tau_values <- tau_combined[[chain_idx]][iter, ]
-
-      ## Compute log-likelihood for each observation in Y
-      logLik_array[iter, chain_idx, ] <- dnorm(data$Y, mean = mu_values, sd = tau_values, log = TRUE)
+  ## Pointwise log-likelihood (opt-in): iterations x chains x N. It is the single
+  ## largest element of the returned object and is used only for downstream
+  ## loo()/by-hand WAIC workflows, so it is built only on request. It needs
+  ## `tau`, which is monitored solely under return_logLik = TRUE (build_ivd_model()).
+  if (return_logLik) {
+    ## Check that mu and tau are of same length, in case grep picks up other variables
+    n_mu  <- length(grep("^mu\\[",  colnames(combined_chains[[1]]$samples)))
+    n_tau <- length(grep("^tau\\[", colnames(combined_chains[[1]]$samples)))
+    if (n_mu != n_tau & n_mu != N) {
+        stop("mu and tau are not of same lenght -- check ivd.R")
     }
+    ## Collect mu and tau across chains
+    mu_combined <- lapply(combined_chains, function(chain) {
+      chain$samples[, grep("^mu\\[", colnames(chain$samples)), drop = FALSE]
+    })
+    tau_combined <- lapply(combined_chains, function(chain) {
+      chain$samples[, grep("^tau\\[", colnames(chain$samples)), drop = FALSE]
+    })
+    ## Initialize the array for log-likelihoods: iterations x chains x N
+    logLik_array <- array(NA, dim = c(iterations, chains, N))
+    for (chain_idx in 1:chains) {
+      for (iter in 1:iterations) {
+        ## mu and tau for this iteration/chain, vectors of length N
+        mu_values <- mu_combined[[chain_idx]][iter, ]
+        tau_values <- tau_combined[[chain_idx]][iter, ]
+        logLik_array[iter, chain_idx, ] <- dnorm(data$Y, mean = mu_values, sd = tau_values, log = TRUE)
+      }
+    }
+    out$logLik_array <- logLik_array
   }
-  out$logLik_array <- logLik_array
-
-
 
   ## Compute Rhats and n_eff:
-  x <- mcmc.list( lapply(combined_chains, FUN = function(x) mcmc(x$samples)) )
+  ## Exclude the per-observation mu/tau columns from the diagnostics arrays.
+  ## summary.ivd() drops them anyway, and copying 2N columns into
+  ## samples_array/split_samples (twice) is the bulk of post-processing RAM --
+  ## and running the FFT autocorrelation over near-constant mu/tau feeds the
+  ## n_eff = "local" crash. Diagnostics are scattered back to full length (with
+  ## NA at mu/tau positions) below, so summary.ivd()'s indexing still aligns.
+  all_param_names <- colnames(combined_chains[[1]]$samples)
+  keep_cols <- grep("^(mu|tau)\\[", all_param_names, invert = TRUE)
+  x <- mcmc.list(lapply(combined_chains, FUN = function(x) mcmc(x$samples[, keep_cols, drop = FALSE])))
   ## Extract dimensions
   parameters <- ncol(x[[1]])
   ## Initialize a 3D array
@@ -497,17 +573,10 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
 
           chain_rho <- apply(param_samples, 2, function(samp_per_chain) {
               acf_values <- .autocorrelation_fft(samp_per_chain)
-              ## Truncate according to Geyer (1992)
-              position <-  min(seq(2:length(acf_values))[acf_values[-length(acf_values)] + acf_values[-1] < 0])
-              ## position contains NA for constants, needs to be addressed here:
-
-              if (!is.na(position)) {
-                  ## Pad with NA's so that all vectors are of same length. Saves me storing the position object
-                  ## pad with NA so that mean() can be calculated over differing rho's per chains
-                  rho <- append(acf_values[1:position + 1], rep(NA, length(acf_values) - position), after = position)
-              } else {
-                  rho <- rep(NA, n)
-              }
+              ## Truncate according to Geyer (1992), NA-padded to a common
+              ## length so mean() can be calculated over differing rho's per
+              ## chain; all-NA for constant chains.
+              .geyer_truncate(acf_values)
           })
           
           s2m_rtm <- lapply(seq_along(chain_variances), function(i) {
@@ -531,12 +600,19 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
       n_eff <- monitor_results$n_eff
   }
   
+  ## Scatter diagnostics back to full parameter length (NA at the excluded
+  ## mu/tau positions) so downstream index-based subsetting stays aligned.
+  rhat_full <- stats::setNames(rep(NA_real_, length(all_param_names)), all_param_names)
+  neff_full <- stats::setNames(rep(NA_real_, length(all_param_names)), all_param_names)
+  rhat_full[keep_cols] <- Rhat
+  neff_full[keep_cols] <- n_eff
+
   ## Extract and print R-hat values
-  out$rhat_values <- Rhat
+  out$rhat_values <- rhat_full
   if(any(out$rhat_values[!is.na(out$rhat_values)] > 1.1)) warning("Some R-hat values are greater than 1.10 -- increase warmup and/or sampling iterations.")
 
   ## Effective sample size
-  out$n_eff <- n_eff
+  out$n_eff <- neff_full
   
   ## Save the rest to the out object
   out$samples <- combined_chains
@@ -545,7 +621,19 @@ ivd <- function(location_formula, scale_formula, data, niter, nburnin = NULL, WA
   out$X_scale <- data$X_scale
   out$Z_location_names <- colnames(data$Z) # save random effects names for summary table renaming
   out$Z_scale <- data$Z_scale
+  ## Location design matrices kept so plot.ivd() can reconstruct the posterior
+  ## mean of `mu` from beta + u (mu is no longer monitored). These are O(N x K)
+  ## / O(N x Kr) and do not grow with iterations, unlike the dropped mu samples.
+  out$X <- data$X
+  out$Z <- data$Z
   out$Y <- data.frame("group_id" = group_id, "Y" = data$Y)
+  ## Original cluster labels (index j -> user's ID) for summary/plot output.
+  out$group_labels <- group_labels
+  ## Model formulas, kept for print.ivd().
+  out$location_formula <- location_formula
+  out$scale_formula <- scale_formula
+  ## Prior inclusion probability, kept for pip_sensitivity().
+  out$ss_prior_p <- ss_prior_p
   out$workers <- workers
   
   class(out) <- c("ivd", "list")

@@ -5,7 +5,14 @@
 \title{Build and compile NIMBLE model and MCMC once
 This function is exported for use in 'future' and is not meant to be called by user.}
 \usage{
-build_ivd_model(code, constants, dummy_data, dummy_inits, useWAIC = TRUE)
+build_ivd_model(
+  code,
+  constants,
+  dummy_data,
+  dummy_inits,
+  useWAIC = TRUE,
+  monitor_pointwise = FALSE
+)
 }
 \arguments{
 \item{code}{Nimble code}
@@ -17,6 +24,11 @@ build_ivd_model(code, constants, dummy_data, dummy_inits, useWAIC = TRUE)
 \item{dummy_inits}{inits}
 
 \item{useWAIC}{Defaults to TRUE. Nimble argument}
+
+\item{monitor_pointwise}{Also monitor the per-observation \code{mu} and \code{tau}.
+Defaults to FALSE; only needed to reconstruct the pointwise
+log-likelihood. Monitoring them costs O(N x iterations) RAM per chain, so
+they are off unless requested.}
 }
 \value{
 A named \code{list} with two elements:

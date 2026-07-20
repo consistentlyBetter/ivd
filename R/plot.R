@@ -20,6 +20,10 @@
 ##' @param pip_level Defines a value for the posterior inclusion probability. Defaults to 0.75.
 ##' @param variable Name of a specific variable. Defaults to `NULL`
 ##' @param label_points Should points above the pip threshold be labelled? Defaults to `TRUE`.
+##' @param labels Point labels: `"index"` (default) uses the compact internal
+##'   1..J cluster index; `"original"` uses the user's own grouping IDs
+##'   (see `fit$group_labels`). Matches the same argument in
+##'   [summary.ivd()].
 ##' @param ... Controls ggrepel aruments.
 #' @return
 #' Invisibly returns a \code{ggplot} object corresponding to the selected plot
@@ -44,8 +48,14 @@
 ##' @importFrom stats aggregate median
 ##' @importFrom utils menu
 ##' @export
-plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_points = TRUE, ...) {
+plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_points = TRUE, labels = c("index", "original"), ...) {
     obj <- x
+    labels <- match.arg(labels)
+    if (identical(labels, "original") && is.null(obj$group_labels)) {
+        warning("This ivd object predates 'group_labels'; ",
+                "points keep the internal index.")
+        labels <- "index"
+    }
     ## Get scale variable names
     ranef_scale_names <- colnames(obj$Z_scale)
     fixef_scale_names <- colnames(obj$X_scale)
@@ -87,6 +97,9 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
 
     ## With multiple random effects, ask user which one to be plotted:
     if (no_ranef_s == 1) {
+        ## Single random scale effect: it is the one plotted; keep its name
+        ## for the plot title.
+        variable <- ranef_scale_names[1]
         ## Define ordered dataset
         df_pip <- data.frame(
             id = seq_len(length(ss_means[[1]])),
@@ -124,6 +137,15 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
 
         ## Find position of user requested random effect
         scale_ranef_position_user <- which(ranef_scale_names == variable)
+        if (length(scale_ranef_position_user) == 0) {
+            stop(
+                paste0(
+                    "'variable' must be one of the random scale effects: ",
+                    paste(ranef_scale_names, collapse = ", ")
+                ),
+                call. = FALSE
+            )
+        }
 
         ## Define ordered dataset
         df_pip <- data.frame(
@@ -152,6 +174,7 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
 
     ## Create tau locally
     if (no_ranef_s == 1) {
+        zeta_fixef_missing <- FALSE
         ## Extract the posterior mean of the fixed effect:
         zeta <- mean(unlist(lapply(.extract_to_mcmc(obj), FUN = function(x) mean(x[, "zeta[1]"]))))
         ## Extract the posterior mean of each random effect:
@@ -169,8 +192,15 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
         scale_fixef_position_user <-
             which(fixef_scale_names == variable)
 
-        ## Use ranef_position_user to select corresponding fixed effect
-        zeta <- mean(unlist(lapply(.extract_to_mcmc(obj), FUN = function(x) mean(x[, paste0("zeta[", scale_fixef_position_user, "]")]))))
+        ## Use ranef_position_user to select corresponding fixed effect. A
+        ## random scale effect without a corresponding fixed effect is a valid
+        ## model (e.g. ~ 1 + (1 + x | id)): its fixed part is 0.
+        zeta_fixef_missing <- length(scale_fixef_position_user) == 0
+        zeta <- if (zeta_fixef_missing) {
+            0
+        } else {
+            mean(unlist(lapply(.extract_to_mcmc(obj), FUN = function(x) mean(x[, paste0("zeta[", scale_fixef_position_user, "]")]))))
+        }
 
         ## Extract the posterior mean of each random effect:
         pos <- scale_ranef_pos[grepl(paste0(Kr + scale_ranef_position_user, "\\]"), names(scale_ranef_pos))]
@@ -182,20 +212,18 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
         stop("Invalid action specified. Exiting.", call. = FALSE)
     }
 
-    ## Get mu's across chains
-    mu_combined <- lapply(obj$samples, function(chain) {
-        mu_indices <- grep("mu", colnames(chain$samples))
-        mu_samples <- chain$samples[, mu_indices, drop = FALSE]
-        return(mu_samples)
-    })
+    ## Posterior mean of mu per observation. `mu` is no longer monitored, so
+    ## reconstruct it from beta + u; fall back to the monitored columns for
+    ## legacy objects / return_logLik = TRUE fits that still carry them.
+    if (any(grepl("^mu\\[", colnames(obj$samples[[1]]$samples)))) {
+        mu_combined <- lapply(obj$samples, function(chain) {
+            chain$samples[, grep("^mu\\[", colnames(chain$samples)), drop = FALSE]
+        })
+        posterior_mu_means <- colMeans(do.call(rbind, mu_combined))
+    } else {
+        posterior_mu_means <- .reconstruct_mu_means(obj)
+    }
 
-    # Combine chains into one large matrix
-
-    # Compute the posterior means
-    # posterior_tau_means <- colMeans(do.call(rbind, tau_combined))
-    posterior_mu_means <- colMeans(do.call(rbind, mu_combined))
-
-    # tau <- tapply(posterior_tau_means, obj$Y$group_id, mean)
     mu <- tapply(posterior_mu_means, obj$Y$group_id, mean)
 
     ## Add tau and mu to data frame -- ensure correct order
@@ -203,6 +231,15 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
         cbind(df_pip[order(df_pip$id), ], tau)
     df_pip <-
         cbind(df_pip[order(df_pip$id), ], mu)
+
+    ## Point labels: the compact internal index by default; the user's
+    ## original grouping IDs with labels = "original" (matches the summary
+    ## table's labels argument).
+    df_pip$label <- if (identical(labels, "original")) {
+        obj$group_labels[df_pip$id]
+    } else {
+        df_pip$id
+    }
 
 
     if (type == "pip") {
@@ -222,7 +259,7 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
             labs(
                 x = "Ordered index",
                 y = "Posterior Inclusion Probability",
-                title = "Intercept"
+                title = variable
             ) +
             theme(
                 axis.title.x = element_text(hjust = 0.5),
@@ -234,7 +271,7 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
             .require_suggest("ggrepel", "`geom_label_repel()`")
             plt <- plt + ggrepel::geom_label_repel(
                 data = subset(df_pip, pip >= pip_level),
-                aes(label = id),
+                aes(label = label),
                 force = 100,
                 box.padding = 0.35,
                 point.padding = 0.5,
@@ -246,6 +283,12 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
 
         return(plt)
     } else if (type == "funnel") {
+        if (zeta_fixef_missing) {
+            warning("The scale formula has no fixed effect '", variable,
+                    "': the within-cluster SD axis is computed from the ",
+                    "random effect alone (fixed part taken as 0).",
+                    call. = FALSE)
+        }
         plt <- ggplot(df_pip, aes(x = tau, y = pip)) +
             geom_point(
                 data = subset(df_pip, pip < pip_level),
@@ -272,7 +315,7 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
             .require_suggest("ggrepel", "`geom_text_repel()`")
             plt <- plt + ggrepel::geom_text_repel(
                 data = subset(df_pip, pip >= pip_level),
-                aes(label = id),
+                aes(label = label),
                 point.padding = 0.5,
                 ...
             )
@@ -280,6 +323,12 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
 
         return(plt)
     } else if (type == "outcome") {
+        if (zeta_fixef_missing) {
+            warning("The scale formula has no fixed effect '", variable,
+                    "': the within-cluster SD coloring is computed from the ",
+                    "random effect alone (fixed part taken as 0).",
+                    call. = FALSE)
+        }
         ## Declare global variable to avoid R CMD check NOTE
 
         plt <- ggplot(df_pip, aes(x = mu, y = pip, fill = tau)) +
@@ -332,7 +381,7 @@ plot.ivd <- function(x, type = "pip", pip_level = .75, variable = NULL, label_po
             .require_suggest("ggrepel", "`geom_text_repel()`")
             plt <- plt + ggrepel::geom_text_repel(
                 data = subset(df_pip, pip >= pip_level),
-                aes(label = id),
+                aes(label = label),
                 point.padding = 0.5,
                 ...
             )
@@ -369,11 +418,13 @@ codaplot <- function(obj, parameters = NULL, type = 'traceplot', askNewPage = TR
   ## Extract relevant names with summary_table function
   mat_transposed <- .summary_table(t(extract_samples[[1]]), Kr)
 
-  ## Exclude mu and tau indexes
-  mu_index <- grep('mu',  rownames(mat_transposed) )
-  tau_index <- grep('tau',  rownames(mat_transposed))
+  ## Exclude mu and tau indexes (absent unless return_logLik = TRUE / legacy).
+  ## Guard the empty case: `x[-integer(0), ]` selects ZERO rows, not all.
+  drop_idx <- c(grep('^mu\\[', rownames(mat_transposed)),
+                grep('^tau\\[', rownames(mat_transposed)))
+  mat_kept <- if (length(drop_idx)) mat_transposed[-drop_idx, , drop = FALSE] else mat_transposed
 
-  raw_internal_names <- rownames(mat_transposed[-c(mu_index, tau_index), ])
+  raw_internal_names <- rownames(mat_kept)
   internal_names <- raw_internal_names
 
   ## Location fixed effects
@@ -408,9 +459,12 @@ codaplot <- function(obj, parameters = NULL, type = 'traceplot', askNewPage = TR
 
 
   ## Link PIP to actual clustering units
-  ## find the positions of the scale random effects in the model
+  ## find the positions of the scale random effects in the model.
+  ## Scale random effects occupy rows (Kr+1):(Kr+Sr) of u/ss -- offset by the
+  ## number of *location* random effects Kr (using Sr here only worked when
+  ## Kr == Sr).
   scale_ranef <- colnames(obj$Z_scale)
-  scale_indexes <- seq_len(length(scale_ranef)) + length(colnames(obj$Z_scale))
+  scale_indexes <- seq_len(length(scale_ranef)) + obj$nimble_constants$Kr
   ## build patterns and replacements
   patterns <- paste0("\\[", scale_indexes, ",")
   replacements <- paste0("[", scale_ranef, ",")
@@ -443,8 +497,16 @@ codaplot <- function(obj, parameters = NULL, type = 'traceplot', askNewPage = TR
   ## Typically, these would be 'plot', 'acfplot', etc.
   ## The user needs to ensure the correct function name is provided.
 
-  ## Attempt to get the plotting function based on 'type'
-  plot_func <- match.fun(type)
+  ## Attempt to get the plotting function based on 'type'. Look it up in the
+  ## coda namespace first: match.fun() alone searches the *caller's*
+  ## environment, so "traceplot" etc. would only resolve if the user has coda
+  ## attached. Fall back to match.fun() for user-supplied functions.
+  plot_func <- if (is.character(type) &&
+                   exists(type, envir = asNamespace("coda"), mode = "function")) {
+    get(type, envir = asNamespace("coda"), mode = "function")
+  } else {
+    match.fun(type)
+  }
   
   if (is.null(parameters)) {
 

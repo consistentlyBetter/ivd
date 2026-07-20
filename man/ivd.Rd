@@ -16,6 +16,10 @@ ivd(
   workers = 4,
   n_eff = "local",
   ss_prior_p = 0.5,
+  thin = 1,
+  return_logLik = FALSE,
+  seed = NULL,
+  progress = interactive(),
   ...
 )
 }
@@ -38,6 +42,27 @@ ivd(
 
 \item{ss_prior_p}{Prior inclusion probability. Defaults to '.5'.}
 
+\item{thin}{Thinning interval for stored posterior draws. Defaults to 1
+(keep every iteration). Larger values cut stored-sample RAM linearly.}
+
+\item{return_logLik}{Store the pointwise log-likelihood array
+(\verb{iterations x chains x N}) for use with e.g. \code{loo}. Defaults to FALSE.
+When TRUE, \code{tau} is also monitored. The array scales with N and is the
+single largest element of the returned object, so it is opt-in.}
+
+\item{seed}{Optional integer for full reproducibility. When supplied, it
+seeds both the random initial values and a distinct per-chain MCMC seed, so
+repeated calls return identical draws without needing an external
+\code{set.seed()}. Defaults to \code{NULL} (inits drawn from the ambient RNG; chains
+seeded \code{1:workers} -- the previous behaviour).}
+
+\item{progress}{Show a live, per-chain progress line while the chains compile
+and sample, and suppress NIMBLE's (buffered) per-worker console output.
+Defaults to \code{interactive()}. Set to FALSE to restore NIMBLE's verbose
+model-building output and disable the progress line. Progress granularity
+is per chain: each tick marks a chain finishing (compile + sample), since
+\code{multisession} workers cannot stream sub-chain progress.}
+
 \item{...}{Currently not used}
 }
 \value{
@@ -50,8 +75,9 @@ The returned object is a named list with the following components:
 \item \code{samples}: An \code{mcmc.list} object containing posterior
 samples for all monitored parameters across all chains.
 
-\item \code{logLik_array}: A 3D array of pointwise log-likelihood
-values with dimensions \code{iterations × chains × N}.
+\item \code{logLik_array}: Only present when \code{return_logLik = TRUE}.
+A 3D array of pointwise log-likelihood values with dimensions
+\code{iterations × chains × N}.
 
 \item \code{rhat_values}: Vector of split-\eqn{\hat{R}} convergence
 diagnostics (Vehtari et al., 2021).
@@ -68,7 +94,15 @@ Names of fixed and random effects in the location submodel.
 \item \code{X_scale}, \code{Z_scale}:
 Matrices used for the scale submodel’s fixed and random effects.
 
+\item \code{X}, \code{Z}:
+Location-submodel fixed/random design matrices, retained so the
+outcome plot can reconstruct the posterior mean of \code{mu}.
+
 \item \code{Y}: Data frame with the response vector and group identifiers.
+\item \code{group_labels}: Character vector mapping the internal cluster
+index \code{j} back to the user's original grouping IDs.
+\item \code{location_formula}, \code{scale_formula}: The model formulas.
+\item \code{ss_prior_p}: The prior inclusion probability used in the fit.
 
 \item \code{workers}: Number of parallel chains used.
 

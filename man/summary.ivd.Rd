@@ -4,7 +4,7 @@
 \alias{summary.ivd}
 \title{Summary of posterior samples}
 \usage{
-\method{summary}{ivd}(object, digits = 3, pip = "all", ...)
+\method{summary}{ivd}(object, digits = 3, pip = "all", labels = c("index", "original"), ...)
 }
 \arguments{
 \item{object}{ivd object}
@@ -13,10 +13,18 @@
 
 \item{pip}{Print pip and model parameters ('all'); Only pip ('pip'), or only model parameeters 9('model'). Defaults to 'all'}
 
+\item{labels}{Cluster labels in the PIP rows: \code{"index"} (default) uses the
+internal 1..J index; \code{"original"} uses the user's own grouping IDs
+(see \code{fit$group_labels}). Matches the same argument in \code{\link[=plot.ivd]{plot.ivd()}}.}
+
 \item{...}{Not used}
 }
 \value{
-summary.ivd object
+A \code{summary.ivd} object: a list with the posterior summary matrix
+(\verb{$table}), the \code{pip} filter used (\verb{$pip}), the number of chains
+(\verb{$chains}), and the chain-averaged WAIC metrics (\verb{$waic}, \verb{$lppd},
+\verb{$pwaic}, with \verb{$has_waic} indicating availability). Printed by
+\code{\link[=print.summary.ivd]{print.summary.ivd()}}.
 }
 \description{
 Summarize ivd object

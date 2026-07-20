@@ -26,7 +26,7 @@ knitr::opts_chunk$set(
 [![codecov](https://codecov.io/gh/consistentlyBetter/ivd/graph/badge.svg?token=SD0PM5BVIL)](https://app.codecov.io/gh/consistentlyBetter/ivd)
 <!-- badges: end -->
 
-*ivd* is an R package for random effects selection in the scale part of Mixed Effects Location Scale Modlels (MELSM). `ivd()` fits a random intercepts model with a spike-and-slab prior on the random effects of the scale.
+*ivd* is an R package for random effects selection in the scale part of Mixed Effects Location Scale Models (MELSM). `ivd()` fits a random intercepts model with a spike-and-slab prior on the random effects of the scale. The method is described in @carmo2026.
 
 ## Installation
 
@@ -79,11 +79,20 @@ We will predict `math_proficiency` which is a standardized variable capturing ma
 
 Both, location (means) and scale (residual variances) are modeled as a function of student and school SES. Note that the formula objects for both location and scale follow `lme4` notation.
 
-```{r warning=FALSE}
+```{r warning=FALSE, results = 'hide'}
 out <- ivd(location_formula = math_proficiency ~ student_ses * school_ses + (1 | school_id),
            scale_formula =  ~ student_ses * school_ses + (1 | school_id),
            data = saeb,
-           niter = 1000, nburnin = 6000)
+           niter = 5000, nburnin = 6000,
+           progress = TRUE,
+           seed = 800056)
+```
+
+The fitted object prints a concise overview of the model, the data, and a
+one-line convergence note:
+
+```{r}
+out
 ```
 
 The summary shows the fixed and random effects and it returns all posterior inclusion probabilities (PIP) for each one of the 160 schools' residual variance random effects. The PIP returns the probability of a school belonging to the slab, that is, the probability of the model having to include the random scale effect. 
@@ -93,7 +102,54 @@ In other words, large PIP's indicate schools that are substantially deviating fr
 One can readily convert those PIP's to odds, indicating that a school with a PIP = .75 is three times as likely to belonging to the slab than belonging to the spike. With an .50 inclusion prior, these odds can be readily interpreted as Bayes Factors.
 
 ```{r}
-s_out <- summary(out)
+summary(out)
+```
+
+## Extracting estimates
+
+`pip()` returns the posterior inclusion probabilities as a plain data frame,
+one row per school and scale random effect, ready for further processing:
+
+```{r}
+head(pip(out))
+```
+
+Fixed and random effects are available through the usual accessors:
+
+```{r}
+fixef(out)
+```
+
+```{r}
+head(ranef(out))
+```
+
+Grouping IDs do not need to form a consecutive integer index: character or
+factor IDs and non-consecutive numeric codes (e.g. official school codes) are
+recoded internally, and `summary()`, `plot()` and `pip()` can report results
+in terms of the original IDs (`labels = "original"`).
+
+## Prior sensitivity
+
+The PIPs depend on the prior inclusion probability (`ss_prior_p`, 0.5 by
+default). `pip_sensitivity()` re-computes them analytically for a range of
+priors -- without refitting -- by converting the posterior odds into
+prior-independent Bayes factors:
+
+```{r}
+sens <- pip_sensitivity(out)
+plot(sens)
+```
+
+Schools whose classification at the 0.75 threshold flips within a plausible
+perturbation of the fitted prior (halving to doubling its odds, by default)
+are highlighted; robust schools are grey. Individual schools can be singled
+out:
+
+```{r}
+pips <- pip(out)
+top <- pips[order(pips$pip, decreasing = TRUE), ][1:3, ]
+plot(sens, clusters = top$cluster_id)
 ```
 
 ## Plots

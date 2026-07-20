@@ -6,9 +6,6 @@
 \usage{
 .extract_to_mcmc(obj)
 }
-\arguments{
-\item{obj}{}
-}
 \value{
 mcmc object
 }

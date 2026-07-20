@@ -50,13 +50,21 @@
 ##' @param object ivd object
 ##' @param digits Integer (Default: 2, optional). Number of digits to round to when printing.
 ##' @param pip Print pip and model parameters ('all'); Only pip ('pip'), or only model parameeters 9('model'). Defaults to 'all'
+##' @param labels Cluster labels in the PIP rows: `"index"` (default) uses the
+##'   internal 1..J index; `"original"` uses the user's own grouping IDs
+##'   (see `fit$group_labels`). Matches the same argument in [plot.ivd()].
 ##' @param ... Not used
-##' @return summary.ivd object
+##' @return A `summary.ivd` object: a list with the posterior summary matrix
+##'   (`$table`), the `pip` filter used (`$pip`), the number of chains
+##'   (`$chains`), and the chain-averaged WAIC metrics (`$waic`, `$lppd`,
+##'   `$pwaic`, with `$has_waic` indicating availability). Printed by
+##'   [print.summary.ivd()].
 ##' @author Philippe Rast
 ##' @importFrom coda gelman.diag mcmc mcmc.list
 ##' @export
 
-summary.ivd <- function(object, digits = 3, pip = 'all', ...) {
+summary.ivd <- function(object, digits = 3, pip = 'all', labels = c("index", "original"), ...) {
+  labels <- match.arg(labels)
   ## Extract samples from list: This does not include warmup
   extract_samples <- .extract_to_mcmc(object)
 
@@ -64,17 +72,20 @@ summary.ivd <- function(object, digits = 3, pip = 'all', ...) {
   combined_samples <- do.call(rbind,  extract_samples)
   cn <- colnames(combined_samples )
 
-  ## exclude mu and tau
-  mu_index <- grep('mu',  cn )
-  tau_index <- grep('tau',  cn )
-  
+  ## exclude mu and tau (absent unless return_logLik = TRUE / legacy objects).
+  ## Guard the empty case: `x[, -integer(0)]` selects ZERO columns, not all.
+  drop_idx <- c(grep('^mu\\[', cn), grep('^tau\\[', cn))
+  keep <- function(z) if (length(drop_idx)) {
+    if (is.null(dim(z))) z[-drop_idx] else z[, -drop_idx, drop = FALSE]
+  } else z
+
   ## mcmc from coda
-  summary_stats <- summary(mcmc(combined_samples[, -c(mu_index, tau_index)]))
-  
+  summary_stats <- summary(mcmc(keep(combined_samples)))
+
   ## Add n_eff and R-hats
   summary_stats$statistics <- cbind(summary_stats$statistics,
-                                    n_eff = object$n_eff[-c(mu_index, tau_index)],
-                                    'R-hat' = object$rhat_values[-c(mu_index, tau_index)])
+                                    n_eff = keep(object$n_eff),
+                                    'R-hat' = keep(object$rhat_values))
   
   ## summary_stats is a coda object with 2 summaries
   ## Means:
@@ -92,8 +103,8 @@ summary.ivd <- function(object, digits = 3, pip = 'all', ...) {
   ## Add original variable names to output
   ## location fixed effects:
   beta_index <- grep('beta', rownames(table))
-  if(length(beta_index) != length(object$X_location_name)) stop("Check beta_index in summary.R" )
-  rownames(table)[beta_index] <- object$X_location_name
+  if(length(beta_index) != length(object$X_location_names)) stop("Check beta_index in summary.R" )
+  rownames(table)[beta_index] <- object$X_location_names
   ## scale fixed effects:
   zeta_index <- grep('zeta', rownames(table))
   if(length(zeta_index) != length(colnames(object$X_scale)) ) stop("Check zeta_index in summary.R")
@@ -118,9 +129,12 @@ summary.ivd <- function(object, digits = 3, pip = 'all', ...) {
   rownames(table)[R_index] <- paste0("R[",paste(corrvar[, 1], corrvar[, 2], sep = ", "), "]")
   
   ## Link PIP to actual clustering units
-  ## find the positions of the scale random effects in the model
+  ## find the positions of the scale random effects in the model.
+  ## Scale random effects occupy rows (Kr+1):(Kr+Sr) of u/ss -- offset by the
+  ## number of *location* random effects Kr (using Sr here only worked when
+  ## Kr == Sr).
   scale_ranef <- colnames(object$Z_scale)
-  scale_indexes <- seq_len(length(scale_ranef)) + length(colnames(object$Z_scale))
+  scale_indexes <- seq_len(length(scale_ranef)) + object$nimble_constants$Kr
   ## build patterns and replacements
   patterns <- paste0("\\[", scale_indexes, ",")
   replacements <- paste0("[", scale_ranef, ",")
@@ -136,6 +150,20 @@ summary.ivd <- function(object, digits = 3, pip = 'all', ...) {
   pip_pos <- grep("ss", rownames(table))
   rownames(table)[pip_pos] <- sub("^ss", "pip", rownames(table)[pip_pos])
 
+  ## With labels = "original", report clusters by the user's own grouping IDs
+  ## instead of the internal 1..J index (see fit$group_labels for the map).
+  if (identical(labels, "original")) {
+    if (is.null(object$group_labels)) {
+      warning("This ivd object predates 'group_labels'; ",
+              "clusters keep the internal index.")
+    } else {
+      j <- as.integer(sub(".*,\\s*(\\d+)\\]$", "\\1", rownames(table)[pip_pos]))
+      rownames(table)[pip_pos] <- paste0(
+        sub(",\\s*\\d+\\]$", "", rownames(table)[pip_pos]),
+        ", ", object$group_labels[j], "]")
+    }
+  }
+
   ## (Intercept) is annoying long. Change to Int.
   Int_index <- grep("\\(Intercept\\)", rownames(table))
   rownames(table)[Int_index] <- gsub("\\(Intercept\\)",  "Intc", rownames(table)[Int_index])
@@ -149,44 +177,50 @@ summary.ivd <- function(object, digits = 3, pip = 'all', ...) {
   } else if(pip == 'pip') {
     table <- table[pip_pos,]
   } else {stop("'pip =' needs one of 'all', 'pip', or 'model'.")}
-  cat("Summary statistics for ivd model:\n")
-  .newline
-
-  ##
-  chains <- object$workers
-  cat("Chains (workers):",  chains, "\n\n")
 
   ## Supress warnings when WAIC metrics return NA
   suppressWarnings({
-
-    ## extract WAIC per chain
-    waic_values <- sapply(object$samples, FUN = function(chain) chain$WAIC$WAIC)
-    ## extract lppd per chain
-    lppd_values <- sapply(object$samples, FUN = function(chain) chain$WAIC$lppd)
-    ## extract pWAIC per chain
-    pwaic_values <- sapply(object$samples, FUN = function(chain) chain$WAIC$pWAIC)
-
-    ## Average across chains
-    average_waic <- mean(waic_values)
-    average_lppd <- mean(lppd_values)
-    average_pwaic <- mean(pwaic_values)
-
+    ## Average the per-chain WAIC metrics
+    average_waic <- mean(sapply(object$samples, FUN = function(chain) chain$WAIC$WAIC))
+    average_lppd <- mean(sapply(object$samples, FUN = function(chain) chain$WAIC$lppd))
+    average_pwaic <- mean(sapply(object$samples, FUN = function(chain) chain$WAIC$pWAIC))
   })
 
-  print(table)
+  out <- list(
+    table = table,
+    pip = pip,
+    chains = object$workers,
+    has_waic = !is.null(object$samples[[1]]$WAIC),
+    waic = average_waic,
+    lppd = average_lppd,
+    pwaic = average_pwaic
+  )
+  class(out) <- "summary.ivd"
+  out
+}
+
+##' Print the posterior summary assembled by [summary.ivd()]
+##' @title Print method for summary.ivd objects
+##' @param x A `summary.ivd` object.
+##' @param ... Not used.
+##' @return `x`, invisibly.
+##' @author Philippe Rast
+##' @export
+print.summary.ivd <- function(x, ...) {
+  cat("Summary statistics for ivd model:\n")
+  .newline
+  cat("Chains (workers):", x$chains, "\n\n")
+
+  print(x$table)
 
   ## Only print WAIC metrics if WAIC = TRUE
-  if (!is.null(object$samples[[1]]$WAIC)) {
+  if (isTRUE(x$has_waic)) {
     .newline
-
-    ## Print the results
-    cat("\nWAIC:", average_waic, "\n")
-    cat("elppd:", average_lppd, "\n")
-    cat("pWAIC:", average_pwaic, "\n")
+    cat("\nWAIC:", x$waic, "\n")
+    cat("elppd:", x$lppd, "\n")
+    cat("pWAIC:", x$pwaic, "\n")
   }
-
-  class(table) <- "summary.ivd"
-  invisible(table)
+  invisible(x)
 }
 
 

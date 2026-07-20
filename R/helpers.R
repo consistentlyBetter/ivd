@@ -71,15 +71,15 @@ prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
     data <- data[keep, , drop = FALSE]
   }
 
-  ## Ensure the grouping variable is numeric
-  if(!is.numeric(data[[grouping_variable]])) {
-    data[[grouping_variable]] <- as.numeric(as.factor(data[[grouping_variable]]))
-  }
-  ## Ensure that grouping variable is a continuous sequence without any missing values
-  if( !identical(  seq_len( max(unique(data[[grouping_variable]])) ),
-                 as.integer( sort(unique(data[[grouping_variable]])))) ) {
-    stop("Grouping variable is not a sorted and continuous index.")
-  }
+  ## Recode the grouping variable to the gap-free 1..J integer index NIMBLE
+  ## needs, keeping the original labels so user-facing output (summary rows,
+  ## plot labels) can report the user's own cluster IDs. factor() orders
+  ## numeric IDs numerically and everything else alphabetically. Row order of
+  ## `data` is never changed -- the model indexes u[group_id[i], ] per row, so
+  ## rows need not be sorted by group.
+  group_factor <- factor(data[[grouping_variable]])
+  group_labels <- levels(group_factor)
+  data[[grouping_variable]] <- as.integer(group_factor)
   
   ## Processing location and scale models
   location_data <- prepare_model_part(data, formula = location_formula)
@@ -107,19 +107,82 @@ prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
          X_scale = scale_data$X, 
          Z_scale = scale_data$Z
        ), 
-       groups = length(unique(data[[grouping_variable]])), 
+       groups = length(unique(data[[grouping_variable]])),
        group_id = data[[grouping_variable]],
+       group_labels = group_labels,
        response_var = all.vars(location_formula)[1]
   )
 }
+##' Render a single-line, carriage-return progress string for parallel chains
+##'
+##' Builds the live status line shown by `ivd(progress = TRUE)`: a spinner, the
+##' number of chains being fit, and elapsed time. Deliberately has no completion
+##' bar -- chains run in parallel and finish together, so a fraction bar would
+##' sit at 0 then jump to full. Leads with "\\r" so repeated prints overwrite
+##' the same terminal line.
+##' @param total Integer number of chains (workers) being fit.
+##' @param t0 Start time (`Sys.time()`), used to compute elapsed time.
+##' @param spinner Optional single-character spinner frame.
+##' @return A length-1 character string.
+##' @keywords internal
+.progress_line <- function(total, t0, spinner = "") {
+  el <- as.integer(as.numeric(difftime(Sys.time(), t0, units = "secs")))
+  elapsed <- sprintf("%02d:%02d", el %/% 60L, el %% 60L)
+  sprintf("\r%s ivd: fitting %d %s | %s elapsed ",
+          spinner, total, if (total == 1) "chain" else "chains", elapsed)
+}
+
 ##' Extract samples to mcmc object
-##' @param obj 
+##' @param obj
 ##' @return mcmc object
 ##' @author Philippe Rast
-##' @keywords internal 
+##' @keywords internal
 .extract_to_mcmc <- function(obj) {
   e_to_mcmc <- lapply(obj$samples, FUN = function(x) mcmc(x$samples))
   return(e_to_mcmc)
+}
+
+##' Reconstruct the posterior mean of the location predictor `mu`
+##'
+##' `mu` is no longer monitored (it stores O(N x iterations) values per chain).
+##' Because `mu[i] = X[i, ] %*% beta + Z[i, ] %*% u[group_i, 1:Kr]` is *linear*
+##' in the monitored `beta` and `u`, the posterior mean of `mu` equals the
+##' linear predictor evaluated at the posterior means of `beta` and `u` -- no
+##' per-iteration `mu` storage required. Used by `plot.ivd()` for the cluster
+##' outcome plot.
+##' @param obj An `ivd` object (must carry the location design matrices `X`/`Z`).
+##' @return Numeric vector of length N: the posterior mean of `mu` per observation.
+##' @keywords internal
+.reconstruct_mu_means <- function(obj) {
+  if (is.null(obj$X) || is.null(obj$Z)) {
+    stop("Cannot reconstruct cluster means: location design matrices (X, Z) ",
+         "are missing from the ivd object. Refit with the current version of ivd().",
+         call. = FALSE)
+  }
+  Kr <- obj$nimble_constants$Kr
+  J  <- obj$nimble_constants$J
+
+  ## Pool draws across chains; only beta and u columns are needed.
+  all_draws <- do.call(rbind, .extract_to_mcmc(obj))
+  cn <- colnames(all_draws)
+
+  ## Fixed location effects beta[1..K], ordered by their numeric index so they
+  ## line up with the columns of X.
+  beta_means <- colMeans(all_draws[, grep("^beta\\[", cn), drop = FALSE])
+  beta_means <- beta_means[order(as.integer(gsub("\\D", "", names(beta_means))))]
+
+  ## Random location effects u[j, p], p <= Kr, as a J x Kr matrix of means.
+  u_means <- colMeans(all_draws[, grep("^u\\[", cn), drop = FALSE])
+  idx <- regmatches(names(u_means), gregexpr("[0-9]+", names(u_means)))
+  jj <- as.integer(vapply(idx, `[`, character(1), 1)) # group index
+  pp <- as.integer(vapply(idx, `[`, character(1), 2)) # random-effect index
+  u_loc <- matrix(0, nrow = J, ncol = Kr)
+  loc <- pp <= Kr
+  u_loc[cbind(jj[loc], pp[loc])] <- u_means[loc]
+
+  group_id <- obj$Y$group_id
+  as.numeric(obj$X %*% beta_means) +
+    rowSums(obj$Z * u_loc[group_id, , drop = FALSE])
 }
 
 
@@ -130,31 +193,62 @@ prepare_data_for_nimble <- function(data, location_formula, scale_formula) {
 ##' @return acf
 ##' @author Philippe Rast
 ##' @keywords internal
-##' @importFrom stats fft
+##' @importFrom stats fft nextn
 .autocorrelation_fft <- function(chain) {
   ## Ensure the input is a numeric vector
   ts <- as.numeric(chain)
-  
+
   ## Center the time series (subtract the mean)
   ts_centered <- ts - mean(ts)
-  
+
   ## Length of the chain
   n <- length(ts_centered)
-  
-  ## Zero-padding the series to avoid circular convolution
-  padded_length <- 2 * n
-  
-  ## Compute the FFT of the centered series with zero-padding
-  fft_ts <- fft(ts_centered, padded_length)
-  
+
+  ## Zero-padding the series to avoid circular convolution. fft() has no
+  ## length argument (its 2nd argument is `inverse`), so pad explicitly;
+  ## nextn() rounds up to a highly composite length for FFT speed.
+  padded_length <- nextn(2 * n)
+  ts_padded <- c(ts_centered, rep(0, padded_length - n))
+
+  ## Compute the FFT of the centered, zero-padded series
+  fft_ts <- fft(ts_padded)
+
   ## Compute the inverse FFT of the product of FFT and its conjugate
   acf_raw <- Re(fft(fft_ts * Conj(fft_ts), inverse = TRUE))
-  
+
   ## Extract the relevant part and normalize
-  acf_raw <- acf_raw[1:n] / padded_length
-  
+  acf_raw <- acf_raw[1:n]
+
   ## Normalize the result to match the acf() function output
   acf <- acf_raw / acf_raw[1]
-  
+
   return(acf)
+}
+
+##' Truncate an autocorrelation sequence following Geyer (1992)
+##'
+##' Keeps the autocorrelations up to (and including) the first lag pair whose
+##' sum is negative and pads the remainder with `NA` so that rho vectors from
+##' chains with different truncation points can be averaged with
+##' `rowMeans(..., na.rm = TRUE)`.
+##' @title Geyer (1992) truncation of an ACF sequence
+##' @param acf_values Autocorrelation sequence starting at lag 0, as returned
+##'   by [.autocorrelation_fft()].
+##' @return Numeric vector of `length(acf_values)`: the autocorrelations at
+##'   lags 1, 2, ... up to the truncation point, padded with `NA`. All-`NA`
+##'   when the ACF itself is undefined (constant chain).
+##' @author Philippe Rast
+##' @keywords internal
+.geyer_truncate <- function(acf_values) {
+  n <- length(acf_values)
+  if (n < 2) return(rep(NA_real_, n))
+  pair_sums <- acf_values[-n] + acf_values[-1]
+  ## A constant chain has an undefined (NaN) ACF; treat as no usable lags.
+  if (anyNA(pair_sums)) return(rep(NA_real_, n))
+  crossings <- which(pair_sums < 0)
+  ## When no pair sum ever goes negative (short or strongly autocorrelated
+  ## chains) keep every available lag instead of erroring: min(integer(0))
+  ## would return Inf and 1:Inf downstream crashed n_eff = "local".
+  position <- if (length(crossings)) crossings[1] else n - 1
+  c(acf_values[2:(position + 1)], rep(NA_real_, n - position))
 }

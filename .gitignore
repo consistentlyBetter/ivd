@@ -1,4 +1,9 @@
 /.Rhistory
 #/tests/local/
 .Rproj.user
-docs
+
+# Claude Code
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+docs/CLAUDE.html

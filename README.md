@@ -11,9 +11,9 @@ Individual Variance Detection
 <!-- badges: end -->
 
 *ivd* is an R package for random effects selection in the scale part of
-Mixed Effects Location Scale Modlels (MELSM). `ivd()` fits a random
+Mixed Effects Location Scale Models (MELSM). `ivd()` fits a random
 intercepts model with a spike-and-slab prior on the random effects of
-the scale.
+the scale. The method is described in Carmo et al. (2026).
 
 ## Installation
 
@@ -26,6 +26,11 @@ This package can be installed with
 
     library(ivd)
     library(data.table)
+    #> 
+    #> Attaching package: 'data.table'
+    #> The following object is masked from 'package:base':
+    #> 
+    #>     %notin%
 
 ## Data
 
@@ -56,7 +61,7 @@ Illustration of school level variability:
     plot0 <- ggplot( data = saeb, aes( x = school_id, y = math_proficiency) )
     plot0 + geom_point(aes(color =  school_id), show.legend =  FALSE)
 
-<img src="man/figures/README-unnamed-chunk-2-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-2-1.png" alt="" width="100%" />
 
 ## Estimate Model
 
@@ -70,155 +75,22 @@ both location and scale follow `lme4` notation.
     out <- ivd(location_formula = math_proficiency ~ student_ses * school_ses + (1 | school_id),
                scale_formula =  ~ student_ses * school_ses + (1 | school_id),
                data = saeb,
-               niter = 1000, nburnin = 6000)
-    #> ===== Monitors =====
-    #> thin = 1: beta, sigma_rand, ss, Ustar, z, zeta
-    #> ===== Samplers =====
-    #> RW_lkj_corr_cholesky sampler (1)
-    #>   - Ustar[1:2, 1:2] 
-    #> RW sampler (326)
-    #>   - z[]  (320 elements)
-    #>   - zeta[]  (4 elements)
-    #>   - sigma_rand[]  (2 elements)
-    #> conjugate sampler (4)
-    #>   - beta[]  (4 elements)
-    #> binary sampler (320)
-    #>   - ss[]  (320 elements)
-    #> thin = 1: beta, mu, R, sigma_rand, ss, tau, u, zeta
-    #> |-------------|-------------|-------------|-------------|
-    #> |-------------------------------------------------------|
-    #>   [Warning] There are 3 individual pWAIC values that are greater than 0.4. This may indicate that the WAIC estimate is unstable (Vehtari et al., 2017), at least in cases without grouping of data nodes or multivariate data nodes.
-    #> Defining model
-    #> Building model
-    #> Setting data and initial values
-    #>   [Note] 'Z' is provided in 'data' but is not a variable in the model and is being ignored.
-    #>   [Note] 'Z_scale' is provided in 'data' but is not a variable in the model and is being ignored.
-    #> Running calculate on model
-    #>   [Note] Any error reports that follow may simply reflect missing values in model variables.
-    #> Checking model sizes and dimensions
-    #>   [Note] This model is not fully initialized. This is not an error.
-    #>          To see which variables are not initialized, use model$initializeInfo().
-    #>          For more information on model initialization, see help(modelInitialization).
-    #> Compiling
-    #>   [Note] This may take a minute.
-    #>   [Note] Use 'showCompilerOutput = TRUE' to see C++ compilation details.
-    #> Compiling
-    #>   [Note] This may take a minute.
-    #>   [Note] Use 'showCompilerOutput = TRUE' to see C++ compilation details.
-    #>   [Note] 'Z' is provided in 'data' but is not a variable in the model and is being ignored.
-    #>   [Note] 'Z_scale' is provided in 'data' but is not a variable in the model and is being ignored.
-    #> running chain 1...
-    #> ===== Monitors =====
-    #> thin = 1: beta, sigma_rand, ss, Ustar, z, zeta
-    #> ===== Samplers =====
-    #> RW_lkj_corr_cholesky sampler (1)
-    #>   - Ustar[1:2, 1:2] 
-    #> RW sampler (326)
-    #>   - z[]  (320 elements)
-    #>   - zeta[]  (4 elements)
-    #>   - sigma_rand[]  (2 elements)
-    #> conjugate sampler (4)
-    #>   - beta[]  (4 elements)
-    #> binary sampler (320)
-    #>   - ss[]  (320 elements)
-    #> thin = 1: beta, mu, R, sigma_rand, ss, tau, u, zeta
-    #> |-------------|-------------|-------------|-------------|
-    #> |-------------------------------------------------------|
-    #>   [Warning] There are 3 individual pWAIC values that are greater than 0.4. This may indicate that the WAIC estimate is unstable (Vehtari et al., 2017), at least in cases without grouping of data nodes or multivariate data nodes.
-    #> Defining model
-    #> Building model
-    #> Setting data and initial values
-    #>   [Note] 'Z' is provided in 'data' but is not a variable in the model and is being ignored.
-    #>   [Note] 'Z_scale' is provided in 'data' but is not a variable in the model and is being ignored.
-    #> Running calculate on model
-    #>   [Note] Any error reports that follow may simply reflect missing values in model variables.
-    #> Checking model sizes and dimensions
-    #>   [Note] This model is not fully initialized. This is not an error.
-    #>          To see which variables are not initialized, use model$initializeInfo().
-    #>          For more information on model initialization, see help(modelInitialization).
-    #> Compiling
-    #>   [Note] This may take a minute.
-    #>   [Note] Use 'showCompilerOutput = TRUE' to see C++ compilation details.
-    #> Compiling
-    #>   [Note] This may take a minute.
-    #>   [Note] Use 'showCompilerOutput = TRUE' to see C++ compilation details.
-    #>   [Note] 'Z' is provided in 'data' but is not a variable in the model and is being ignored.
-    #>   [Note] 'Z_scale' is provided in 'data' but is not a variable in the model and is being ignored.
-    #> running chain 1...
-    #> ===== Monitors =====
-    #> thin = 1: beta, sigma_rand, ss, Ustar, z, zeta
-    #> ===== Samplers =====
-    #> RW_lkj_corr_cholesky sampler (1)
-    #>   - Ustar[1:2, 1:2] 
-    #> RW sampler (326)
-    #>   - z[]  (320 elements)
-    #>   - zeta[]  (4 elements)
-    #>   - sigma_rand[]  (2 elements)
-    #> conjugate sampler (4)
-    #>   - beta[]  (4 elements)
-    #> binary sampler (320)
-    #>   - ss[]  (320 elements)
-    #> thin = 1: beta, mu, R, sigma_rand, ss, tau, u, zeta
-    #> |-------------|-------------|-------------|-------------|
-    #> |-------------------------------------------------------|
-    #>   [Warning] There are 3 individual pWAIC values that are greater than 0.4. This may indicate that the WAIC estimate is unstable (Vehtari et al., 2017), at least in cases without grouping of data nodes or multivariate data nodes.
-    #> Defining model
-    #> Building model
-    #> Setting data and initial values
-    #>   [Note] 'Z' is provided in 'data' but is not a variable in the model and is being ignored.
-    #>   [Note] 'Z_scale' is provided in 'data' but is not a variable in the model and is being ignored.
-    #> Running calculate on model
-    #>   [Note] Any error reports that follow may simply reflect missing values in model variables.
-    #> Checking model sizes and dimensions
-    #>   [Note] This model is not fully initialized. This is not an error.
-    #>          To see which variables are not initialized, use model$initializeInfo().
-    #>          For more information on model initialization, see help(modelInitialization).
-    #> Compiling
-    #>   [Note] This may take a minute.
-    #>   [Note] Use 'showCompilerOutput = TRUE' to see C++ compilation details.
-    #> Compiling
-    #>   [Note] This may take a minute.
-    #>   [Note] Use 'showCompilerOutput = TRUE' to see C++ compilation details.
-    #>   [Note] 'Z' is provided in 'data' but is not a variable in the model and is being ignored.
-    #>   [Note] 'Z_scale' is provided in 'data' but is not a variable in the model and is being ignored.
-    #> running chain 1...
-    #> ===== Monitors =====
-    #> thin = 1: beta, sigma_rand, ss, Ustar, z, zeta
-    #> ===== Samplers =====
-    #> RW_lkj_corr_cholesky sampler (1)
-    #>   - Ustar[1:2, 1:2] 
-    #> RW sampler (326)
-    #>   - z[]  (320 elements)
-    #>   - zeta[]  (4 elements)
-    #>   - sigma_rand[]  (2 elements)
-    #> conjugate sampler (4)
-    #>   - beta[]  (4 elements)
-    #> binary sampler (320)
-    #>   - ss[]  (320 elements)
-    #> thin = 1: beta, mu, R, sigma_rand, ss, tau, u, zeta
-    #> |-------------|-------------|-------------|-------------|
-    #> |-------------------------------------------------------|
-    #>   [Warning] There are 4 individual pWAIC values that are greater than 0.4. This may indicate that the WAIC estimate is unstable (Vehtari et al., 2017), at least in cases without grouping of data nodes or multivariate data nodes.
-    #> Defining model
-    #> Building model
-    #> Setting data and initial values
-    #>   [Note] 'Z' is provided in 'data' but is not a variable in the model and is being ignored.
-    #>   [Note] 'Z_scale' is provided in 'data' but is not a variable in the model and is being ignored.
-    #> Running calculate on model
-    #>   [Note] Any error reports that follow may simply reflect missing values in model variables.
-    #> Checking model sizes and dimensions
-    #>   [Note] This model is not fully initialized. This is not an error.
-    #>          To see which variables are not initialized, use model$initializeInfo().
-    #>          For more information on model initialization, see help(modelInitialization).
-    #> Compiling
-    #>   [Note] This may take a minute.
-    #>   [Note] Use 'showCompilerOutput = TRUE' to see C++ compilation details.
-    #> Compiling
-    #>   [Note] This may take a minute.
-    #>   [Note] Use 'showCompilerOutput = TRUE' to see C++ compilation details.
-    #>   [Note] 'Z' is provided in 'data' but is not a variable in the model and is being ignored.
-    #>   [Note] 'Z_scale' is provided in 'data' but is not a variable in the model and is being ignored.
-    #> running chain 1...
+               niter = 5000, nburnin = 6000,
+               progress = TRUE,
+               seed = 800056)
+    #> ivd: compiling and sampling 4 chains in parallel ...
+
+The fitted object prints a concise overview of the model, the data, and
+a one-line convergence note:
+
+    out
+    #> Individual variance detection (ivd) model
+    #> 
+    #>  Location: math_proficiency ~ student_ses * school_ses + (1 | school_id) 
+    #>  Scale:    ~student_ses * school_ses + (1 | school_id) 
+    #>  Data:     11386 observations in 160 clusters
+    #>  Sampling: 4 chains, 5000 post-warmup draws each
+    #>  Diagnostics: max split-Rhat = 1.013, min n_eff = 99
 
 The summary shows the fixed and random effects and it returns all
 posterior inclusion probabilities (PIP) for each one of the 160 schools’
@@ -236,186 +108,422 @@ with a PIP = .75 is three times as likely to belonging to the slab than
 belonging to the spike. With an .50 inclusion prior, these odds can be
 readily interpreted as Bayes Factors.
 
-    s_out <- summary(out)
+    summary(out)
     #> Summary statistics for ivd model:
     #> Chains (workers): 4 
     #> 
-    #>                              Mean    SD Time-series SE   2.5%    50%  97.5% n_eff R-hat
-    #> R[scl_Intc, Intc]          -0.659 0.172          0.012 -0.946 -0.677 -0.264   135 1.017
-    #> Intc                        0.129 0.024          0.003  0.082  0.130  0.176    49 1.038
-    #> student_ses                 0.082 0.010          0.000  0.063  0.082  0.101  2466 1.001
-    #> school_ses                  0.753 0.089          0.009  0.580  0.751  0.928    65 1.096
-    #> student_ses:school_ses     -0.036 0.038          0.001 -0.112 -0.036  0.038  1193 1.002
-    #> sd_Intc                     0.269 0.020          0.002  0.236  0.268  0.312    82 1.056
-    #> sd_scl_Intc                 0.077 0.014          0.001  0.049  0.076  0.106   143 1.012
-    #> pip[Intc, 1]                0.468 0.499          0.008  0.000  0.000  1.000  2864 1.000
-    #> pip[Intc, 2]                0.482 0.500          0.008  0.000  0.000  1.000  4304 0.999
-    #> pip[Intc, 3]                0.459 0.498          0.009  0.000  0.000  1.000  3505 1.000
-    #> pip[Intc, 4]                0.495 0.500          0.009  0.000  0.000  1.000  2441 1.001
-    #> pip[Intc, 5]                0.519 0.500          0.009  0.000  1.000  1.000  2177 1.000
-    #> pip[Intc, 6]                0.443 0.497          0.008  0.000  0.000  1.000  3639 1.000
-    #> pip[Intc, 7]                0.402 0.490          0.010  0.000  0.000  1.000  1394 1.000
-    #> pip[Intc, 8]                0.483 0.500          0.008  0.000  0.000  1.000  3410 1.000
-    #> pip[Intc, 9]                0.980 0.140          0.005  1.000  1.000  1.000   612 1.006
-    #> pip[Intc, 10]               0.444 0.497          0.008  0.000  0.000  1.000  3977 0.999
-    #> pip[Intc, 11]               0.576 0.494          0.010  0.000  1.000  1.000  2601 1.000
-    #> pip[Intc, 12]               0.370 0.483          0.008  0.000  0.000  1.000  2616 1.000
-    #> pip[Intc, 13]               0.470 0.499          0.010  0.000  0.000  1.000  2436 1.000
-    #> pip[Intc, 14]               0.615 0.487          0.013  0.000  1.000  1.000  1298 1.003
-    #> pip[Intc, 15]               0.509 0.500          0.008  0.000  1.000  1.000  4422 1.001
-    #> pip[Intc, 16]               0.478 0.500          0.008  0.000  0.000  1.000  5244 1.000
-    #> pip[Intc, 17]               0.429 0.495          0.009  0.000  0.000  1.000  2220 1.000
-    #> pip[Intc, 18]               0.541 0.498          0.008  0.000  1.000  1.000  2661 1.000
-    #> pip[Intc, 19]               0.260 0.439          0.010  0.000  0.000  1.000  1760 1.001
-    #> pip[Intc, 20]               0.531 0.499          0.008  0.000  1.000  1.000  3615 1.001
-    #> pip[Intc, 21]               0.371 0.483          0.010  0.000  0.000  1.000  1313 1.000
-    #> pip[Intc, 22]               0.565 0.496          0.010  0.000  1.000  1.000  2713 1.002
-    #> pip[Intc, 23]               0.495 0.500          0.009  0.000  0.000  1.000  2919 1.000
-    #> pip[Intc, 24]               0.489 0.500          0.008  0.000  0.000  1.000  3719 0.999
-    #> pip[Intc, 25]               0.462 0.499          0.008  0.000  0.000  1.000  4512 1.000
-    #> pip[Intc, 26]               0.506 0.500          0.008  0.000  1.000  1.000  3151 1.000
-    #> pip[Intc, 27]               0.460 0.498          0.009  0.000  0.000  1.000  3611 1.000
-    #> pip[Intc, 28]               0.398 0.490          0.009  0.000  0.000  1.000  3267 1.001
-    #> pip[Intc, 29]               0.487 0.500          0.009  0.000  0.000  1.000  3601 1.000
-    #> pip[Intc, 30]               0.440 0.496          0.010  0.000  0.000  1.000  2689 1.000
-    #> pip[Intc, 31]               0.476 0.499          0.008  0.000  0.000  1.000  3012 1.000
-    #> pip[Intc, 32]               0.488 0.500          0.010  0.000  0.000  1.000  2311 1.000
-    #> pip[Intc, 33]               0.491 0.500          0.009  0.000  0.000  1.000  1722 1.000
-    #> pip[Intc, 34]               0.587 0.492          0.008  0.000  1.000  1.000  3476 0.999
-    #> pip[Intc, 35]               0.644 0.479          0.012  0.000  1.000  1.000   643 1.003
-    #> pip[Intc, 36]               0.364 0.481          0.012  0.000  0.000  1.000  1428 1.001
-    #> pip[Intc, 37]               0.476 0.499          0.008  0.000  0.000  1.000  3883 1.001
-    #> pip[Intc, 38]               0.432 0.495          0.008  0.000  0.000  1.000  3967 1.000
-    #> pip[Intc, 39]               0.739 0.439          0.017  0.000  1.000  1.000   231 1.008
-    #> pip[Intc, 40]               0.466 0.499          0.008  0.000  0.000  1.000  2991 1.000
-    #> pip[Intc, 41]               0.662 0.473          0.018  0.000  1.000  1.000   628 1.006
-    #> pip[Intc, 42]               0.467 0.499          0.009  0.000  0.000  1.000  3458 1.000
-    #> pip[Intc, 43]               0.410 0.492          0.009  0.000  0.000  1.000  3101 0.999
-    #> pip[Intc, 44]               0.440 0.496          0.008  0.000  0.000  1.000  3499 1.000
-    #> pip[Intc, 45]               0.426 0.494          0.008  0.000  0.000  1.000  3502 1.001
-    #> pip[Intc, 46]               0.998 0.042          0.001  1.000  1.000  1.000  2620 1.000
-    #> pip[Intc, 47]               0.479 0.500          0.008  0.000  0.000  1.000  3566 1.000
-    #> pip[Intc, 48]               0.623 0.485          0.009  0.000  1.000  1.000  3266 1.000
-    #> pip[Intc, 49]               0.524 0.499          0.013  0.000  1.000  1.000  1210 1.005
-    #> pip[Intc, 50]               0.519 0.500          0.008  0.000  1.000  1.000  3912 1.000
-    #> pip[Intc, 51]               0.461 0.499          0.008  0.000  0.000  1.000  3811 1.000
-    #> pip[Intc, 52]               0.543 0.498          0.008  0.000  1.000  1.000  3180 0.999
-    #> pip[Intc, 53]               0.829 0.376          0.010  0.000  1.000  1.000  1567 1.001
-    #> pip[Intc, 54]               0.597 0.491          0.009  0.000  1.000  1.000  2746 1.001
-    #> pip[Intc, 55]               0.408 0.492          0.008  0.000  0.000  1.000  2827 1.000
-    #> pip[Intc, 56]               0.477 0.500          0.009  0.000  0.000  1.000  3273 1.000
-    #> pip[Intc, 57]               0.611 0.488          0.008  0.000  1.000  1.000  3604 1.000
-    #> pip[Intc, 58]               0.416 0.493          0.009  0.000  0.000  1.000  1093 1.001
-    #> pip[Intc, 59]               0.432 0.495          0.008  0.000  0.000  1.000  4394 1.001
-    #> pip[Intc, 60]               0.512 0.500          0.009  0.000  1.000  1.000  3043 1.000
-    #> pip[Intc, 61]               0.301 0.459          0.010  0.000  0.000  1.000  1613 1.000
-    #> pip[Intc, 62]               0.428 0.495          0.009  0.000  0.000  1.000  3201 1.000
-    #> pip[Intc, 63]               0.501 0.500          0.008  0.000  1.000  1.000  3662 0.999
-    #> pip[Intc, 64]               0.673 0.469          0.009  0.000  1.000  1.000  2949 1.001
-    #> pip[Intc, 65]               0.510 0.500          0.008  0.000  1.000  1.000  4009 1.000
-    #> pip[Intc, 66]               0.628 0.483          0.010  0.000  1.000  1.000  1622 1.000
-    #> pip[Intc, 67]               0.369 0.483          0.009  0.000  0.000  1.000  2463 1.000
-    #> pip[Intc, 68]               0.368 0.482          0.009  0.000  0.000  1.000  2315 1.001
-    #> pip[Intc, 69]               0.447 0.497          0.008  0.000  0.000  1.000  3411 1.000
-    #> pip[Intc, 70]               0.388 0.487          0.011  0.000  0.000  1.000  1515 1.002
-    #> pip[Intc, 71]               0.377 0.485          0.009  0.000  0.000  1.000  3173 0.999
-    #> pip[Intc, 72]               0.403 0.491          0.009  0.000  0.000  1.000  2217 1.001
-    #> pip[Intc, 73]               0.389 0.488          0.014  0.000  0.000  1.000  1081 1.000
-    #> pip[Intc, 74]               0.477 0.500          0.008  0.000  0.000  1.000  3920 1.000
-    #> pip[Intc, 75]               0.469 0.499          0.008  0.000  0.000  1.000  4021 1.001
-    #> pip[Intc, 76]               0.464 0.499          0.008  0.000  0.000  1.000  3986 1.000
-    #> pip[Intc, 77]               0.456 0.498          0.011  0.000  0.000  1.000  1825 1.000
-    #> pip[Intc, 78]               0.448 0.497          0.008  0.000  0.000  1.000  3851 1.001
-    #> pip[Intc, 79]               0.402 0.490          0.008  0.000  0.000  1.000  3029 1.000
-    #> pip[Intc, 80]               0.499 0.500          0.008  0.000  0.000  1.000  5631 1.000
-    #> pip[Intc, 81]               0.522 0.500          0.009  0.000  1.000  1.000  3309 1.000
-    #> pip[Intc, 82]               0.528 0.499          0.010  0.000  1.000  1.000  2846 1.001
-    #> pip[Intc, 83]               0.482 0.500          0.008  0.000  0.000  1.000  4271 1.000
-    #> pip[Intc, 84]               0.497 0.500          0.008  0.000  0.000  1.000  3408 1.000
-    #> pip[Intc, 85]               0.466 0.499          0.008  0.000  0.000  1.000  3625 1.000
-    #> pip[Intc, 86]               0.487 0.500          0.010  0.000  0.000  1.000  2085 0.999
-    #> pip[Intc, 87]               0.713 0.452          0.012  0.000  1.000  1.000  1309 1.004
-    #> pip[Intc, 88]               0.476 0.499          0.009  0.000  0.000  1.000  2538 1.000
-    #> pip[Intc, 89]               0.535 0.499          0.008  0.000  1.000  1.000  4741 1.001
-    #> pip[Intc, 90]               0.500 0.500          0.008  0.000  0.000  1.000  3440 1.000
-    #> pip[Intc, 91]               0.430 0.495          0.008  0.000  0.000  1.000  2614 1.001
-    #> pip[Intc, 92]               0.703 0.457          0.011  0.000  1.000  1.000  1493 1.000
-    #> pip[Intc, 93]               0.439 0.496          0.008  0.000  0.000  1.000  3724 1.001
-    #> pip[Intc, 94]               0.485 0.500          0.008  0.000  0.000  1.000  3591 1.000
-    #> pip[Intc, 95]               0.729 0.445          0.009  0.000  1.000  1.000  1997 1.001
-    #> pip[Intc, 96]               0.453 0.498          0.008  0.000  0.000  1.000  3484 1.000
-    #> pip[Intc, 97]               0.360 0.480          0.009  0.000  0.000  1.000  3129 1.002
-    #> pip[Intc, 98]               0.467 0.499          0.010  0.000  0.000  1.000  2464 1.001
-    #> pip[Intc, 99]               0.550 0.498          0.008  0.000  1.000  1.000  3663 1.002
-    #> pip[Intc, 100]              0.448 0.497          0.008  0.000  0.000  1.000  3470 0.999
-    #> pip[Intc, 101]              0.442 0.497          0.009  0.000  0.000  1.000  2902 1.001
-    #> pip[Intc, 102]              0.515 0.500          0.012  0.000  1.000  1.000  1405 1.001
-    #> pip[Intc, 103]              0.368 0.482          0.009  0.000  0.000  1.000  2961 1.001
-    #> pip[Intc, 104]              0.450 0.498          0.008  0.000  0.000  1.000  4608 1.000
-    #> pip[Intc, 105]              0.488 0.500          0.008  0.000  0.000  1.000  4520 1.000
-    #> pip[Intc, 106]              0.420 0.494          0.010  0.000  0.000  1.000  2130 1.000
-    #> pip[Intc, 107]              0.544 0.498          0.008  0.000  1.000  1.000  3017 1.000
-    #> pip[Intc, 108]              0.548 0.498          0.015  0.000  1.000  1.000  1039 1.002
-    #> pip[Intc, 109]              0.552 0.497          0.008  0.000  1.000  1.000  4418 1.001
-    #> pip[Intc, 110]              0.388 0.487          0.009  0.000  0.000  1.000  2888 1.000
-    #> pip[Intc, 111]              0.452 0.498          0.010  0.000  0.000  1.000  2069 1.003
-    #> pip[Intc, 112]              0.464 0.499          0.011  0.000  0.000  1.000  1876 1.000
-    #> pip[Intc, 113]              0.629 0.483          0.009  0.000  1.000  1.000  2737 1.000
-    #> pip[Intc, 114]              0.896 0.306          0.007  0.000  1.000  1.000  1783 1.000
-    #> pip[Intc, 115]              0.832 0.374          0.010  0.000  1.000  1.000  1129 1.002
-    #> pip[Intc, 116]              0.472 0.499          0.010  0.000  0.000  1.000  2389 1.000
-    #> pip[Intc, 117]              0.437 0.496          0.008  0.000  0.000  1.000  4329 1.000
-    #> pip[Intc, 118]              0.391 0.488          0.009  0.000  0.000  1.000  2556 1.001
-    #> pip[Intc, 119]              0.495 0.500          0.009  0.000  0.000  1.000  2635 1.000
-    #> pip[Intc, 120]              0.553 0.497          0.008  0.000  1.000  1.000  3419 1.000
-    #> pip[Intc, 121]              0.336 0.472          0.009  0.000  0.000  1.000  2606 1.000
-    #> pip[Intc, 122]              0.561 0.496          0.015  0.000  1.000  1.000   962 1.004
-    #> pip[Intc, 123]              0.558 0.497          0.008  0.000  1.000  1.000  4447 1.000
-    #> pip[Intc, 124]              0.747 0.435          0.010  0.000  1.000  1.000  1999 1.004
-    #> pip[Intc, 125]              0.461 0.499          0.008  0.000  0.000  1.000  3404 1.001
-    #> pip[Intc, 126]              0.507 0.500          0.009  0.000  1.000  1.000  3278 1.001
-    #> pip[Intc, 127]              0.566 0.496          0.009  0.000  1.000  1.000  2377 1.001
-    #> pip[Intc, 128]              0.507 0.500          0.009  0.000  1.000  1.000  2997 0.999
-    #> pip[Intc, 129]              0.421 0.494          0.008  0.000  0.000  1.000  3656 1.001
-    #> pip[Intc, 130]              0.468 0.499          0.008  0.000  0.000  1.000  2749 1.001
-    #> pip[Intc, 131]              0.553 0.497          0.008  0.000  1.000  1.000  3658 1.000
-    #> pip[Intc, 132]              0.403 0.491          0.008  0.000  0.000  1.000  4398 1.000
-    #> pip[Intc, 133]              0.360 0.480          0.009  0.000  0.000  1.000  2017 1.000
-    #> pip[Intc, 134]              0.525 0.499          0.009  0.000  1.000  1.000  2387 1.000
-    #> pip[Intc, 135]              0.426 0.495          0.008  0.000  0.000  1.000  2417 1.001
-    #> pip[Intc, 136]              0.393 0.488          0.008  0.000  0.000  1.000  3930 0.999
-    #> pip[Intc, 137]              0.424 0.494          0.009  0.000  0.000  1.000  3196 1.001
-    #> pip[Intc, 138]              0.467 0.499          0.008  0.000  0.000  1.000  3386 1.000
-    #> pip[Intc, 139]              0.422 0.494          0.008  0.000  0.000  1.000  3666 1.001
-    #> pip[Intc, 140]              0.559 0.497          0.008  0.000  1.000  1.000  3592 1.001
-    #> pip[Intc, 141]              0.533 0.499          0.008  0.000  1.000  1.000  4050 1.000
-    #> pip[Intc, 142]              0.470 0.499          0.008  0.000  0.000  1.000  3139 1.000
-    #> pip[Intc, 143]              0.422 0.494          0.008  0.000  0.000  1.000  3135 1.000
-    #> pip[Intc, 144]              0.462 0.499          0.008  0.000  0.000  1.000  4450 1.000
-    #> pip[Intc, 145]              0.493 0.500          0.011  0.000  0.000  1.000  1338 1.001
-    #> pip[Intc, 146]              0.466 0.499          0.008  0.000  0.000  1.000  4173 1.000
-    #> pip[Intc, 147]              0.492 0.500          0.008  0.000  0.000  1.000  4603 1.000
-    #> pip[Intc, 148]              0.629 0.483          0.008  0.000  1.000  1.000  2250 1.000
-    #> pip[Intc, 149]              0.723 0.448          0.008  0.000  1.000  1.000  3194 1.002
-    #> pip[Intc, 150]              0.387 0.487          0.011  0.000  0.000  1.000  1886 1.001
-    #> pip[Intc, 151]              0.464 0.499          0.008  0.000  0.000  1.000  3980 1.000
-    #> pip[Intc, 152]              0.472 0.499          0.008  0.000  0.000  1.000  4126 1.000
-    #> pip[Intc, 153]              0.756 0.429          0.009  0.000  1.000  1.000  2225 1.000
-    #> pip[Intc, 154]              0.371 0.483          0.010  0.000  0.000  1.000  1394 1.001
-    #> pip[Intc, 155]              0.423 0.494          0.009  0.000  0.000  1.000  2756 0.999
-    #> pip[Intc, 156]              0.529 0.499          0.008  0.000  1.000  1.000  3433 1.002
-    #> pip[Intc, 157]              0.544 0.498          0.008  0.000  1.000  1.000  3874 1.000
-    #> pip[Intc, 158]              0.494 0.500          0.008  0.000  0.000  1.000  4450 0.999
-    #> pip[Intc, 159]              0.480 0.500          0.008  0.000  0.000  1.000  3816 1.000
-    #> pip[Intc, 160]              0.526 0.499          0.008  0.000  1.000  1.000  3942 1.000
-    #> scl_Intc                   -0.231 0.008          0.000 -0.248 -0.231 -0.215   202 1.007
-    #> scl_student_ses             0.032 0.009          0.000  0.015  0.032  0.049   452 1.005
-    #> scl_school_ses              0.144 0.034          0.001  0.076  0.144  0.208   301 1.008
-    #> scl_student_ses:school_ses  0.065 0.032          0.001  0.003  0.066  0.129   453 1.003
+    #>                              Mean    SD Time-series SE   2.5%    50%  97.5%
+    #> R[scl_Intc, Intc]          -0.684 0.175          0.006 -0.957 -0.706 -0.287
+    #> Intc                        0.129 0.025          0.001  0.082  0.129  0.180
+    #> student_ses                 0.082 0.010          0.000  0.063  0.082  0.100
+    #> school_ses                  0.676 0.085          0.004  0.509  0.676  0.847
+    #> student_ses:school_ses     -0.023 0.040          0.000 -0.100 -0.023  0.055
+    #> sd_Intc                     0.268 0.019          0.001  0.232  0.267  0.308
+    #> sd_scl_Intc                 0.080 0.015          0.000  0.051  0.079  0.112
+    #> pip[Intc, 1]                0.462 0.499          0.004  0.000  0.000  1.000
+    #> pip[Intc, 2]                0.488 0.500          0.004  0.000  0.000  1.000
+    #> pip[Intc, 3]                0.457 0.498          0.004  0.000  0.000  1.000
+    #> pip[Intc, 4]                0.481 0.500          0.005  0.000  0.000  1.000
+    #> pip[Intc, 5]                0.525 0.499          0.005  0.000  1.000  1.000
+    #> pip[Intc, 6]                0.423 0.494          0.004  0.000  0.000  1.000
+    #> pip[Intc, 7]                0.408 0.492          0.005  0.000  0.000  1.000
+    #> pip[Intc, 8]                0.464 0.499          0.004  0.000  0.000  1.000
+    #> pip[Intc, 9]                0.987 0.114          0.001  1.000  1.000  1.000
+    #> pip[Intc, 10]               0.442 0.497          0.004  0.000  0.000  1.000
+    #> pip[Intc, 11]               0.561 0.496          0.004  0.000  1.000  1.000
+    #> pip[Intc, 12]               0.360 0.480          0.004  0.000  0.000  1.000
+    #> pip[Intc, 13]               0.476 0.499          0.005  0.000  0.000  1.000
+    #> pip[Intc, 14]               0.600 0.490          0.006  0.000  1.000  1.000
+    #> pip[Intc, 15]               0.509 0.500          0.004  0.000  1.000  1.000
+    #> pip[Intc, 16]               0.480 0.500          0.004  0.000  0.000  1.000
+    #> pip[Intc, 17]               0.423 0.494          0.004  0.000  0.000  1.000
+    #> pip[Intc, 18]               0.531 0.499          0.004  0.000  1.000  1.000
+    #> pip[Intc, 19]               0.236 0.425          0.005  0.000  0.000  1.000
+    #> pip[Intc, 20]               0.519 0.500          0.004  0.000  1.000  1.000
+    #> pip[Intc, 21]               0.351 0.477          0.004  0.000  0.000  1.000
+    #> pip[Intc, 22]               0.565 0.496          0.005  0.000  1.000  1.000
+    #> pip[Intc, 23]               0.504 0.500          0.004  0.000  1.000  1.000
+    #> pip[Intc, 24]               0.484 0.500          0.004  0.000  0.000  1.000
+    #> pip[Intc, 25]               0.458 0.498          0.004  0.000  0.000  1.000
+    #> pip[Intc, 26]               0.516 0.500          0.004  0.000  1.000  1.000
+    #> pip[Intc, 27]               0.441 0.497          0.004  0.000  0.000  1.000
+    #> pip[Intc, 28]               0.395 0.489          0.004  0.000  0.000  1.000
+    #> pip[Intc, 29]               0.484 0.500          0.004  0.000  0.000  1.000
+    #> pip[Intc, 30]               0.449 0.497          0.005  0.000  0.000  1.000
+    #> pip[Intc, 31]               0.466 0.499          0.004  0.000  0.000  1.000
+    #> pip[Intc, 32]               0.477 0.499          0.005  0.000  0.000  1.000
+    #> pip[Intc, 33]               0.490 0.500          0.004  0.000  0.000  1.000
+    #> pip[Intc, 34]               0.543 0.498          0.004  0.000  1.000  1.000
+    #> pip[Intc, 35]               0.663 0.473          0.005  0.000  1.000  1.000
+    #> pip[Intc, 36]               0.360 0.480          0.006  0.000  0.000  1.000
+    #> pip[Intc, 37]               0.463 0.499          0.004  0.000  0.000  1.000
+    #> pip[Intc, 38]               0.452 0.498          0.004  0.000  0.000  1.000
+    #> pip[Intc, 39]               0.696 0.460          0.009  0.000  1.000  1.000
+    #> pip[Intc, 40]               0.456 0.498          0.004  0.000  0.000  1.000
+    #> pip[Intc, 41]               0.646 0.478          0.009  0.000  1.000  1.000
+    #> pip[Intc, 42]               0.465 0.499          0.004  0.000  0.000  1.000
+    #> pip[Intc, 43]               0.413 0.492          0.004  0.000  0.000  1.000
+    #> pip[Intc, 44]               0.447 0.497          0.004  0.000  0.000  1.000
+    #> pip[Intc, 45]               0.442 0.497          0.004  0.000  0.000  1.000
+    #> pip[Intc, 46]               0.999 0.026          0.000  1.000  1.000  1.000
+    #> pip[Intc, 47]               0.464 0.499          0.004  0.000  0.000  1.000
+    #> pip[Intc, 48]               0.612 0.487          0.004  0.000  1.000  1.000
+    #> pip[Intc, 49]               0.494 0.500          0.005  0.000  0.000  1.000
+    #> pip[Intc, 50]               0.519 0.500          0.004  0.000  1.000  1.000
+    #> pip[Intc, 51]               0.462 0.499          0.004  0.000  0.000  1.000
+    #> pip[Intc, 52]               0.543 0.498          0.004  0.000  1.000  1.000
+    #> pip[Intc, 53]               0.825 0.380          0.005  0.000  1.000  1.000
+    #> pip[Intc, 54]               0.607 0.488          0.004  0.000  1.000  1.000
+    #> pip[Intc, 55]               0.395 0.489          0.004  0.000  0.000  1.000
+    #> pip[Intc, 56]               0.470 0.499          0.004  0.000  0.000  1.000
+    #> pip[Intc, 57]               0.621 0.485          0.004  0.000  1.000  1.000
+    #> pip[Intc, 58]               0.406 0.491          0.004  0.000  0.000  1.000
+    #> pip[Intc, 59]               0.429 0.495          0.004  0.000  0.000  1.000
+    #> pip[Intc, 60]               0.523 0.499          0.004  0.000  1.000  1.000
+    #> pip[Intc, 61]               0.287 0.452          0.005  0.000  0.000  1.000
+    #> pip[Intc, 62]               0.417 0.493          0.004  0.000  0.000  1.000
+    #> pip[Intc, 63]               0.496 0.500          0.004  0.000  0.000  1.000
+    #> pip[Intc, 64]               0.732 0.443          0.004  0.000  1.000  1.000
+    #> pip[Intc, 65]               0.487 0.500          0.004  0.000  0.000  1.000
+    #> pip[Intc, 66]               0.631 0.483          0.004  0.000  1.000  1.000
+    #> pip[Intc, 67]               0.349 0.477          0.004  0.000  0.000  1.000
+    #> pip[Intc, 68]               0.374 0.484          0.005  0.000  0.000  1.000
+    #> pip[Intc, 69]               0.454 0.498          0.004  0.000  0.000  1.000
+    #> pip[Intc, 70]               0.394 0.489          0.005  0.000  0.000  1.000
+    #> pip[Intc, 71]               0.383 0.486          0.004  0.000  0.000  1.000
+    #> pip[Intc, 72]               0.379 0.485          0.004  0.000  0.000  1.000
+    #> pip[Intc, 73]               0.389 0.488          0.006  0.000  0.000  1.000
+    #> pip[Intc, 74]               0.500 0.500          0.004  0.000  1.000  1.000
+    #> pip[Intc, 75]               0.467 0.499          0.004  0.000  0.000  1.000
+    #> pip[Intc, 76]               0.466 0.499          0.004  0.000  0.000  1.000
+    #> pip[Intc, 77]               0.459 0.498          0.004  0.000  0.000  1.000
+    #> pip[Intc, 78]               0.437 0.496          0.004  0.000  0.000  1.000
+    #> pip[Intc, 79]               0.385 0.487          0.004  0.000  0.000  1.000
+    #> pip[Intc, 80]               0.507 0.500          0.004  0.000  1.000  1.000
+    #> pip[Intc, 81]               0.503 0.500          0.004  0.000  1.000  1.000
+    #> pip[Intc, 82]               0.521 0.500          0.004  0.000  1.000  1.000
+    #> pip[Intc, 83]               0.484 0.500          0.004  0.000  0.000  1.000
+    #> pip[Intc, 84]               0.512 0.500          0.004  0.000  1.000  1.000
+    #> pip[Intc, 85]               0.464 0.499          0.004  0.000  0.000  1.000
+    #> pip[Intc, 86]               0.533 0.499          0.004  0.000  1.000  1.000
+    #> pip[Intc, 87]               0.725 0.447          0.006  0.000  1.000  1.000
+    #> pip[Intc, 88]               0.480 0.500          0.004  0.000  0.000  1.000
+    #> pip[Intc, 89]               0.531 0.499          0.004  0.000  1.000  1.000
+    #> pip[Intc, 90]               0.495 0.500          0.004  0.000  0.000  1.000
+    #> pip[Intc, 91]               0.438 0.496          0.004  0.000  0.000  1.000
+    #> pip[Intc, 92]               0.719 0.450          0.005  0.000  1.000  1.000
+    #> pip[Intc, 93]               0.443 0.497          0.004  0.000  0.000  1.000
+    #> pip[Intc, 94]               0.476 0.499          0.004  0.000  0.000  1.000
+    #> pip[Intc, 95]               0.751 0.433          0.004  0.000  1.000  1.000
+    #> pip[Intc, 96]               0.449 0.497          0.004  0.000  0.000  1.000
+    #> pip[Intc, 97]               0.347 0.476          0.004  0.000  0.000  1.000
+    #> pip[Intc, 98]               0.464 0.499          0.004  0.000  0.000  1.000
+    #> pip[Intc, 99]               0.560 0.496          0.004  0.000  1.000  1.000
+    #> pip[Intc, 100]              0.451 0.498          0.004  0.000  0.000  1.000
+    #> pip[Intc, 101]              0.422 0.494          0.004  0.000  0.000  1.000
+    #> pip[Intc, 102]              0.503 0.500          0.005  0.000  1.000  1.000
+    #> pip[Intc, 103]              0.383 0.486          0.004  0.000  0.000  1.000
+    #> pip[Intc, 104]              0.456 0.498          0.004  0.000  0.000  1.000
+    #> pip[Intc, 105]              0.487 0.500          0.004  0.000  0.000  1.000
+    #> pip[Intc, 106]              0.457 0.498          0.005  0.000  0.000  1.000
+    #> pip[Intc, 107]              0.519 0.500          0.004  0.000  1.000  1.000
+    #> pip[Intc, 108]              0.540 0.498          0.006  0.000  1.000  1.000
+    #> pip[Intc, 109]              0.531 0.499          0.004  0.000  1.000  1.000
+    #> pip[Intc, 110]              0.396 0.489          0.004  0.000  0.000  1.000
+    #> pip[Intc, 111]              0.447 0.497          0.005  0.000  0.000  1.000
+    #> pip[Intc, 112]              0.462 0.499          0.005  0.000  0.000  1.000
+    #> pip[Intc, 113]              0.628 0.483          0.004  0.000  1.000  1.000
+    #> pip[Intc, 114]              0.892 0.310          0.003  0.000  1.000  1.000
+    #> pip[Intc, 115]              0.811 0.392          0.005  0.000  1.000  1.000
+    #> pip[Intc, 116]              0.464 0.499          0.005  0.000  0.000  1.000
+    #> pip[Intc, 117]              0.430 0.495          0.004  0.000  0.000  1.000
+    #> pip[Intc, 118]              0.386 0.487          0.004  0.000  0.000  1.000
+    #> pip[Intc, 119]              0.489 0.500          0.004  0.000  0.000  1.000
+    #> pip[Intc, 120]              0.561 0.496          0.004  0.000  1.000  1.000
+    #> pip[Intc, 121]              0.327 0.469          0.004  0.000  0.000  1.000
+    #> pip[Intc, 122]              0.540 0.498          0.008  0.000  1.000  1.000
+    #> pip[Intc, 123]              0.575 0.494          0.004  0.000  1.000  1.000
+    #> pip[Intc, 124]              0.752 0.432          0.004  0.000  1.000  1.000
+    #> pip[Intc, 125]              0.473 0.499          0.004  0.000  0.000  1.000
+    #> pip[Intc, 126]              0.504 0.500          0.004  0.000  1.000  1.000
+    #> pip[Intc, 127]              0.562 0.496          0.004  0.000  1.000  1.000
+    #> pip[Intc, 128]              0.514 0.500          0.004  0.000  1.000  1.000
+    #> pip[Intc, 129]              0.410 0.492          0.004  0.000  0.000  1.000
+    #> pip[Intc, 130]              0.461 0.499          0.004  0.000  0.000  1.000
+    #> pip[Intc, 131]              0.559 0.496          0.004  0.000  1.000  1.000
+    #> pip[Intc, 132]              0.400 0.490          0.004  0.000  0.000  1.000
+    #> pip[Intc, 133]              0.355 0.478          0.004  0.000  0.000  1.000
+    #> pip[Intc, 134]              0.510 0.500          0.004  0.000  1.000  1.000
+    #> pip[Intc, 135]              0.430 0.495          0.004  0.000  0.000  1.000
+    #> pip[Intc, 136]              0.390 0.488          0.004  0.000  0.000  1.000
+    #> pip[Intc, 137]              0.448 0.497          0.004  0.000  0.000  1.000
+    #> pip[Intc, 138]              0.439 0.496          0.004  0.000  0.000  1.000
+    #> pip[Intc, 139]              0.413 0.492          0.004  0.000  0.000  1.000
+    #> pip[Intc, 140]              0.568 0.495          0.004  0.000  1.000  1.000
+    #> pip[Intc, 141]              0.522 0.500          0.004  0.000  1.000  1.000
+    #> pip[Intc, 142]              0.473 0.499          0.004  0.000  0.000  1.000
+    #> pip[Intc, 143]              0.416 0.493          0.004  0.000  0.000  1.000
+    #> pip[Intc, 144]              0.481 0.500          0.004  0.000  0.000  1.000
+    #> pip[Intc, 145]              0.456 0.498          0.004  0.000  0.000  1.000
+    #> pip[Intc, 146]              0.454 0.498          0.004  0.000  0.000  1.000
+    #> pip[Intc, 147]              0.486 0.500          0.004  0.000  0.000  1.000
+    #> pip[Intc, 148]              0.635 0.481          0.004  0.000  1.000  1.000
+    #> pip[Intc, 149]              0.712 0.453          0.004  0.000  1.000  1.000
+    #> pip[Intc, 150]              0.381 0.486          0.005  0.000  0.000  1.000
+    #> pip[Intc, 151]              0.464 0.499          0.004  0.000  0.000  1.000
+    #> pip[Intc, 152]              0.461 0.498          0.004  0.000  0.000  1.000
+    #> pip[Intc, 153]              0.762 0.426          0.004  0.000  1.000  1.000
+    #> pip[Intc, 154]              0.341 0.474          0.005  0.000  0.000  1.000
+    #> pip[Intc, 155]              0.417 0.493          0.004  0.000  0.000  1.000
+    #> pip[Intc, 156]              0.581 0.493          0.004  0.000  1.000  1.000
+    #> pip[Intc, 157]              0.534 0.499          0.004  0.000  1.000  1.000
+    #> pip[Intc, 158]              0.462 0.499          0.004  0.000  0.000  1.000
+    #> pip[Intc, 159]              0.477 0.500          0.004  0.000  0.000  1.000
+    #> pip[Intc, 160]              0.516 0.500          0.004  0.000  1.000  1.000
+    #> scl_Intc                   -0.234 0.008          0.000 -0.251 -0.234 -0.217
+    #> scl_student_ses             0.031 0.009          0.000  0.014  0.031  0.048
+    #> scl_school_ses              0.119 0.035          0.001  0.051  0.119  0.187
+    #> scl_student_ses:school_ses  0.074 0.038          0.001  0.000  0.074  0.148
+    #>                            n_eff R-hat
+    #> R[scl_Intc, Intc]            374 1.007
+    #> Intc                         129 1.008
+    #> student_ses                14605 1.000
+    #> school_ses                    99 1.010
+    #> student_ses:school_ses     18448 1.000
+    #> sd_Intc                      238 1.013
+    #> sd_scl_Intc                  982 1.004
+    #> pip[Intc, 1]               20765 1.000
+    #> pip[Intc, 2]               18405 1.000
+    #> pip[Intc, 3]               15161 1.000
+    #> pip[Intc, 4]               12172 1.000
+    #> pip[Intc, 5]               10662 1.000
+    #> pip[Intc, 6]               17089 1.000
+    #> pip[Intc, 7]               10611 1.000
+    #> pip[Intc, 8]               19464 1.000
+    #> pip[Intc, 9]                6344 1.000
+    #> pip[Intc, 10]              17568 1.000
+    #> pip[Intc, 11]               8090 1.000
+    #> pip[Intc, 12]              12700 1.000
+    #> pip[Intc, 13]              11474 1.000
+    #> pip[Intc, 14]               6403 1.000
+    #> pip[Intc, 15]              20014 1.000
+    #> pip[Intc, 16]              18786 1.000
+    #> pip[Intc, 17]              15541 1.000
+    #> pip[Intc, 18]              15736 1.000
+    #> pip[Intc, 19]               8558 1.000
+    #> pip[Intc, 20]              16595 1.000
+    #> pip[Intc, 21]              11061 1.000
+    #> pip[Intc, 22]              11715 1.000
+    #> pip[Intc, 23]              13495 1.000
+    #> pip[Intc, 24]              19366 1.000
+    #> pip[Intc, 25]              20431 1.000
+    #> pip[Intc, 26]              18187 1.000
+    #> pip[Intc, 27]              18205 1.000
+    #> pip[Intc, 28]              13988 1.001
+    #> pip[Intc, 29]              10100 1.000
+    #> pip[Intc, 30]              10719 1.001
+    #> pip[Intc, 31]              15582 1.000
+    #> pip[Intc, 32]              10759 1.000
+    #> pip[Intc, 33]              14083 1.000
+    #> pip[Intc, 34]              15857 1.000
+    #> pip[Intc, 35]               5180 1.000
+    #> pip[Intc, 36]               2989 1.000
+    #> pip[Intc, 37]              19070 1.000
+    #> pip[Intc, 38]              18754 1.000
+    #> pip[Intc, 39]               1337 1.002
+    #> pip[Intc, 40]              19577 1.000
+    #> pip[Intc, 41]               1791 1.002
+    #> pip[Intc, 42]              13703 1.000
+    #> pip[Intc, 43]              13720 1.001
+    #> pip[Intc, 44]              16137 1.000
+    #> pip[Intc, 45]              17674 1.000
+    #> pip[Intc, 46]              20084 1.000
+    #> pip[Intc, 47]              15416 1.000
+    #> pip[Intc, 48]              10646 1.000
+    #> pip[Intc, 49]               6412 1.000
+    #> pip[Intc, 50]              20387 1.000
+    #> pip[Intc, 51]              16915 1.000
+    #> pip[Intc, 52]              14039 1.000
+    #> pip[Intc, 53]               5074 1.000
+    #> pip[Intc, 54]              13878 1.000
+    #> pip[Intc, 55]              16539 1.000
+    #> pip[Intc, 56]              15420 1.000
+    #> pip[Intc, 57]              14632 1.000
+    #> pip[Intc, 58]              12181 1.000
+    #> pip[Intc, 59]              14098 1.000
+    #> pip[Intc, 60]              12601 1.000
+    #> pip[Intc, 61]               6476 1.001
+    #> pip[Intc, 62]              14000 1.000
+    #> pip[Intc, 63]              16533 1.000
+    #> pip[Intc, 64]               8984 1.000
+    #> pip[Intc, 65]              16346 1.000
+    #> pip[Intc, 66]              12721 1.000
+    #> pip[Intc, 67]              11822 1.000
+    #> pip[Intc, 68]              10532 1.000
+    #> pip[Intc, 69]              18552 1.000
+    #> pip[Intc, 70]               6564 1.000
+    #> pip[Intc, 71]              14363 1.000
+    #> pip[Intc, 72]              12043 1.000
+    #> pip[Intc, 73]               2295 1.001
+    #> pip[Intc, 74]              17685 1.000
+    #> pip[Intc, 75]              21842 1.000
+    #> pip[Intc, 76]              19445 1.000
+    #> pip[Intc, 77]              16291 1.000
+    #> pip[Intc, 78]              18353 1.000
+    #> pip[Intc, 79]              14302 1.000
+    #> pip[Intc, 80]              17135 1.000
+    #> pip[Intc, 81]              13744 1.001
+    #> pip[Intc, 82]              12187 1.000
+    #> pip[Intc, 83]              18013 1.000
+    #> pip[Intc, 84]              18319 1.000
+    #> pip[Intc, 85]              17394 1.000
+    #> pip[Intc, 86]              11812 1.000
+    #> pip[Intc, 87]               4885 1.001
+    #> pip[Intc, 88]              13652 1.000
+    #> pip[Intc, 89]              17243 1.000
+    #> pip[Intc, 90]              21644 1.000
+    #> pip[Intc, 91]              18460 1.000
+    #> pip[Intc, 92]               5759 1.001
+    #> pip[Intc, 93]              18806 1.000
+    #> pip[Intc, 94]              18599 1.000
+    #> pip[Intc, 95]               8758 1.000
+    #> pip[Intc, 96]              16783 1.000
+    #> pip[Intc, 97]              13241 1.000
+    #> pip[Intc, 98]              15741 1.000
+    #> pip[Intc, 99]              13483 1.000
+    #> pip[Intc, 100]             15013 1.000
+    #> pip[Intc, 101]             13821 1.000
+    #> pip[Intc, 102]              8177 1.000
+    #> pip[Intc, 103]             12892 1.000
+    #> pip[Intc, 104]             18178 1.000
+    #> pip[Intc, 105]             18682 1.000
+    #> pip[Intc, 106]              7775 1.000
+    #> pip[Intc, 107]             16361 1.000
+    #> pip[Intc, 108]              4779 1.001
+    #> pip[Intc, 109]             18965 1.000
+    #> pip[Intc, 110]             13428 1.000
+    #> pip[Intc, 111]             11845 1.001
+    #> pip[Intc, 112]             10370 1.000
+    #> pip[Intc, 113]             12008 1.000
+    #> pip[Intc, 114]              6633 1.000
+    #> pip[Intc, 115]              4723 1.001
+    #> pip[Intc, 116]              9682 1.000
+    #> pip[Intc, 117]             16013 1.000
+    #> pip[Intc, 118]             14030 1.000
+    #> pip[Intc, 119]             17817 1.000
+    #> pip[Intc, 120]             17867 1.000
+    #> pip[Intc, 121]             10148 1.000
+    #> pip[Intc, 122]              2372 1.001
+    #> pip[Intc, 123]             18772 1.000
+    #> pip[Intc, 124]              8903 1.000
+    #> pip[Intc, 125]             13669 1.000
+    #> pip[Intc, 126]             15413 1.000
+    #> pip[Intc, 127]             17042 1.000
+    #> pip[Intc, 128]             15961 1.000
+    #> pip[Intc, 129]             14117 1.000
+    #> pip[Intc, 130]             18737 1.000
+    #> pip[Intc, 131]             17722 1.000
+    #> pip[Intc, 132]             16606 1.000
+    #> pip[Intc, 133]             13785 1.000
+    #> pip[Intc, 134]             15188 1.000
+    #> pip[Intc, 135]             13488 1.000
+    #> pip[Intc, 136]             13660 1.000
+    #> pip[Intc, 137]             13759 1.000
+    #> pip[Intc, 138]             15221 1.000
+    #> pip[Intc, 139]             15922 1.000
+    #> pip[Intc, 140]             17327 1.000
+    #> pip[Intc, 141]             18243 1.000
+    #> pip[Intc, 142]             16972 1.000
+    #> pip[Intc, 143]             13522 1.000
+    #> pip[Intc, 144]             19645 1.000
+    #> pip[Intc, 145]              7428 1.000
+    #> pip[Intc, 146]             19512 1.000
+    #> pip[Intc, 147]             18867 1.000
+    #> pip[Intc, 148]             12862 1.000
+    #> pip[Intc, 149]             14604 1.000
+    #> pip[Intc, 150]             11158 1.000
+    #> pip[Intc, 151]             20044 1.000
+    #> pip[Intc, 152]             17979 1.000
+    #> pip[Intc, 153]              9109 1.001
+    #> pip[Intc, 154]              9825 1.000
+    #> pip[Intc, 155]             14810 1.000
+    #> pip[Intc, 156]             13214 1.000
+    #> pip[Intc, 157]             17658 1.000
+    #> pip[Intc, 158]             16066 1.000
+    #> pip[Intc, 159]             14558 1.000
+    #> pip[Intc, 160]             18859 1.000
+    #> scl_Intc                     777 1.003
+    #> scl_student_ses             3519 1.001
+    #> scl_school_ses               815 1.003
+    #> scl_student_ses:school_ses  3404 1.000
     #> 
-    #> WAIC: 27043.51 
-    #> elppd: -13365 
-    #> pWAIC: 156.7514
+    #> WAIC: 27045.06 
+    #> elppd: -13364.85 
+    #> pWAIC: 157.6844
+
+## Extracting estimates
+
+`pip()` returns the posterior inclusion probabilities as a plain data
+frame, one row per school and scale random effect, ready for further
+processing:
+
+    head(pip(out))
+    #>     scale_var cluster_index cluster_id     pip       u_mean       u_sd
+    #> 1 (Intercept)             1          1 0.46245 -0.018826194 0.04848226
+    #> 2 (Intercept)             2          2 0.48830 -0.008655035 0.03800933
+    #> 3 (Intercept)             3          3 0.45730  0.007382731 0.03178920
+    #> 4 (Intercept)             4          4 0.48055  0.011827067 0.03734019
+    #> 5 (Intercept)             5          5 0.52515 -0.019156138 0.04094284
+    #> 6 (Intercept)             6          6 0.42295 -0.012751469 0.03507899
+
+Fixed and random effects are available through the usual accessors:
+
+    fixef(out)
+    #>                (Intercept)                student_ses 
+    #>                 0.12915529                 0.08160147 
+    #>                 school_ses     student_ses:school_ses 
+    #>                 0.67579793                -0.02284366 
+    #>            scl_(Intercept)            scl_student_ses 
+    #>                -0.23404500                 0.03112850 
+    #>             scl_school_ses scl_student_ses:school_ses 
+    #>                 0.11903442                 0.07434945
+
+    head(ranef(out))
+    #>    (Intercept) scl_(Intercept)
+    #> 1  0.256085174    -0.018826194
+    #> 2  0.043759611    -0.008655035
+    #> 3 -0.007273998     0.007382731
+    #> 4  0.029942592     0.011827067
+    #> 5  0.014027889    -0.019156138
+    #> 6  0.219024550    -0.012751469
+
+Grouping IDs do not need to form a consecutive integer index: character
+or factor IDs and non-consecutive numeric codes (e.g. official school
+codes) are recoded internally, and `summary()`, `plot()` and `pip()` can
+report results in terms of the original IDs (`labels = "original"`).
+
+## Prior sensitivity
+
+The PIPs depend on the prior inclusion probability (`ss_prior_p`, 0.5 by
+default). `pip_sensitivity()` re-computes them analytically for a range
+of priors – without refitting – by converting the posterior odds into
+prior-independent Bayes factors:
+
+    sens <- pip_sensitivity(out)
+    plot(sens)
+
+<img src="man/figures/README-unnamed-chunk-9-1.png" alt="" width="100%" />
+
+Schools whose classification at the 0.75 threshold flips within a
+plausible perturbation of the fitted prior (halving to doubling its
+odds, by default) are highlighted; robust schools are grey. Individual
+schools can be singled out:
+
+    pips <- pip(out)
+    top <- pips[order(pips$pip, decreasing = TRUE), ][1:3, ]
+    plot(sens, clusters = top$cluster_id)
+
+<img src="man/figures/README-unnamed-chunk-10-1.png" alt="" width="100%" />
 
 ## Plots
 
@@ -423,29 +531,29 @@ readily interpreted as Bayes Factors.
 
     plot(out, type = "pip")
 
-<img src="man/figures/README-unnamed-chunk-5-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-11-1.png" alt="" width="100%" />
 
 ### PIP vs. Within-cluster SD
 
     plot(out, type =  "funnel")
 
-<img src="man/figures/README-unnamed-chunk-6-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-12-1.png" alt="" width="100%" />
 
 ### PIP vs. math achievement
 
     plot(out, type =  "outcome")
 
-<img src="man/figures/README-unnamed-chunk-7-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-13-1.png" alt="" width="100%" />
 
 ### Diagnostic plots based on coda plots:
 
     codaplot(out, parameters =  "Intc")
 
-<img src="man/figures/README-unnamed-chunk-9-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-15-1.png" alt="" width="100%" />
 
     codaplot(out, parameters =  "R[scl_Intc, Intc]")
 
-<img src="man/figures/README-unnamed-chunk-9-2.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-15-2.png" alt="" width="100%" />
 
 ## Acknowledgment
 
@@ -456,6 +564,11 @@ to PR. The content is solely the responsibility of the authors and does
 not necessarily represent the official views of the funding agency.
 
 ## References
+
+Carmo, M., Williams, D. R., & Rast, P. (2026). Beyond average scores:
+Identification of consistent and inconsistent academic achievement in
+grouping units. *Journal of Educational and Behavioral Statistics*.
+<https://doi.org/10.3102/10769986261426004>
 
 Rodriguez, J. E., Williams, D. R., & Rast, P. (2024). Who is and is not"
 average’"? Random effects selection with spike-and-slab priors.

@@ -15,19 +15,17 @@ Authors@R:
 	email = "mmcarmo@ucdavis.edu")
 	)
 Maintainer: Philippe Rast <rast.ph@gmail.com>
-Description: Fit mixed-effects location scale models with spike-and-slab priors on the location random effects to identify units with unusual residual variances. The method is described in detail in Carmo, Williams and Rast (2025) <https://osf.io/sh6ne>.
+Description: Fit mixed-effects location scale models with spike-and-slab priors on the scale random effects to identify units with unusual residual variances. The method is described in detail in Carmo, Williams and Rast (2026) <doi:10.3102/10769986261426004>.
 License: GPL (>=3)
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
 Imports:
     nimble (>= 1.1.0),
     coda (>= 0.19.4),
     ggplot2,
     patchwork,
     future,
-    future.apply,
     utils,
     rstan,
     ggrepel
@@ -37,3 +35,4 @@ Config/testthat/edition: 3
 BugReports: https://github.com/consistentlyBetter/ivd/issues
 Depends:
     R (>= 4.0.0)
+Config/roxygen2/version: 8.0.0

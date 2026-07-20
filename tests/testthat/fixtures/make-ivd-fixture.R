@@ -41,9 +41,9 @@ fit <- suppressWarnings(
     nburnin = 200,
     WAIC    = TRUE,
     workers = 2,
-    ## "stan" (rstan::monitor) avoids a crash in the "local" n_eff path on
-    ## short chains, where an autocorrelation that never crosses zero makes
-    ## min() return Inf and `1:position` overflow. See ivd.R n_eff block.
+    ## "stan" (rstan::monitor) keeps the fixture deterministic; the "local"
+    ## path (whose short-chain crash is fixed, see .geyer_truncate) is
+    ## covered by unit tests and the end-to-end default-args test instead.
     n_eff   = "stan"
   )
 )

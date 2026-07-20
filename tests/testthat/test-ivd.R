@@ -101,19 +101,147 @@ test_that("ivd sets up and runs with correct defaults and inputs", {
     ## `# nocov` does not help -- it only filters the tally, not the injection.
     skip_if(Sys.getenv("R_COVR") == "true", "covr instrumentation breaks nimbleCode model building")
 
-    ## n_eff = "stan" avoids the crash in the "local" path on short chains
-    ## (min() over an empty set -> Inf -> `1:Inf`); see ivd.R n_eff block.
+    ## n_eff = "local" (the default) on short chains is a regression test for
+    ## the Geyer-truncation crash (min() over an empty set -> Inf -> `1:Inf`);
+    ## .geyer_truncate() now falls back to the last available lag instead.
     testoutput <- suppressWarnings({
         ivd(
             location_formula = Y ~ 1 + (1 | grouping),
             scale_formula = ~ 1 + (1 | grouping),
             data = data.frame(Y = rnorm(100), grouping = rep(1:10, each = 10)),
-            niter = 100, nburnin = 50, WAIC = TRUE, workers = 2, n_eff = "stan"
+            niter = 100, nburnin = 50, WAIC = TRUE, workers = 2, n_eff = "local"
         )
     })
     expect_s3_class(testoutput, "ivd")
     expect_equal(length(testoutput$samples), 2) # Assuming workers = 2
     expect_equal(testoutput$workers, 2)
+    expect_true(any(is.finite(testoutput$n_eff)))
+})
+
+test_that("ivd monitors neither mu nor tau, and omits logLik, by default (memory)", {
+    ## A+B+D: the per-observation O(N x iterations) nodes mu and tau are not
+    ## monitored and logLik_array is opt-in, so none of that storage is kept.
+    skip_if(Sys.getenv("R_COVR") == "true", "covr instrumentation breaks nimbleCode model building")
+
+    out <- suppressWarnings(ivd(
+        location_formula = Y ~ 1 + (1 | grouping),
+        scale_formula = ~ 1 + (1 | grouping),
+        data = data.frame(Y = rnorm(100), grouping = rep(1:10, each = 10)),
+        niter = 100, nburnin = 50, WAIC = TRUE, workers = 2, n_eff = "stan"
+    ))
+    cn <- colnames(out$samples[[1]]$samples)
+    expect_false(any(grepl("^tau\\[", cn)))   # tau no longer stored
+    expect_false(any(grepl("^mu\\[", cn)))    # mu no longer stored (reconstructed)
+    expect_null(out$logLik_array)             # opt-in, off by default
+
+    ## Location design matrices are retained for mu reconstruction.
+    expect_false(is.null(out$X))
+    expect_false(is.null(out$Z))
+
+    ## Diagnostics are full-length and aligned with the stored columns.
+    expect_equal(length(out$rhat_values), length(cn))
+    expect_equal(length(out$n_eff), length(cn))
+
+    ## summary() and the outcome plot must work without monitored mu/tau.
+    expect_no_error(suppressWarnings(summary(out)))
+    expect_s3_class(suppressWarnings(plot(out, type = "outcome", label_points = FALSE)), "ggplot")
+})
+
+test_that("ivd fits with character grouping IDs and stores group_labels", {
+    skip_if(Sys.getenv("R_COVR") == "true", "covr instrumentation breaks nimbleCode model building")
+
+    schools <- sprintf("school_%02d", 1:10)
+    out <- suppressWarnings(ivd(
+        location_formula = Y ~ 1 + (1 | grouping),
+        scale_formula = ~ 1 + (1 | grouping),
+        data = data.frame(Y = rnorm(100), grouping = rep(schools, each = 10)),
+        niter = 100, nburnin = 50, WAIC = TRUE, workers = 2, n_eff = "stan"
+    ))
+    expect_s3_class(out, "ivd")
+    expect_equal(out$group_labels, schools)
+    expect_equal(sort(unique(out$Y$group_id)), 1:10)
+    ## schema fields added for print()/pip_sensitivity()
+    expect_equal(out$ss_prior_p, 0.5)
+    expect_equal(out$location_formula, Y ~ 1 + (1 | grouping))
+
+    ## labels flow through to the user-facing output
+    res <- suppressWarnings(summary(out, pip = "pip", labels = "original"))
+    expect_true(all(grepl("school_\\d{2}\\]$", rownames(res$table))))
+    p <- suppressWarnings(plot(out, type = "pip", labels = "original",
+                               label_points = FALSE))
+    expect_equal(p$data$label, schools[p$data$id])
+})
+
+test_that("ivd returns logLik and monitors tau when return_logLik = TRUE", {
+    skip_if(Sys.getenv("R_COVR") == "true", "covr instrumentation breaks nimbleCode model building")
+
+    out <- suppressWarnings(ivd(
+        location_formula = Y ~ 1 + (1 | grouping),
+        scale_formula = ~ 1 + (1 | grouping),
+        data = data.frame(Y = rnorm(100), grouping = rep(1:10, each = 10)),
+        niter = 100, nburnin = 50, WAIC = TRUE, workers = 2, n_eff = "stan",
+        return_logLik = TRUE
+    ))
+    cn <- colnames(out$samples[[1]]$samples)
+    expect_true(any(grepl("^tau\\[", cn)))
+    expect_false(is.null(out$logLik_array))
+    expect_equal(dim(out$logLik_array)[3], 100) # N observations
+})
+
+test_that("ivd thins stored iterations", {
+    skip_if(Sys.getenv("R_COVR") == "true", "covr instrumentation breaks nimbleCode model building")
+
+    out <- suppressWarnings(ivd(
+        location_formula = Y ~ 1 + (1 | grouping),
+        scale_formula = ~ 1 + (1 | grouping),
+        data = data.frame(Y = rnorm(100), grouping = rep(1:10, each = 10)),
+        niter = 100, nburnin = 50, WAIC = TRUE, workers = 2, n_eff = "stan",
+        thin = 5
+    ))
+    ## 100 post-burnin iterations / thin 5 = 20 stored draws
+    expect_equal(nrow(out$samples[[1]]$samples), 20)
+})
+
+test_that("ivd(seed = ...) is reproducible without an external set.seed()", {
+    skip_if(Sys.getenv("R_COVR") == "true", "covr instrumentation breaks nimbleCode model building")
+
+    ## Same data, no set.seed() around the calls: the internal `seed` must make
+    ## the inits and per-chain MCMC seeds reproducible on its own.
+    d <- data.frame(Y = rnorm(80), grouping = rep(1:8, each = 10))
+    fit <- function() suppressWarnings(ivd(
+        location_formula = Y ~ 1 + (1 | grouping),
+        scale_formula = ~ 1 + (1 | grouping),
+        data = d, niter = 60, nburnin = 30, workers = 2,
+        n_eff = "stan", seed = 99, progress = FALSE
+    ))
+    a <- fit()
+    b <- fit()
+    sa <- do.call(rbind, lapply(a$samples, function(ch) ch$samples))
+    sb <- do.call(rbind, lapply(b$samples, function(ch) ch$samples))
+    expect_identical(sa, sb)
+})
+
+test_that("ivd(progress = TRUE) shows a progress line and quiets NIMBLE chatter", {
+    skip_if(Sys.getenv("R_COVR") == "true", "covr instrumentation breaks nimbleCode model building")
+
+    out <- NULL
+    stdout_lines <- capture.output(
+        out <- suppressWarnings(ivd(
+            location_formula = Y ~ 1 + (1 | grouping),
+            scale_formula = ~ 1 + (1 | grouping),
+            data = data.frame(Y = rnorm(80), grouping = rep(1:8, each = 10)),
+            niter = 60, nburnin = 30, WAIC = TRUE, workers = 2,
+            n_eff = "stan", progress = TRUE
+        )),
+        type = "output"
+    )
+    expect_s3_class(out, "ivd")
+
+    joined <- paste(stdout_lines, collapse = "\n")
+    expect_true(grepl("chains", joined))               # live progress line rendered
+    ## NIMBLE's buffered per-worker output is suppressed under progress = TRUE
+    expect_false(grepl("Defining model", joined))
+    expect_false(grepl("Compiling", joined))
 })
 
 test_that("ivd handles missing formulas", {
